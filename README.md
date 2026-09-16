@@ -1,3 +1,5 @@
+<img src="src/main/resources/assets/mcskincreator/icon.png" width="96" align="right" alt="MC Skin Creator">
+
 # MC Skin Creator - Minecraft mod
 
 Fabric client mod that brings the [MC Skin Creator](https://github.com/MC-Skin-Creator)
