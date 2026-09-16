@@ -1,0 +1,148 @@
+name: release
+
+# Merging is what cuts a release: main produces a stable one, develop a
+# pre-release. Tags are created here rather than being the trigger.
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Exact version to release, e.g. 1.0.0. Leave empty to derive it from the commits.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        # Full history and tags: the version is derived from the commits since the
+        # last stable tag.
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Work out the version
+        id: version
+        env:
+          MANUAL_VERSION: ${{ inputs.version }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.ref_name }}" = 'develop' ]; then
+            # Every merge into develop gets a build, even one carrying no
+            # release-worthy commit. The -dev. suffix sorts below the release it
+            # previews, which is exactly what it is.
+            base=$(.github/scripts/next-version.sh --min-patch)
+            version="${base}-dev.${RUN_NUMBER}"
+            channel=dev
+          elif [ -n "$MANUAL_VERSION" ]; then
+            # The manual path exists for the versions no commit message should
+            # decide on its own - 1.0.0 above all.
+            version="$MANUAL_VERSION"
+            channel=stable
+          else
+            version=$(.github/scripts/next-version.sh)
+            channel=stable
+          fi
+
+          if [ -z "$version" ]; then
+            echo 'No commit since the last tag earns a release. Nothing to do.'
+            echo 'release=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if git rev-parse -q --verify "refs/tags/v${version}" >/dev/null; then
+            echo "v${version} already exists. Nothing to do."
+            echo 'release=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Releasing v${version} (${channel})"
+          {
+            echo 'release=true'
+            echo "version=${version}"
+            echo "channel=${channel}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up JDKs
+        if: steps.version.outputs.release == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: |
+            25
+            21
+
+      - name: Set up Gradle
+        if: steps.version.outputs.release == 'true'
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Stamp the version
+        if: steps.version.outputs.release == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          # stonecutter.properties.toml is the single source of the mod version, and
+          # it wins over -P properties on the command line - verified, not assumed.
+          sed -i "s/^mod\.version = .*/mod.version = \"${VERSION}\"/" stonecutter.properties.toml
+          grep '^mod.version' stonecutter.properties.toml
+
+      - name: Build every Minecraft target
+        if: steps.version.outputs.release == 'true'
+        run: >-
+          ./gradlew buildAndCollect --stacktrace
+          -Porg.gradle.java.installations.fromEnv=JAVA_HOME_21_X64,JAVA_HOME_25_X64
+
+      - name: Record the version on main
+        # Only stable releases write the number back, so the file on main always
+        # states the version that was actually released. A push made with
+        # GITHUB_TOKEN does not start another workflow run, so this cannot loop.
+        if: steps.version.outputs.release == 'true' && steps.version.outputs.channel == 'stable'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add stonecutter.properties.toml
+          git commit -m "chore: release v${VERSION}"
+          git tag "v${VERSION}"
+          git push origin HEAD:"${{ github.ref_name }}"
+          git push origin "v${VERSION}"
+
+      - name: Publish the release
+        if: steps.version.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          CHANNEL: ${{ steps.version.outputs.channel }}
+        run: |
+          set -euo pipefail
+
+          args=(--generate-notes --title "v${VERSION}")
+
+          if [ "$CHANNEL" = 'dev' ]; then
+            # Marked as a pre-release so it never displays as the latest version.
+            args+=(--prerelease --target "${{ github.sha }}")
+
+            # Generate the notes from the last stable release, so a dev build lists
+            # what it adds over the last thing that shipped rather than over the
+            # previous dev build. Skipped while no stable release exists: passing an
+            # empty --notes-start-tag fails the command.
+            last_stable=$(git tag --list 'v*' --sort=-v:refname | grep -v -- '-dev\.' | head -n 1)
+            if [ -n "$last_stable" ]; then
+              args+=(--notes-start-tag "$last_stable")
+            fi
+          fi
+
+          gh release create "v${VERSION}" "${args[@]}" build/libs/"${VERSION}"/*.jar

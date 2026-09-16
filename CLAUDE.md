@@ -9,8 +9,10 @@ commit messages, pull request descriptions. Do not write French into the
 repository. User-facing strings are the exception and are translated through
 `assets/mcskincreator/lang/` — never hardcode a display string in the code.
 
-Commit messages are short and imperative. Do not add AI attribution lines
-(`Co-Authored-By`, session links) to commits or pull requests.
+Commit subjects follow **conventional commits**: `type(scope): summary`, still
+short, imperative and in English. The type is not decoration — it decides the next
+released version number, see **Versioning and releases**. Do not add AI attribution
+lines (`Co-Authored-By`, session links) to commits or pull requests.
 
 ## What this is
 
@@ -182,19 +184,90 @@ to `main`, `develop`, `feature/**` and on every pull request, with `fail-fast:
 false` so one broken version does not mask another. Each job uploads its own jar.
 No secret is declared.
 
-## Releases
+## Branch model
 
-Mod version and Minecraft version are separate. The mod version lives in
-`stonecutter.properties.toml` (`mod.version`); the Minecraft version comes from the
-target. Artifacts are named:
+Trimmed Git Flow. Git branches track **work**; Stonecutter tracks **Minecraft
+compatibility**. The two are orthogonal, and a branch never represents a game
+version.
+
+```
+feature/*  fix/*  ──►  develop  ──►  main
+                          │            │
+                     pre-release    release
+                    v0.2.0-dev.7     v0.2.0
+```
+
+- `main` — stable only. The default branch. A push here can cut a release.
+- `develop` — integration. Every push produces a pre-release build.
+- `feature/*`, `fix/*` — where work happens. Pull requests target `develop`.
+- `release/*` and `hotfix/*` do not exist yet. They stabilise a version while
+  development continues elsewhere, which is not yet a problem this project has.
+
+After a stable release, merge `main` back into `develop` so it picks up the version
+bump commit.
+
+## Versioning and releases
+
+Semantic versioning, with one rule on top: **the Minecraft version never touches
+the mod version.** Supporting a new game version is not a mod release; compatibility
+is carried by the artifact name. Mod version and Minecraft version are independent
+numbers that happen to appear next to each other.
+
+### How the number is decided
+
+`.github/scripts/next-version.sh` derives it from the conventional-commit subjects
+since the last stable tag. Run it locally to see what the next release would be.
+
+| Commits since the last stable tag | Result |
+|---|---|
+| `feat!:` or a `BREAKING CHANGE:` footer | minor while below 1.0.0, major above |
+| `feat:` | minor |
+| `fix:`, `perf:` | patch |
+| only `docs`, `chore`, `ci`, `refactor`, `test`, `build` | **no release at all** |
+
+Below `1.0.0` a breaking change bumps the minor: there is no major to bump yet.
+**`1.0.0` is never computed.** It is cut by hand, through the release workflow's
+`workflow_dispatch` input, when the mod actually edits and applies a skin — the V1
+described in the issues. Everything before that stays `0.x`.
+
+### What the workflows do
+
+`.github/workflows/release.yml`, on every push:
+
+| Branch | Version | Result |
+|---|---|---|
+| `main` | derived from the commits | tag `vX.Y.Z`, GitHub release, every target's jar attached, `mod.version` committed back to `main` |
+| `develop` | next version + `-dev.<run number>` | GitHub **pre-release**, jars attached, nothing committed |
+
+A merge into `main` whose commits earn nothing produces no release and no noise.
+A merge into `develop` always produces a build, so there is always a permanent link
+to the latest state — `-dev.` builds are previews and are not tested.
+
+`-dev.7` sorts below the `X.Y.Z` it previews, which is what it is: a preview of the
+next release, not a patch on the last one.
+
+`.github/workflows/build.yml` is unrelated to releases: it is the per-target matrix
+that checks pull requests and pushes.
+
+### Things worth knowing before touching this
+
+- **`stonecutter.properties.toml` wins over `-P` properties.** `-Pmod.version=…`
+  is silently ignored — verified, not assumed. The release workflow rewrites that
+  one line in the runner's working copy before building. Do not replace that with a
+  command-line property.
+- The version commit is pushed with `GITHUB_TOKEN`, and GitHub does not start a new
+  workflow run for such a push, so the release workflow cannot loop.
+- Every jar of a release comes from **one commit**: one source tree, one version,
+  one jar per supported Minecraft version.
+
+### Artifact naming
 
 ```
 mcskincreator-<mod version>+mc<minecraft version>.jar
 ```
 
-e.g. `mcskincreator-0.1.0+mc1.21.11.jar` and `mcskincreator-0.1.0+mc26.2.jar`. A
-Minecraft compatibility update is not a mod version bump. One commit produces the
-jars for every supported version.
+e.g. `mcskincreator-0.1.0+mc1.21.11.jar`, `mcskincreator-0.1.0+mc26.2.jar`, and for
+a development build `mcskincreator-0.2.0-dev.7+mc1.21.11.jar`.
 
-Publishing to Modrinth/CurseForge is not set up; building and publishing are
+Publishing to Modrinth/CurseForge is still not set up; building and publishing are
 separate concerns (see issue #15).

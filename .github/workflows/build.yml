@@ -6,6 +6,7 @@ on:
       - main
       - develop
       - 'feature/**'
+      - 'fix/**'
   pull_request:
 
 # No secret is needed to build the mod, so none is granted here.

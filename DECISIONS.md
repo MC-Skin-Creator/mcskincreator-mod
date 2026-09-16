@@ -82,3 +82,27 @@ update is not a version bump.
 The entry point is **client only** (`"environment": "client"` in `fabric.mod.json`):
 there is no server side to this mod, and declaring one would only make it refuse to
 load on servers for no reason.
+
+## 6. Versioning, branches and releases
+
+Semantic versioning, and **the Minecraft version is never part of the mod
+version**. They answer different questions: the mod version says what the mod
+does, the `+mc…` suffix says which game it was built against. Adding a game
+version is not a release of the mod.
+
+The number is derived from conventional-commit subjects since the last stable tag
+by `.github/scripts/next-version.sh`. Below `1.0.0`, a breaking change bumps the
+minor — there is no major to bump. **`1.0.0` is cut by hand**, when the mod
+actually edits and applies a skin, and never by a commit message.
+
+Branches follow a trimmed Git Flow: `main` is stable, `develop` integrates,
+`feature/*` and `fix/*` do the work. `release/*` and `hotfix/*` are deliberately
+absent until there is a shipped version worth hotfixing. This is orthogonal to
+Stonecutter: Git branches track work, Stonecutter tracks game compatibility, and
+no branch ever stands for a Minecraft version.
+
+Releases are cut **on merge**, not from a hand-pushed tag: pushing to `main`
+produces a release, pushing to `develop` produces a pre-release, and the workflow
+creates the tag itself. This differs from the original wording of issue #15, which
+assumed a tag as the trigger; the outcome it asked for — one artifact set per
+release, no superfluous secret — is unchanged.

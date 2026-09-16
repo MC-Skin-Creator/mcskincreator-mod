@@ -34,9 +34,13 @@ the [issues](https://github.com/MC-Skin-Creator/mcskincreator-mod/issues).
 
 Drop the jar matching your Minecraft version into `.minecraft/mods/`.
 
-No release is published yet. Grab the jar from the **Actions** tab of this
-repository: open the latest `build` run and download the artifact for your
-version (`mcskincreator-mc1.21.11-…` or `mcskincreator-mc26.2.x-…`).
+Builds are published on the [releases](https://github.com/MC-Skin-Creator/mcskincreator-mod/releases)
+page, one jar per supported Minecraft version:
+
+- **releases** (`v0.2.0`) are cut from `main` and are the ones to use;
+- **pre-releases** (`v0.2.0-dev.7`) are cut from `develop` on every merge. They are
+  previews of the next release, built but not tested. Use them to try something
+  early, not to play.
 
 You know the mod is loaded when the log prints `MC Skin Creator 0.1.0 loaded` and
 the title screen shows the **Skin Creator** button in its bottom-left corner.
@@ -55,7 +59,9 @@ target on its own.
 ./gradlew buildAndCollect  # all versions, jars collected in build/libs/<mod version>/
 ```
 
-Jars are named `mcskincreator-<mod version>+mc<minecraft version>.jar`.
+Jars are named `mcskincreator-<mod version>+mc<minecraft version>.jar`. The mod
+version and the Minecraft version are independent: supporting a new game version is
+not a new version of the mod.
 
 Supported versions and their dependencies are declared in
 [`stonecutter.properties.toml`](stonecutter.properties.toml) — the only file to
