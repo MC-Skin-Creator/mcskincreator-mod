@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "${id}",
+  "version": "${version}",
+  "name": "${name}",
+  "description": "Build and edit your Minecraft skin from inside the game.",
+  "authors": [
+    "clixmods"
+  ],
+  "contact": {
+    "homepage": "https://github.com/MC-Skin-Creator",
+    "sources": "https://github.com/MC-Skin-Creator/mcskincreator-mod",
+    "issues": "https://github.com/MC-Skin-Creator/mcskincreator-mod/issues"
+  },
+  "license": "LicenseRef-Proprietary-SourceAvailable",
+  "icon": "assets/mcskincreator/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "fr.clixmods.mcsc.mod.MCSkinCreatorClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=${loader}",
+    "minecraft": "${minecraft}",
+    "java": ">=${java}",
+    "fabric-api": "*"
+  }
+}
