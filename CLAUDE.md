@@ -179,10 +179,12 @@ uses. Add modules there as they become necessary.
 
 ## CI
 
-`.github/workflows/build.yml` runs **one job per Stonecutter target** on every push
-to `main`, `develop`, `feature/**` and on every pull request, with `fail-fast:
-false` so one broken version does not mask another. Each job uploads its own jar.
-No secret is declared.
+`.github/workflows/build.yml` runs **one job per Stonecutter target** on every pull
+request and on pushes to `feature/**` and `fix/**`, with `fail-fast: false` so one
+broken version does not mask another. It is a compile check and **produces no
+artifact**: jars only ever come from releases. It deliberately does not run on
+`main` or `develop`, where `release.yml` compiles the same commit anyway. No secret
+is declared.
 
 ## Branch model
 
@@ -247,7 +249,7 @@ to the latest state — `-dev.` builds are previews and are not tested.
 next release, not a patch on the last one.
 
 `.github/workflows/build.yml` is unrelated to releases: it is the per-target matrix
-that checks pull requests and pushes.
+that checks pull requests and work branches, and it produces nothing.
 
 ### Things worth knowing before touching this
 

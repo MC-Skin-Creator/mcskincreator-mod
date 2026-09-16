@@ -1,16 +1,17 @@
 name: build
 
+# main and develop are deliberately absent: the release workflow compiles every
+# target on those branches seconds later, on the same commit. A compile check is
+# worth running where it can still stop something - before a merge.
 on:
   push:
     branches:
-      - main
-      - develop
       - 'feature/**'
       - 'fix/**'
   pull_request:
 
-# No secret is needed to build the mod, so none is granted here.
-# Publishing tokens will be added with the release workflow, not before.
+# Compiles every Minecraft target and produces nothing: jars come from releases.
+# No secret is needed, so none is granted.
 permissions:
   contents: read
 
@@ -50,12 +51,3 @@ jobs:
         run: >-
           ./gradlew ":${{ matrix.minecraft }}:build" --stacktrace
           -Porg.gradle.java.installations.fromEnv=JAVA_HOME_21_X64,JAVA_HOME_25_X64
-
-      - name: Upload mod jar
-        uses: actions/upload-artifact@v4
-        with:
-          name: mcskincreator-mc${{ matrix.minecraft }}-${{ github.sha }}
-          path: |
-            versions/${{ matrix.minecraft }}/build/libs/*.jar
-            !versions/${{ matrix.minecraft }}/build/libs/*-sources.jar
-          if-no-files-found: error

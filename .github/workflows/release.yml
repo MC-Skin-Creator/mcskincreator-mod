@@ -139,7 +139,9 @@ jobs:
             # what it adds over the last thing that shipped rather than over the
             # previous dev build. Skipped while no stable release exists: passing an
             # empty --notes-start-tag fails the command.
-            last_stable=$(git tag --list 'v*' --sort=-v:refname | grep -v -- '-dev\.' | head -n 1)
+            # || true because grep exits 1 when there is no tag at all, and under
+            # pipefail that would kill the step before gh is ever reached.
+            last_stable=$(git tag --list 'v*' --sort=-v:refname | grep -v -- '-dev\.' | head -n 1 || true)
             if [ -n "$last_stable" ]; then
               args+=(--notes-start-tag "$last_stable")
             fi
