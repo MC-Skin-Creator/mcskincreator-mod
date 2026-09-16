@@ -87,9 +87,10 @@ public class SkinCreatorScreen extends Screen implements ElementLibrary.Listener
     private final ElementLibrary library = new ElementLibrary(this, this.sprites::get);
 
     private Button modelButton;
-    /** Where a status line is centred: over the model, clear of the library panel. */
-    private int statusCenterX;
-    private int statusY;
+    /** The column a status line wraps in: over the model, clear of the library panel. */
+    private int statusX;
+    private int statusWidth;
+    private int statusBottom;
     private Component status = Component.empty();
     private boolean loadingCatalog;
     private boolean closed;
@@ -112,7 +113,11 @@ public class SkinCreatorScreen extends Screen implements ElementLibrary.Listener
 
     @Override
     protected void init() {
-        int panelWidth = Math.min(ElementLibrary.preferredWidth(), Math.max(60, this.width / 2 - MARGIN));
+        // A third of the window for the library, the rest for the model. The panel
+        // rounds that down to whole slot columns and holds itself within bounds, so a
+        // wide window gets more thumbnails across rather than a strip of background.
+        int panelWidth = Math.min(ElementLibrary.preferredWidth(this.width / 3),
+                Math.max(MARGIN, this.width - MARGIN * 2));
         int contentTop = TITLE_Y + this.font.lineHeight + MARGIN;
         int buttonRowTop = this.height - MARGIN - BUTTON_HEIGHT;
         int contentHeight = Math.max(0, buttonRowTop - MARGIN - contentTop);
@@ -134,8 +139,11 @@ public class SkinCreatorScreen extends Screen implements ElementLibrary.Listener
             this.addRenderableWidget(model);
         }
 
-        this.statusCenterX = previewLeft + previewSpace / 2;
-        this.statusY = buttonRowTop - MARGIN - this.font.lineHeight;
+        // The status line lives over the model, and wraps within that column: these
+        // messages are sentences, and one of them is longer than a narrow column.
+        this.statusWidth = Math.max(1, previewSpace);
+        this.statusX = previewLeft;
+        this.statusBottom = buttonRowTop - MARGIN;
 
         int buttonsWidth = Math.min(BUTTON_WIDTH * 2 + MARGIN, Math.max(120, previewSpace));
         int buttonWidth = (buttonsWidth - MARGIN) / 2;
@@ -189,7 +197,11 @@ public class SkinCreatorScreen extends Screen implements ElementLibrary.Listener
                 Component.translatable("library.mcskincreator.thumbnails"));
 
         if (!this.status.getString().isEmpty()) {
-            painter.centeredText(this.status, this.statusCenterX, this.statusY, STATUS_COLOR);
+            // Grown upwards from the button row, so a message that takes two lines does
+            // not end up underneath the buttons.
+            painter.wrappedText(this.status, this.statusX,
+                    this.statusBottom - ElementLibrary.wrappedHeight(this.status, this.statusWidth),
+                    this.statusWidth, STATUS_COLOR);
         }
     }
 

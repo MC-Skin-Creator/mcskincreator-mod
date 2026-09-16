@@ -48,6 +48,10 @@ final class Painter {
     void centeredText(Component text, int centerX, int y, int color) {
         this.graphics.centeredText(this.font, text, centerX, y, color);
     }
+
+    void wrappedText(Component text, int x, int y, int lineWidth, int color) {
+        this.graphics.textWithWordWrap(this.font, text, x, y, lineWidth, color);
+    }
     *///?} else {
     private final GuiGraphics graphics;
 
@@ -62,6 +66,14 @@ final class Painter {
 
     void centeredText(Component text, int centerX, int y, int color) {
         this.graphics.drawCenteredString(this.font, text, centerX, y, color);
+    }
+
+    /**
+     * Draws {@code text} broken onto as many lines as it needs to stay within
+     * {@code lineWidth}, left-aligned from {@code x}.
+     */
+    void wrappedText(Component text, int x, int y, int lineWidth, int color) {
+        this.graphics.drawWordWrap(this.font, text, x, y, lineWidth, color);
     }
     //?}
 

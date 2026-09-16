@@ -55,6 +55,8 @@ final class ElementLibrary {
     private static final int THUMBNAIL_SLOT_WIDTH = FrontSprite.WIDTH + 4;
     private static final int THUMBNAIL_SLOT_HEIGHT = FrontSprite.HEIGHT + 4;
     private static final int SCROLLBAR_WIDTH = 3;
+    private static final int MIN_COLUMNS = 2;
+    private static final int MAX_COLUMNS = 6;
     private static final int SCROLL_STEP = THUMBNAIL_SLOT_HEIGHT / 2;
     /** Enough for the head and shoulders of a thumbnail, which is what an icon shows. */
     private static final int ICON_SOURCE_HEIGHT = 16;
@@ -182,9 +184,19 @@ final class ElementLibrary {
         this.clampScroll();
     }
 
-    /** The width the panel wants: four thumbnails across, plus its own margins. */
-    static int preferredWidth() {
-        return (THUMBNAIL_SLOT_WIDTH + GAP) * 4 - GAP + GAP * 2 + SCROLLBAR_WIDTH + GAP;
+    /**
+     * The widest panel that fits in {@code available} while holding whole slot
+     * columns, between {@value #MIN_COLUMNS} and {@value #MAX_COLUMNS} of them.
+     *
+     * <p>Rounded to whole columns because a panel wider than its columns is a strip of
+     * unused background down the side, and bounded because a fixed width is a narrow
+     * column on a wide window while more columns than this is a wall of thumbnails.
+     */
+    static int preferredWidth(int available) {
+        int forSlots = available - GAP * 2 - SCROLLBAR_WIDTH - GAP;
+        int columns = Math.clamp((forSlots + GAP) / (THUMBNAIL_SLOT_WIDTH + GAP),
+                MIN_COLUMNS, MAX_COLUMNS);
+        return (THUMBNAIL_SLOT_WIDTH + GAP) * columns - GAP + SCROLLBAR_WIDTH + GAP + GAP * 2;
     }
 
     /**
@@ -199,8 +211,10 @@ final class ElementLibrary {
                 PANEL_BORDER);
 
         if (this.regions.isEmpty()) {
-            painter.centeredText(noCatalog, this.panel.x() + this.panel.width() / 2,
-                    this.panel.y() + this.panel.height() / 2, LABEL_DIM);
+            int width = Math.max(1, this.panel.width() - GAP * 2);
+            painter.wrappedText(noCatalog, this.panel.x() + GAP,
+                    this.panel.y() + Math.max(GAP, (this.panel.height() - wrappedHeight(noCatalog, width)) / 2),
+                    width, LABEL_DIM);
             return;
         }
 
@@ -264,10 +278,11 @@ final class ElementLibrary {
 
         CategorySprites loaded = this.sprites.apply(category);
         if (loaded == null) {
-            painter.centeredText(noThumbnails,
-                    this.viewport.x() + this.viewport.width() / 2,
-                    this.viewport.y() + Math.max(0, this.viewport.height() / 2 - lineHeight() / 2),
-                    LABEL_DIM);
+            painter.wrappedText(noThumbnails, this.viewport.x(),
+                    this.viewport.y()
+                            + Math.max(0, (this.viewport.height()
+                                    - wrappedHeight(noThumbnails, this.viewport.width())) / 2),
+                    this.viewport.width(), LABEL_DIM);
             return;
         }
 
@@ -313,7 +328,8 @@ final class ElementLibrary {
                 ? name(hoveredItem.name())
                 : selectedItemLabel(category);
         if (label != null) {
-            painter.text(label, this.labelLine.x(), this.labelLine.y(),
+            painter.text(ellipsize(label, this.labelLine.width()),
+                    this.labelLine.x(), this.labelLine.y(),
                     hoveredItem != null ? LABEL : LABEL_DIM);
         }
         if (hoveredItem != null) {
@@ -467,6 +483,27 @@ final class ElementLibrary {
 
     private static int textWidth(Component text) {
         return Minecraft.getInstance().font.width(text);
+    }
+
+    /** How tall {@code text} is once broken to {@code width}. */
+    static int wrappedHeight(Component text, int width) {
+        return Math.max(1, Minecraft.getInstance().font.split(text, Math.max(1, width)).size())
+                * lineHeight();
+    }
+
+    /**
+     * {@code text} cut to {@code width} with an ellipsis, for the one line that has to
+     * stay one line. An element's name comes from the catalogue, so its length is not
+     * the mod's to decide and a long one would otherwise run past the panel.
+     */
+    private static Component ellipsize(Component text, int width) {
+        if (textWidth(text) <= width) {
+            return text;
+        }
+        String ellipsis = "…";
+        int room = Math.max(0, width - textWidth(Component.literal(ellipsis)));
+        return Component.literal(
+                Minecraft.getInstance().font.plainSubstrByWidth(text.getString(), room) + ellipsis);
     }
 
     private static int lineHeight() {
