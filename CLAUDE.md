@@ -37,7 +37,8 @@ why the whole project is on Mojang mappings.
 src/main/java/fr/clixmods/mcsc/mod/
 ├── MCSkinCreatorClient.java   ClientModInitializer: logs on load, registers the menu buttons
 └── ui/
-    ├── MenuButtons.java       adds the button to TitleScreen and PauseScreen via ScreenEvents.AFTER_INIT
+    ├── MenuButtons.java       hooks TitleScreen and PauseScreen via ScreenEvents.AFTER_INIT
+    ├── SkinPanel.java         the right-hand panel: player name, player model, button
     ├── SkinCreatorScreen.java the editor screen (placeholder content for now)
     └── ScreenCompat.java      the only home for cross-version call renames
 ```

@@ -1,5 +1,6 @@
 {
   "menu.mcskincreator.open": "Skin Creator",
+  "gui.mcskincreator.skin_preview": "Tu skin",
   "screen.mcskincreator.title": "Skin Creator",
   "screen.mcskincreator.placeholder": "El editor de skins todavía no existe. Esta pantalla demuestra que el mod está cargado.",
   "gui.mcskincreator.close": "Cerrar"
