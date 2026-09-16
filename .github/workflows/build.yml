@@ -15,31 +15,46 @@ permissions:
 
 jobs:
   build:
+    # One job per Stonecutter target: a version that stops compiling fails the run
+    # on its own line instead of hiding behind whichever version happens to be active.
+    strategy:
+      fail-fast: false
+      matrix:
+        minecraft:
+          - '1.21.11'
+          - '26.2.x'
+
+    name: build ${{ matrix.minecraft }}
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Set up JDKs
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          # Minecraft 1.21.11 runs on Java 21. This has to match the toolchain
-          # pinned in build.gradle.
-          java-version: '21'
+          # Both are needed: Minecraft 1.21.11 runs on Java 21, 26.x on Java 25.
+          # The last entry becomes JAVA_HOME and so runs Gradle itself.
+          java-version: |
+            25
+            21
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build
-        run: ./gradlew build --stacktrace
+        # Points Gradle at the JDK installed above rather than downloading another one.
+        run: >-
+          ./gradlew ":${{ matrix.minecraft }}:build" --stacktrace
+          -Porg.gradle.java.installations.fromEnv=JAVA_HOME_21_X64,JAVA_HOME_25_X64
 
       - name: Upload mod jar
         uses: actions/upload-artifact@v4
         with:
-          name: mcskincreator-${{ github.sha }}
+          name: mcskincreator-mc${{ matrix.minecraft }}-${{ github.sha }}
           path: |
-            build/libs/*.jar
-            !build/libs/*-sources.jar
+            versions/${{ matrix.minecraft }}/build/libs/*.jar
+            !versions/${{ matrix.minecraft }}/build/libs/*-sources.jar
           if-no-files-found: error

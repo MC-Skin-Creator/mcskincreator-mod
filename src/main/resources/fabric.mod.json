@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "id": "mcskincreator",
+  "id": "${id}",
   "version": "${version}",
-  "name": "MC Skin Creator",
+  "name": "${name}",
   "description": "Build and edit your Minecraft skin from inside the game.",
   "authors": [
     "clixmods"
@@ -21,9 +21,9 @@
     ]
   },
   "depends": {
-    "fabricloader": ">=${loader_version}",
-    "minecraft": "~${minecraft_version}",
-    "java": ">=21",
+    "fabricloader": ">=${loader}",
+    "minecraft": "${minecraft}",
+    "java": ">=${java}",
     "fabric-api": "*"
   }
 }

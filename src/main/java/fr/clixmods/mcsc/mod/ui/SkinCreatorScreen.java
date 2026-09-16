@@ -7,10 +7,14 @@
  */
 package fr.clixmods.mcsc.mod.ui;
 
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.text.Text;
+//? if >=26.1 {
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;
+*///?} else {
+import net.minecraft.client.gui.GuiGraphics;
+//?}
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
 
 /**
  * The skin editor screen.
@@ -29,35 +33,49 @@ public class SkinCreatorScreen extends Screen {
     private final Screen parent;
 
     public SkinCreatorScreen(Screen parent) {
-        super(Text.translatable("screen.mcskincreator.title"));
+        super(Component.translatable("screen.mcskincreator.title"));
         this.parent = parent;
     }
 
     @Override
     protected void init() {
-        this.addDrawableChild(ButtonWidget
-                .builder(Text.translatable("gui.mcskincreator.close"), ignored -> this.close())
-                .dimensions((this.width - BUTTON_WIDTH) / 2, this.height - 32, BUTTON_WIDTH, BUTTON_HEIGHT)
+        this.addRenderableWidget(Button
+                .builder(Component.translatable("gui.mcskincreator.close"), ignored -> this.onClose())
+                .bounds((this.width - BUTTON_WIDTH) / 2, this.height - 32, BUTTON_WIDTH, BUTTON_HEIGHT)
                 .build());
     }
 
-    @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        super.render(context, mouseX, mouseY, delta);
+    // 26.x replaced immediate-mode screen drawing with a render-state extraction
+    // pass: the hook, its parameter type and the text call all changed. The two
+    // variants below are the whole difference - what they draw is identical.
+    //? if >=26.1 {
+    /*@Override
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+        super.extractRenderState(graphics, mouseX, mouseY, delta);
 
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title,
+        graphics.centeredText(this.font, this.title,
                 this.width / 2, TITLE_Y, TITLE_COLOR);
-        context.drawCenteredTextWithShadow(this.textRenderer,
-                Text.translatable("screen.mcskincreator.placeholder"),
+        graphics.centeredText(this.font, Component.translatable("screen.mcskincreator.placeholder"),
                 this.width / 2, this.height / 2, PLACEHOLDER_COLOR);
     }
+    *///?} else {
+    @Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
+        super.render(graphics, mouseX, mouseY, delta);
+
+        graphics.drawCenteredString(this.font, this.title,
+                this.width / 2, TITLE_Y, TITLE_COLOR);
+        graphics.drawCenteredString(this.font, Component.translatable("screen.mcskincreator.placeholder"),
+                this.width / 2, this.height / 2, PLACEHOLDER_COLOR);
+    }
+    //?}
 
     @Override
-    public void close() {
+    public void onClose() {
         // Hand control back to whichever menu opened us, so Escape behaves the way
         // the player expects from a vanilla sub-screen.
-        if (this.client != null) {
-            this.client.setScreen(this.parent);
+        if (this.minecraft != null) {
+            ScreenCompat.setScreen(this.minecraft, this.parent);
         }
     }
 }

@@ -8,11 +8,10 @@
 package fr.clixmods.mcsc.mod.ui;
 
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
-import net.fabricmc.fabric.api.client.screen.v1.Screens;
-import net.minecraft.client.gui.screen.GameMenuScreen;
-import net.minecraft.client.gui.screen.TitleScreen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.PauseScreen;
+import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.network.chat.Component;
 
 /** Adds the "Skin Creator" entry to the title screen and to the pause menu. */
 public final class MenuButtons {
@@ -25,7 +24,7 @@ public final class MenuButtons {
 
     public static void register() {
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
-            if (!(screen instanceof TitleScreen) && !(screen instanceof GameMenuScreen)) {
+            if (!(screen instanceof TitleScreen) && !(screen instanceof PauseScreen)) {
                 return;
             }
 
@@ -34,13 +33,13 @@ public final class MenuButtons {
             // GUI scale. Sitting in the bottom-left corner is the one spot that
             // cannot collide with them. To be revisited once the screen earns a
             // place of its own in the menu.
-            ButtonWidget button = ButtonWidget
-                    .builder(Text.translatable("menu.mcskincreator.open"),
-                            ignored -> client.setScreen(new SkinCreatorScreen(screen)))
-                    .dimensions(MARGIN, scaledHeight - BUTTON_HEIGHT - MARGIN, BUTTON_WIDTH, BUTTON_HEIGHT)
+            Button button = Button
+                    .builder(Component.translatable("menu.mcskincreator.open"),
+                            ignored -> ScreenCompat.setScreen(client, new SkinCreatorScreen(screen)))
+                    .bounds(MARGIN, scaledHeight - BUTTON_HEIGHT - MARGIN, BUTTON_WIDTH, BUTTON_HEIGHT)
                     .build();
 
-            Screens.getButtons(screen).add(button);
+            ScreenCompat.widgets(screen).add(button);
         });
     }
 }

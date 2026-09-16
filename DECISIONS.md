@@ -24,25 +24,35 @@ GUI plus network calls. NeoForge brings an ecosystem this mod does not need.
 Architectury / multi-loader doubles the build complexity for a mod with no users
 yet, so not at the start.
 
-## 3. Game version: 1.21.11
+## 3. Game versions: 1.21.11 and 26.2, through Stonecutter
 
-Pinned to a single version.
+The mod is **not** pinned to a single version any more. [Stonecutter](https://stonecutter.kikugie.dev/)
+compiles one shared source tree against several Minecraft versions, so Git branches
+keep tracking work (`main`, `feature/*`) while Stonecutter tracks game
+compatibility. Adding a version is a table in a TOML file, not a branch.
 
 | Piece | Version | Why |
 |---|---|---|
-| Minecraft | `1.21.11` | Pinned target |
-| Yarn mappings | `1.21.11+build.6` | Last Yarn build available (see the warning below) |
+| Minecraft | `1.21.11`, `26.2` | Active target is 1.21.11, the version being tested in-game |
+| Mappings | Official Mojang | See below |
 | Fabric Loader | `0.19.3` | Lowest version the mod is built and declared against |
-| Fabric API | `0.141.6+1.21.11` | Latest build for this game version |
-| Fabric Loom | `1.17.21` | Loom `1.18.x` requires a Java 25 JVM, because it targets the 26.x game versions |
-| Gradle | `9.7.1` | Loom `1.17.21` declares a Gradle 9 plugin API; Gradle 8.x cannot resolve it |
-| Java | `21` | What Minecraft 1.21.11 runs on |
+| Fabric API | `0.141.6+1.21.11`, `0.160.0+26.2` | Latest per target |
+| Stonecutter | `0.9.8` | Current release |
+| Loom | `1.17-SNAPSHOT` via `loom-back-compat` | See below |
+| Gradle | `9.7.1` | Required by the Loom plugin line |
+| Java | `21` on 1.21.11, `25` on 26.2 | Mojang's requirement per version |
 
-**Yarn is a dead end past 1.21.11.** Mappings stop there: from game version 26.1
-onwards there is no Yarn build at all, and those versions require Java 25. Moving
-to a 26.x version therefore means three changes at once — official Mojang mappings
-instead of Yarn (every `net.minecraft.*` import gets renamed), Java 25, and Loom
-1.18.x. Worth planning for, not worth paying for today.
+**Yarn was dropped for official Mojang mappings.** Yarn has no build past
+1.21.11 — nothing for 26.1 and later — so a shared source tree spanning both
+generations cannot use it. Every API the mod uses was checked to have a direct
+Mojang equivalent before the switch; nothing was lost. This also matches what the
+official Stonecutter Fabric template does.
+
+**Loom is selected per version by `dev.kikugie.loom-back-compat`.** Minecraft
+below 26 is obfuscated and needs `fabric-loom-remap`; 26 and later ship
+unobfuscated and use `fabric-loom`. The `1.17` line is pinned deliberately: the
+1.18 line refuses to run on anything below a Java 25 JVM, which would impose Java
+25 on the 1.21.11 target as well.
 
 ## 4. License: proprietary, source-available
 
@@ -64,6 +74,10 @@ wants to audit it.
 | Java package | `fr.clixmods.mcsc.mod` |
 | Display name | MC Skin Creator |
 | Jar base name | `mcskincreator` |
+
+Artifacts are named `mcskincreator-<mod version>+mc<minecraft version>.jar`: the
+mod version and the Minecraft version are different things and a compatibility
+update is not a version bump.
 
 The entry point is **client only** (`"environment": "client"` in `fabric.mod.json`):
 there is no server side to this mod, and declaring one would only make it refuse to
