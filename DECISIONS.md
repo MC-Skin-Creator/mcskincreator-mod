@@ -32,7 +32,7 @@ Pinned to a single version.
 |---|---|---|
 | Minecraft | `1.21.11` | Pinned target |
 | Yarn mappings | `1.21.11+build.6` | Last Yarn build available (see the warning below) |
-| Fabric Loader | `0.19.5` | Current stable |
+| Fabric Loader | `0.19.3` | Lowest version the mod is built and declared against |
 | Fabric API | `0.141.6+1.21.11` | Latest build for this game version |
 | Fabric Loom | `1.17.21` | Loom `1.18.x` requires a Java 25 JVM, because it targets the 26.x game versions |
 | Gradle | `9.7.1` | Loom `1.17.21` declares a Gradle 9 plugin API; Gradle 8.x cannot resolve it |

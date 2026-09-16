@@ -25,7 +25,7 @@ the [issues](https://github.com/MC-Skin-Creator/mcskincreator-mod/issues).
 ## Install
 
 1. Minecraft **1.21.11**
-2. [Fabric Loader](https://fabricmc.net/use/installer/) **0.19.5** or newer
+2. [Fabric Loader](https://fabricmc.net/use/installer/) **0.19.3** or newer
 3. [Fabric API](https://modrinth.com/mod/fabric-api) **0.141.6+1.21.11**
 4. drop the mod jar into `.minecraft/mods/`
 
