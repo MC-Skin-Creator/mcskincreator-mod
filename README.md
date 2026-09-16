@@ -5,25 +5,38 @@
 Fabric client mod that brings the [MC Skin Creator](https://github.com/MC-Skin-Creator)
 skin editor into the game.
 
-## Status: first version
+## Status: read-only editor
 
-This version does one thing, and does it on purpose: it proves the whole chain
-works - the mod builds for several Minecraft versions from one source tree, the
-repository packages the jars on its own, the game loads the mod, and the mod can
-open a screen.
+The editor browses the library and shows what you pick on a player model. It does
+not edit or apply a skin yet: nothing you do in it leaves the screen.
 
 What is in:
 
-- a **Skin Creator** button in the title screen and in the pause menu
-- a screen that opens, closes with Escape and returns to the menu it came from
+- a **Skin Creator** panel on the right of the title screen and the pause menu
+- the **element library**: regions, the categories of a region as a row of icons,
+  and that category's elements as scrolling inventory slots, named in your language
+- a **player model preview** that turns under the mouse and follows the classic or
+  slim model
 - English, French and Spanish translations
 - multi-version builds through [Stonecutter](https://stonecutter.kikugie.dev/):
   **Minecraft 1.21.11 and 26.2** from the same code
 - CI building every supported version on each push and pull request
 
-What is not in yet: the editor itself. The element library, the layer panel, the
-colour controls, the player preview, the account and the skin upload all live in
-the [issues](https://github.com/MC-Skin-Creator/mcskincreator-mod/issues).
+What is not in yet: stacking layers, colours and HSL, the account, and applying the
+skin. They all live in the
+[issues](https://github.com/MC-Skin-Creator/mcskincreator-mod/issues).
+
+The editor reads the MC Skin Creator API, so it needs to reach it. Point the mod at
+another deployment - a local back-end, say - with a system property or an
+environment variable, whichever is easier to set where you launch the game:
+
+```sh
+-Dmcskincreator.api=http://localhost:3000/api/v1
+MCSKINCREATOR_API=http://localhost:3000/api/v1
+```
+
+Neither is needed to play: without them the mod uses the public API. A server it
+cannot reach leaves the library empty and says so on the screen.
 
 ## Install
 
@@ -43,7 +56,7 @@ page, one jar per supported Minecraft version:
   early, not to play.
 
 You know the mod is loaded when the log prints `MC Skin Creator 0.1.0 loaded` and
-the title screen shows the **Skin Creator** button in its bottom-left corner.
+the title screen shows the **Skin Creator** panel against its right edge.
 
 > The 1.21.11 jar is the one that has been exercised in a real game. The 26.2 jar
 > compiles and carries the right metadata, but has not been run yet.

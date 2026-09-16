@@ -2,6 +2,15 @@
   "menu.mcskincreator.open": "Skin Creator",
   "gui.mcskincreator.skin_preview": "Votre skin",
   "screen.mcskincreator.title": "Skin Creator",
-  "screen.mcskincreator.placeholder": "L'éditeur de skin n'est pas encore écrit. Cet écran prouve que le mod est chargé.",
-  "gui.mcskincreator.close": "Fermer"
+  "gui.mcskincreator.close": "Fermer",
+  "gui.mcskincreator.model.wide": "Modèle classique",
+  "gui.mcskincreator.model.slim": "Modèle fin",
+  "library.mcskincreator.loading": "Chargement de la bibliothèque…",
+  "library.mcskincreator.empty": "La bibliothèque est vide.",
+  "library.mcskincreator.unreachable": "MC Skin Creator est injoignable.",
+  "library.mcskincreator.thumbnails": "Chargement des éléments…",
+  "library.mcskincreator.thumbnails_failed": "Les éléments de cette catégorie n'ont pas pu être chargés.",
+  "library.mcskincreator.thumbnails_stale": "Cette catégorie a changé. Rouvrez l'éditeur.",
+  "library.mcskincreator.region.all": "Éléments",
+  "preview.mcskincreator.compose_failed": "L'aperçu montre cet élément seul : le serveur ne l'a pas composé."
 }

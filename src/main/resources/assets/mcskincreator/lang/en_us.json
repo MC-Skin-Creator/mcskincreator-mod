@@ -2,6 +2,15 @@
   "menu.mcskincreator.open": "Skin Creator",
   "gui.mcskincreator.skin_preview": "Your skin",
   "screen.mcskincreator.title": "Skin Creator",
-  "screen.mcskincreator.placeholder": "The skin editor is not built yet. This screen proves the mod loads.",
-  "gui.mcskincreator.close": "Close"
+  "gui.mcskincreator.close": "Close",
+  "gui.mcskincreator.model.wide": "Classic model",
+  "gui.mcskincreator.model.slim": "Slim model",
+  "library.mcskincreator.loading": "Loading the library…",
+  "library.mcskincreator.empty": "The library is empty.",
+  "library.mcskincreator.unreachable": "MC Skin Creator could not be reached.",
+  "library.mcskincreator.thumbnails": "Loading the elements…",
+  "library.mcskincreator.thumbnails_failed": "The elements of this category could not be loaded.",
+  "library.mcskincreator.thumbnails_stale": "This category has changed. Reopen the editor.",
+  "library.mcskincreator.region.all": "Elements",
+  "preview.mcskincreator.compose_failed": "The preview shows this element on its own: the server did not compose it."
 }
