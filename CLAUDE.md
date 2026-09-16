@@ -201,10 +201,18 @@ feature/*  fix/*  ──►  develop  ──►  main
 ```
 
 - `main` — stable only. The default branch. A push here can cut a release.
-- `develop` — integration. Every push produces a pre-release build.
+- `develop` — integration. Every push produces a pre-release build, except a
+  doc-only one.
 - `feature/*`, `fix/*` — where work happens. Pull requests target `develop`.
 - `release/*` and `hotfix/*` do not exist yet. They stabilise a version while
   development continues elsewhere, which is not yet a problem this project has.
+
+**Never commit or push directly to `main` or `develop`, and never merge a pull
+request into either.** All work, including work done by an AI agent, happens on
+a `feature/*` or `fix/*` branch and ends with an open pull request targeting
+`develop` (`main` only for a hotfix). Opening the pull request is the end of the
+task — merging is a human decision, made after review, every time, no matter how
+small the change or how green the CI.
 
 After a stable release, merge `main` back into `develop` so it picks up the version
 bump commit.
@@ -235,7 +243,8 @@ described in the issues. Everything before that stays `0.x`.
 
 ### What the workflows do
 
-`.github/workflows/release.yml`, on every push:
+`.github/workflows/release.yml`, on every push except a doc-only one (`paths-ignore`
+skips `**.md` and `LICENSE`):
 
 | Branch | Version | Result |
 |---|---|---|

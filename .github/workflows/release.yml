@@ -1,12 +1,17 @@
 name: release
 
 # Merging is what cuts a release: main produces a stable one, develop a
-# pre-release. Tags are created here rather than being the trigger.
+# pre-release. Tags are created here rather than being the trigger. Doc-only
+# changes are excluded: develop builds unconditionally otherwise, and a jar
+# carries no doc content worth a pre-release.
 on:
   push:
     branches:
       - main
       - develop
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
   workflow_dispatch:
     inputs:
       version:
