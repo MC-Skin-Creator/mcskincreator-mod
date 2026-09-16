@@ -206,6 +206,13 @@ feature/*  fix/*  ──►  develop  ──►  main
 - `release/*` and `hotfix/*` do not exist yet. They stabilise a version while
   development continues elsewhere, which is not yet a problem this project has.
 
+**Never commit or push directly to `main` or `develop`, and never merge a pull
+request into either.** All work, including work done by an AI agent, happens on
+a `feature/*` or `fix/*` branch and ends with an open pull request targeting
+`develop` (`main` only for a hotfix). Opening the pull request is the end of the
+task — merging is a human decision, made after review, every time, no matter how
+small the change or how green the CI.
+
 After a stable release, merge `main` back into `develop` so it picks up the version
 bump commit.
 
