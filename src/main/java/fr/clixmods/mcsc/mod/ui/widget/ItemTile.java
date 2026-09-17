@@ -28,18 +28,13 @@ import net.minecraft.network.chat.Component;
  * An element of the catalogue, in an inventory slot: the most used brick of the whole
  * interface.
  *
- * <p>Two marks can appear on it and they take opposite corners on purpose. Already in
- * the stack is a small green square, top right. Where it came from is an "i", top
- * left, and only while the tile is pointed at or focused — and it swallows its own
- * click, because asking where something came from must not also add it to the stack.
- * Stacking two marks in one corner hides one of them, which the site did once.
+ * <p>An element already in the stack keeps the frame the game lays over a slot, so
+ * "this one is in play" is said the way the game says it rather than with a badge of
+ * the mod's own. Where the element came from is on the right button, which is where
+ * the game puts a second action — the site uses a little "i" that appears on hover,
+ * and a mark that is only sometimes there is a mark that is sometimes missed.
  */
 public class ItemTile extends Element {
-    /** The green "already used" mark, 7 site pixels square. */
-    private static final int USED_MARK = Metrics.ui(7);
-    /** The provenance mark, 15 site pixels square. */
-    private static final int INFO_MARK = Metrics.ui(15);
-
     private final CatalogCategory category;
     private final CatalogItem item;
     private final Component label;
@@ -82,7 +77,7 @@ public class ItemTile extends Element {
 
     /** The height a tile needs: its render area, its label, and the padding around both. */
     public static int heightFor(Canvas canvas, int renderHeight) {
-        return Metrics.OUTLINE * 2 + Metrics.PAD_TIGHT * 2 + renderHeight + canvas.lineHeight();
+        return Metrics.SLOT_INSET * 2 + Metrics.PAD_TIGHT + renderHeight + canvas.lineHeight();
     }
 
     @Override
@@ -100,14 +95,13 @@ public class ItemTile extends Element {
             this.onHover.accept(hot ? this : null);
         }
 
-        Surface.slot(canvas, this.x, this.y, this.width, this.height,
-                hot ? Palette.SLOT_HOVER : Palette.SLOT);
+        Surface.slot(canvas, this.x, this.y, this.width, this.height);
 
-        int inset = Metrics.OUTLINE + Metrics.PAD_TIGHT;
+        int inset = Metrics.SLOT_INSET;
         int boxX = this.x + inset;
         int boxY = this.y + inset;
         int boxWidth = this.width - inset * 2;
-        int boxHeight = this.height - inset * 2 - canvas.lineHeight();
+        int boxHeight = this.height - inset * 2 - Metrics.PAD_TIGHT - canvas.lineHeight();
 
         // The checker says "transparent here", so an element with holes does not read
         // as an element with black in it.
@@ -117,44 +111,25 @@ public class ItemTile extends Element {
 
         int labelY = boxY + boxHeight + Metrics.PAD_TIGHT;
         this.marquee.draw(paint, this.label, boxX, labelY, boxWidth,
-                hot ? Palette.GOLD : Palette.INK_DIM, hot);
+                hot ? Palette.INK_HOVERED : Palette.INK_MUTED, hot);
 
-        if (this.used.test(this.item)) {
-            int markX = this.x + this.width - Metrics.OUTLINE - USED_MARK - 1;
-            int markY = this.y + Metrics.OUTLINE + 1;
-            canvas.fill(markX - 1, markY - 1, USED_MARK + 2, USED_MARK + 2, Palette.OUTLINE);
-            canvas.fill(markX, markY, USED_MARK, USED_MARK, Palette.GREEN_LIGHT);
+        if (hot || this.used.test(this.item)) {
+            Surface.slotHighlight(canvas, this.x, this.y, this.width, this.height);
         }
-
-        if (hot) {
-            int[] mark = infoBounds();
-            canvas.fill(mark[0], mark[1], mark[2], mark[3], Palette.OUTLINE);
-            canvas.fill(mark[0] + 1, mark[1] + 1, mark[2] - 2, mark[3] - 2, Palette.PANEL_SUB);
-            canvas.textCentered(Component.literal("i"), mark[0] + mark[2] / 2,
-                    mark[1] + (mark[3] - canvas.lineHeight()) / 2 + 1, Palette.GOLD);
-        }
-    }
-
-    private int[] infoBounds() {
-        return new int[] {
-            this.x + Metrics.OUTLINE + 1, this.y + Metrics.OUTLINE + 1, INFO_MARK, INFO_MARK,
-        };
     }
 
     @Override
     public boolean mouseDown(double mouseX, double mouseY, int button) {
-        if (button != 0 || !contains(mouseX, mouseY)) {
+        if (!contains(mouseX, mouseY)) {
             return false;
         }
-        int[] mark = infoBounds();
-        if (mouseX >= mark[0] && mouseX < mark[0] + mark[2]
-                && mouseY >= mark[1] && mouseY < mark[1] + mark[3]) {
-            // The provenance mark stops the click. Without this, asking where an
-            // element came from would also stack it.
+        if (button == 1) {
+            // The right button asks where the element came from. Keeping it off the
+            // left one is the point: asking must never also stack the element.
             this.onInfo.accept(this);
             return true;
         }
-        return activate();
+        return button == 0 && activate();
     }
 
     @Override
@@ -165,6 +140,6 @@ public class ItemTile extends Element {
 
     @Override
     public List<Component> tooltip() {
-        return List.of(this.label);
+        return List.of(this.label, Component.translatable("gui.mcskincreator.provenance_hint"));
     }
 }

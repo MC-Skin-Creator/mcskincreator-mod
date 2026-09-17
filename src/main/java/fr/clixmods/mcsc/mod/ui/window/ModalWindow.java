@@ -28,6 +28,10 @@ import net.minecraft.network.chat.Component;
  * closing should bring back: shutting the provenance sheet opened from the templates
  * list returns to the list rather than to a bare screen.
  *
+ * <p>The frame is the panel the game puts behind its own pop-ups, and the cross is
+ * the game's close button. What is the mod's own is the arrangement — header, body,
+ * footer with the accepting action last — which is the site's.
+ *
  * <p>Closing by clicking the backdrop only counts when the gesture <em>started</em> on
  * the backdrop. Otherwise selecting text in a field and letting go outside the window
  * closes it and throws the typing away, which is the kind of loss nobody reports as a
@@ -155,8 +159,8 @@ public abstract class ModalWindow {
     public void layout(Canvas canvas, int screenWidth, int screenHeight, Runnable close) {
         clearChildren();
 
-        int headerHeight = canvas.lineHeight() + Metrics.PAD * 2;
-        int footerHeight = Metrics.BUTTON_HEIGHT + Metrics.PAD * 2;
+        int headerHeight = canvas.lineHeight() + Metrics.PANEL_INSET + Metrics.PAD;
+        int footerHeight = Metrics.BUTTON_HEIGHT + Metrics.PAD;
         List<PixelButton> footer = footer(canvas, close);
         if (footer.isEmpty()) {
             footerHeight = Metrics.PAD;
@@ -173,24 +177,27 @@ public abstract class ModalWindow {
         this.bodyHeight = this.height - headerHeight - footerHeight - Metrics.PAD_TIGHT;
         this.scroll.setContent(contentHeight(canvas), this.bodyHeight);
 
-        this.closeButton = new PixelButton(Component.literal("x"), PixelButton.Style.GHOST, close);
+        this.closeButton = new PixelButton(Component.empty(), PixelButton.Style.CROSS, close);
         this.closeButton.fit(canvas);
         this.closeButton.withTooltip(Component.translatable("gui.mcskincreator.close.tooltip"));
-        this.closeButton.setBounds(this.x + this.width - Metrics.PAD - this.closeButton.width(),
-                this.y + (headerHeight - Metrics.BUTTON_HEIGHT) / 2,
-                this.closeButton.width(), Metrics.BUTTON_HEIGHT);
+        this.closeButton.setBounds(
+                this.x + this.width - Metrics.PANEL_INSET - this.closeButton.width(),
+                this.y + (headerHeight - this.closeButton.height()) / 2,
+                this.closeButton.width(), this.closeButton.height());
         addChild(this.closeButton);
 
-        int left = this.x + Metrics.PAD;
-        layoutBody(canvas, left, this.bodyTop - this.scroll.offset(), this.width - Metrics.PAD * 2);
+        int left = this.x + Metrics.PANEL_INSET;
+        layoutBody(canvas, left, this.bodyTop - this.scroll.offset(),
+                this.width - Metrics.PANEL_INSET * 2);
 
-        int cursorX = this.x + this.width - Metrics.PAD;
+        int cursorX = this.x + this.width - Metrics.PANEL_INSET;
         List<PixelButton> reversed = new ArrayList<>(footer);
         java.util.Collections.reverse(reversed);
         for (PixelButton button : reversed) {
             button.fit(canvas);
             cursorX -= button.width();
-            button.setBounds(cursorX, this.y + this.height - Metrics.PAD - Metrics.BUTTON_HEIGHT,
+            button.setBounds(cursorX,
+                    this.y + this.height - Metrics.PANEL_INSET - Metrics.BUTTON_HEIGHT,
                     button.width(), Metrics.BUTTON_HEIGHT);
             addChild(button);
             cursorX -= Metrics.PAD_TIGHT;
@@ -202,24 +209,24 @@ public abstract class ModalWindow {
         canvas.fill(0, 0, screenWidth, screenHeight, Palette.BACKDROP);
         Surface.window(canvas, this.x, this.y, this.width, this.height);
 
-        int headerHeight = canvas.lineHeight() + Metrics.PAD * 2;
-        Surface.flat(canvas, this.x + Metrics.OUTLINE, this.y + Metrics.OUTLINE,
-                this.width - Metrics.OUTLINE * 2, headerHeight - Metrics.OUTLINE, Palette.PANEL_HEADER);
+        int headerHeight = canvas.lineHeight() + Metrics.PANEL_INSET + Metrics.PAD;
         String title = Component.translatable(this.titleKey).getString().toUpperCase(Locale.ROOT);
-        canvas.textTracked(title, this.x + Metrics.PAD,
-                this.y + (headerHeight - canvas.lineHeight()) / 2,
+        canvas.textTracked(title, this.x + Metrics.PANEL_INSET, this.y + Metrics.PANEL_INSET,
                 Palette.INK, Metrics.TITLE_TRACKING);
+        Surface.rule(canvas, this.x + Metrics.PANEL_INSET, this.y + headerHeight - Metrics.PAD_TIGHT,
+                this.width - Metrics.PANEL_INSET * 2);
 
         canvas.pushScissor(this.x, this.bodyTop, this.width, this.bodyHeight);
-        drawBody(paint, this.x + Metrics.PAD, this.bodyTop - this.scroll.offset(),
-                this.width - Metrics.PAD * 2);
+        drawBody(paint, this.x + Metrics.PANEL_INSET, this.bodyTop - this.scroll.offset(),
+                this.width - Metrics.PANEL_INSET * 2);
         for (Element child : this.body) {
             if (inBody(child)) {
                 child.draw(paint);
             }
         }
         canvas.popScissor();
-        this.scroll.drawBar(canvas, this.x + this.width - Metrics.OUTLINE, this.bodyTop, this.bodyHeight);
+        this.scroll.drawBar(canvas, this.x + this.width - Metrics.PANEL_INSET,
+                this.bodyTop, this.bodyHeight);
 
         for (Element child : this.chrome) {
             child.draw(paint);

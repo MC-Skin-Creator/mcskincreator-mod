@@ -31,9 +31,7 @@ import fr.clixmods.mcsc.mod.skin.CategorySprites;
 import fr.clixmods.mcsc.mod.skin.PreviewSkin;
 import fr.clixmods.mcsc.mod.skin.ProjectJson;
 import fr.clixmods.mcsc.mod.style.Metrics;
-import fr.clixmods.mcsc.mod.style.Palette;
 import fr.clixmods.mcsc.mod.style.Surface;
-import fr.clixmods.mcsc.mod.style.Tiles;
 import fr.clixmods.mcsc.mod.ui.panel.LayersPanel;
 import fr.clixmods.mcsc.mod.ui.panel.LibraryPanel;
 import fr.clixmods.mcsc.mod.ui.panel.ScenePanel;
@@ -158,9 +156,6 @@ public class SkinCreatorScreen extends Screen {
 
     @Override
     protected void init() {
-        Tiles.ensureRegistered(this.minecraft);
-        Icons.ensureRegistered(this.minecraft);
-
         if (this.library == null) {
             this.topBar = new TopBar(this.history, this::startOver, this::openExport, this::openAbout);
             this.library = new LibraryPanel(this::relayout, this::name, this.sprites::get,
@@ -250,9 +245,9 @@ public class SkinCreatorScreen extends Screen {
         int usableBottom = this.height - tabHeight;
 
         this.libraryTab = new PixelButton(Component.translatable("panel.mcskincreator.library"),
-                PixelButton.Style.NORMAL, () -> toggleDrawer(Drawer.LIBRARY));
+                PixelButton.Style.TAB, () -> toggleDrawer(Drawer.LIBRARY));
         this.layersTab = new PixelButton(Component.translatable("panel.mcskincreator.layers"),
-                PixelButton.Style.NORMAL, () -> toggleDrawer(Drawer.LAYERS));
+                PixelButton.Style.TAB, () -> toggleDrawer(Drawer.LAYERS));
         this.libraryTab.fit(canvas).setActive(this.drawer == Drawer.LIBRARY);
         this.layersTab.fit(canvas).setActive(this.drawer == Drawer.LAYERS);
 
@@ -615,7 +610,7 @@ public class SkinCreatorScreen extends Screen {
 
     private void openExport() {
         open(new CardWindow("window.mcskincreator.export", List.of(
-                new CardWindow.Card("save", "export.mcskincreator.file",
+                new CardWindow.Card("export.mcskincreator.file",
                         "export.mcskincreator.file_detail", this::openExportName)), null));
     }
 
@@ -659,7 +654,9 @@ public class SkinCreatorScreen extends Screen {
     private void paint(Canvas canvas, int mouseX, int mouseY, float delta) {
         Paint paint = new Paint(canvas, mouseX, mouseY, System.currentTimeMillis(), this.focused);
 
-        canvas.fill(0, 0, this.width, this.height, Palette.DARKER);
+        // The ground is the game's own: the panorama behind a menu, the world behind a
+        // pause screen. Painting over it would be replacing something the player's
+        // resource pack may well have chosen.
         this.topBar.draw(paint);
         this.scene.draw(paint, delta);
         if (this.library.visible()) {
@@ -692,7 +689,7 @@ public class SkinCreatorScreen extends Screen {
         }
         Canvas canvas = paint.canvas();
         int barTop = this.libraryTab.y() - Metrics.PAD_TIGHT;
-        Surface.dark(canvas, 0, barTop, this.width, this.height - barTop, Palette.DARK);
+        Surface.panel(canvas, 0, barTop, this.width, this.height - barTop);
         this.libraryTab.draw(paint);
         this.layersTab.draw(paint);
     }

@@ -43,7 +43,7 @@ src/main/java/fr/clixmods/mcsc/mod/
 ├── catalog/                   what the catalogue says: regions, categories, elements, crops
 ├── skin/                      pixels: front sprites, category sheets, the previewed skin, textures
 ├── project/                   what is being edited: the layer stack and its history
-├── style/                     the design system: palette, metrics, the four materials, the grain
+├── style/                     the vanilla sprites the editor draws with, and the metrics
 └── ui/
     ├── Canvas.java            the drawing surface, and the only file the interface versions
     ├── ScreenCompat.java      the two call renames outside drawing
@@ -58,9 +58,11 @@ src/main/java/fr/clixmods/mcsc/mod/
 One shared source tree serves every Minecraft version. There is no `src-1.21.11/`
 and there never should be.
 
-The interface has its own rules — the four materials, the palette, the scale
-conversion, what is deliberately not built — in [`INTERFACE.md`](INTERFACE.md). Read
-it before changing anything that draws.
+The interface has its own rules — draw with the game's sprites and invent nothing,
+the scale conversion, what is deliberately not built — in
+[`INTERFACE.md`](INTERFACE.md). **Read it before changing anything that draws**: the
+short version is that every surface is a vanilla sprite named in `style/Sprites.java`,
+and adding a texture or an icon of the mod's own is the one thing not to do.
 
 ## Stonecutter architecture
 

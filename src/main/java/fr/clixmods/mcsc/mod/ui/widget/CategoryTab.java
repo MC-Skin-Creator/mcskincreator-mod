@@ -9,33 +9,32 @@ package fr.clixmods.mcsc.mod.ui.widget;
 
 import java.util.List;
 import java.util.function.Consumer;
-
 import java.util.function.Supplier;
 
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
 import fr.clixmods.mcsc.mod.catalog.ThumbCrop;
 import fr.clixmods.mcsc.mod.skin.CategorySprites;
 import fr.clixmods.mcsc.mod.style.Metrics;
-import fr.clixmods.mcsc.mod.style.Palette;
 import fr.clixmods.mcsc.mod.style.Surface;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
-import fr.clixmods.mcsc.mod.ui.Icons;
 import fr.clixmods.mcsc.mod.ui.Paint;
 import net.minecraft.network.chat.Component;
 
 /**
- * One category of the library: an inventory slot with the category's icon in it.
+ * One category of the library: a slot showing what is inside it.
  *
- * <p>The icon is drawn at exactly twice its size, never at one and a half, which is
- * what fixes the tab at 38 pixels while everything else around it shrank with the
- * font. There is no label — the name is in the tooltip. A row of names would not fit
- * and, worse, would have to be re-measured in every language.
+ * <p>The site draws a little icon per category. The mod has none to draw and will not
+ * invent one, so the tab shows the category's own first element instead — which is a
+ * truer picture of what is in there than any icon, and costs nothing: the pixels are
+ * already on the graphics card for the grid below.
  *
- * <p>Chosen turns the slot green. The tab row itself never scrolls and never folds:
- * it is the first navigation of the panel, and the old version of the site, which
- * stacked every open category inside the scroll instead, made going from hair to hats
- * a trip past forty thumbnails.
+ * <p>There is no label. A row of names would not fit, and would have to be measured
+ * again in every language; the name is in the tooltip, where the game puts it.
+ *
+ * <p>The tab row never scrolls and never folds: it is the first navigation of the
+ * panel, and the old version of the site, which stacked every open category inside
+ * the scroll instead, made going from hair to hats a trip past forty thumbnails.
  */
 public class CategoryTab extends Element {
     private final CatalogCategory category;
@@ -70,22 +69,17 @@ public class CategoryTab extends Element {
         boolean hot = paint.hot(this);
         boolean chosen = this.category.equals(this.current.get());
 
-        int fill = chosen ? Palette.GREEN : hot ? Palette.SLOT_HOVER : Palette.SLOT;
-        Surface.slot(canvas, this.x, this.y, this.width, this.height, fill);
+        Surface.slot(canvas, this.x, this.y, this.width, this.height);
 
-        int icon = Metrics.CATEGORY_ICON;
-        int iconX = this.x + (this.width - icon) / 2;
-        int iconY = this.y + (this.height - icon) / 2;
+        int inset = Metrics.SLOT_INSET;
+        Thumbnail.draw(canvas, this.sprites.get(), firstIndex(), ThumbCrop.ALL,
+                this.x + inset, this.y + inset,
+                this.width - inset * 2, this.height - inset * 2);
 
-        // The catalogue names its categories but does not illustrate them, so the tab
-        // looks for a drawing of its own id first. Failing that it shows the category's
-        // first element, which is the truest picture of what is inside; and until that
-        // category's sheet has arrived, a plain folder rather than an empty slot.
-        if (Icons.has(this.category.id())) {
-            Icons.draw(canvas, this.category.id(), iconX, iconY, 2);
-        } else if (!Thumbnail.draw(canvas, this.sprites.get(), firstIndex(), ThumbCrop.ALL,
-                iconX, iconY, icon, icon)) {
-            Icons.draw(canvas, "folder", iconX, iconY, 2);
+        // The chosen tab and the one under the pointer both take the frame the game
+        // lays over a slot, so neither needs a colour the game does not use.
+        if (chosen || hot) {
+            Surface.slotHighlight(canvas, this.x, this.y, this.width, this.height);
         }
     }
 

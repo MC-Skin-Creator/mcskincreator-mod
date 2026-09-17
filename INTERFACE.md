@@ -1,75 +1,82 @@
 # Interface
 
-The mod reproduces the interface of [MC Skin Creator](https://mcskincreator.app/)
-inside the game. The site already imitates Minecraft, so nothing here is being
-"adapted to the Minecraft style" — the work runs the other way, bringing an
-interface that came from the game back into it.
+The mod brings the [MC Skin Creator](https://mcskincreator.app/) editor into the
+game. What it takes from the site is the **arrangement** — three zones, a fixed row
+of category tabs, the stack grouped by region, the gestures. What it takes from
+Minecraft is the **paint**: every surface on this screen is one of the game's own
+interface sprites.
 
-Where a site rule and a vanilla widget disagree, the widget wins on mechanics
-(font size, GUI scale, focus) and the site wins on identity (palette, bevels,
-the green of an active state, layout).
+Nothing here is invented. That is the rule the rest of this file explains.
 
-## The four materials
+## Why the game's sprites and not the site's
 
-Every surface is one of four, and there is no fifth. An element that fits none of
-them is an element that was designed wrong, so [`Surface`](src/main/java/fr/clixmods/mcsc/mod/style/Surface.java)
-offers no escape hatch for one.
+The site hand-draws its panels, slots and buttons out of bevels and outlines,
+because a web page has nothing else to build them from. A mod does. Using the game's
+sprites buys three things a copy cannot:
 
-| Material | Used for | Fill | Bevel |
-|---|---|---|---|
-| Stone panel | windows, side panels, notifications, dropdowns | `#2e2e34` + grain | light top-left |
-| Slot | thumbnails, layer rows, category tabs, framed areas | `#1b1b20` | inverted — carved in |
-| Button | every action | `#63636b` | light top-left |
-| Dark surface | tool strips, scene background | `#26262b` / `#18181c` / `#101014` | none, or the panel's |
+- a player already knows what a Minecraft button, slot and tab mean;
+- a resource pack that restyles the game restyles this screen with it;
+- a sprite that changes in a future version changes here too, where an invented copy
+  would quietly stop matching the game around it.
 
-Green `#3c8527` is the active state and the primary action. Red `#a03b31` is
-failure and destruction. Gold `#fcfc54` is hover. The whole palette is in
-[`Palette`](src/main/java/fr/clixmods/mcsc/mod/style/Palette.java), transcribed
-from the site and derived from nothing.
+So the editor names no material colours of its own, ships no GUI textures, and draws
+no icon the game does not already have.
 
-The palette stays dark from end to end. On the site that began as a workaround —
-browsers in forced dark mode re-invert light backgrounds — and it no longer has
-that reason here, but it has become the identity of the product. A light,
-inventory-coloured panel would be more faithful to the game and less faithful to
-the site.
+## The surfaces
 
-## Drawing rules
+Every one of these is a vanilla sprite, listed in
+[`Sprites`](src/main/java/fr/clixmods/mcsc/mod/style/Sprites.java) and drawn through
+[`Surface`](src/main/java/fr/clixmods/mcsc/mod/style/Surface.java). They are all
+present and identical on every supported Minecraft version — checked against both
+jars, not assumed.
 
-- Nothing is rounded, nothing is gradient, nothing animates.
-- One pure black outline, 2 px, on every framed element.
-- The bevel is drawn **inside** that outline, over 2 px, never on the border.
-- Pressing inverts the bevel and drops the content one pixel. That is the entire
-  press feedback.
-- Text over a panel carries the game's own 1 px shadow. Text laid on the scene is
-  ringed in black on all four sides instead — a shadow is enough over a flat
-  colour and not enough over a figure.
-- Images and icons are drawn at whole scales only. An icon designed at 16 px is
-  shown at 16 or at 32, never at 24.
-- **No emoji, anywhere, not even as a stop-gap.** An emoji is drawn by whatever
-  font the machine has: its shape, colour and size change from device to device,
-  and it is round and smoothed in the middle of an interface that is square.
-  Icons are 16x16 pixel drawings with an outline laid on automatically around the
-  silhouette — see [`Icons`](src/main/java/fr/clixmods/mcsc/mod/ui/Icons.java),
-  which writes them as rows of characters so a drawing can be reviewed in a diff.
-- State never travels by border. The border is black; colour goes in the fill, the
-  bevel, or a band down the left flank.
+| What the site draws | What the mod draws | Sprite |
+|---|---|---|
+| Stone panel | the panel behind the game's own pop-ups | `popup/background` |
+| Inventory slot | a carved slot, at any size | `container/bundle/slot_background` |
+| Green "active" state | the game's selected tab | `widget/tab_selected` |
+| Gold hover | the game's hovered widget, and its hover ink | `*_highlighted`, `#FFFFA0` |
+| Button | the game's button | `widget/button` |
+| Text field | the game's field | `widget/text_field` |
+| Slider | the game's rail and handle | `widget/slider`, `widget/slider_handle` |
+| Checkbox | the game's checkbox | `widget/checkbox` |
+| Scrollbar | the game's scroller and track | `widget/scroller` |
+| Close cross | the game's close button | `widget/cross_button` |
+| Fold chevron, dropdown arrow | the game's page arrows | `widget/page_forward` |
+| Background | whatever the game puts behind a screen | drawn by vanilla |
+
+The ones the game has no sprite for are drawn from the game's own parts instead:
+
+- **the mark** is `assets/mcskincreator/icon.png`, the icon the mod already ships and
+  the game's mod list already shows — there is one MC Skin Creator logo, and a second
+  one drawn for this screen would drift from it;
+- **a category tab** shows the category's own first element, which is a truer picture
+  of what is inside than an icon and costs nothing: those pixels are already on the
+  graphics card for the grid below;
+- **an element's provenance** is on the right mouse button, where the game puts a
+  second action, rather than behind a badge that only appears on hover;
+- **a layer's visibility** is a checkbox, because that is what it is;
+- **a notification's outcome** is a coloured band down its flank. This is the one
+  colour of the mod's own left in the interface, and it exists because the game has
+  nothing that says "this worked" in a panel.
+
+The only other colours named are ink — white, the game's hover yellow, its greys, its
+failure red — taken from where the game uses them.
 
 ## Scale
 
-The site is laid out around a 12 px font; the game's is 8 px. Every spacing and
-every line height is therefore two thirds of its reference value, rounded, with a
-floor of 2 — `Metrics.ui(int)`, and nothing does that conversion anywhere else.
+The site is laid out around a 12 px font; the game's is 8 px. Every spacing and line
+height is two thirds of its reference value — `Metrics.ui(int)`, and nothing does
+that conversion anywhere else.
 
-Two things deliberately do not shrink:
+What is **not** converted is anything the game already has an opinion about. A button
+is 20 px tall because that is what a Minecraft button is. The insets in `Metrics` are
+the borders of the sprites above, so a label sits clear of the frame the sprite
+draws.
 
-- the 2 px bevel and the 2 px outline, which are the graphic identity itself and
-  stop reading as anything at 1 px;
-- boxes sized by an icon. A category tab holds a 16 px icon at exactly x2, so it
-  stays 38 px wide whatever the font does.
-
-The floor of 2 is not cosmetic either: a 1 px gap between two dark surfaces is
-invisible, so anything that rounded to 1 would silently merge the two elements it
-was meant to separate.
+Images and icons are drawn at whole scales only, and the nine-sliced sprites are
+scaled by the game, which knows where their borders are — so the mod never stretches
+a corner.
 
 ## Layout
 
@@ -82,10 +89,10 @@ was meant to separate.
 └────────────┴──────────────────────────────┴──────────────────┘
 ```
 
-Three columns while the width allows it; below that the side columns become
-drawers driven by a tab bar at the bottom, and the drawer lands under the scene in
-portrait and beside it in landscape. The GUI scale replaces the site's breakpoints,
-and the threshold is measured in interface pixels rather than screen pixels.
+Three columns while the width allows it; below that the side columns become drawers
+driven by a tab bar at the bottom, and the drawer lands under the scene in portrait
+and beside it in landscape. The GUI scale replaces the site's breakpoints, and the
+threshold is measured in interface pixels rather than screen pixels.
 
 **The scene never disappears.** The model has to stay visible while an element is
 being chosen or a layer adjusted — that is what one is there to look at. The site
@@ -93,25 +100,10 @@ tried two other arrangements and dropped both: stacking the three panels left th
 preview 21 px, and swapping them through a single slot made the model vanish the
 moment the library opened.
 
-Either side column folds to 27 px through a ghost button in its header, and a
-folded header keeps **only** that button. An earlier arrangement kept the title as
-well, the header overflowed, and the button that would have brought the panel back
-was the part pushed out of sight.
-
-## Traps already paid for
-
-- Don't put the preview behind anything.
-- Don't fill an empty category — an empty category is not shown at all, and a
-  control whose target is empty disappears instead of opening onto nothing.
-- Don't stack two marks in the same corner of a thumbnail.
-- Don't make anything clickable that is not visible. Layer actions are out of
-  reach at rest, not merely invisible: that is how people delete a layer by
-  clicking a cross they never saw.
-- Don't announce a state with a coloured border.
-- Don't let a folded panel lose the button that unfolds it.
-- Never write to the display. The state changes and the display follows, through
-  `SkinProject.revision()`; a mutation that forgot to bump it would leave the
-  preview a step behind with no error anywhere.
+Either side column folds through a ghost button in its header, and a folded header
+keeps **only** that button. An earlier arrangement kept the title as well, the header
+overflowed, and the button that would have brought the panel back was the part pushed
+out of sight.
 
 ## Where the pictures come from
 
@@ -132,13 +124,29 @@ immediately from the atlas buffer already in memory, and the composition replace
 when it lands, so a server that cannot compose costs a notification rather than the
 preview.
 
+## Traps already paid for
+
+- Don't put the preview behind anything.
+- Don't fill an empty category — an empty category is not shown at all, and a control
+  whose target is empty disappears instead of opening onto nothing.
+- Don't make anything clickable that is not visible. Layer actions and scrolled-away
+  tiles are out of reach at rest, not merely invisible: that is how people delete a
+  layer by clicking a cross they never saw.
+- Don't invent a sprite, an icon or a material colour. If the game has no way to say
+  it, say it with the game's words instead — a checkbox for a yes, a tab for a
+  choice, the right mouse button for a second action.
+- Don't let a folded panel lose the button that unfolds it.
+- Never write to the display. The state changes and the display follows, through
+  `SkinProject.revision()`; a mutation that forgot to bump it would leave the preview
+  a step behind with no error anywhere.
+
 ## What is not built yet
 
 The interface is complete; several of the things it is an interface *to* are not.
-These are deliberate gaps, and each one follows the rule above about empty targets —
-the control is absent rather than dead. That is why there is no animation chooser in
-the scene dock, no colour swatches in the inspector (the catalogue carries no colour
-keys yet), no random-outfit button, and no starter templates.
+These are deliberate gaps, and each one follows the rule about empty targets — the
+control is absent rather than dead. That is why there is no animation chooser in the
+scene dock, no colour swatches in the inspector (the catalogue carries no colour keys
+yet), no random-outfit button, and no starter templates.
 
 | Missing | Where it lands |
 |---|---|

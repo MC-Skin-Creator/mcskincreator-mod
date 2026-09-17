@@ -14,21 +14,23 @@ import fr.clixmods.mcsc.mod.style.Palette;
 import fr.clixmods.mcsc.mod.style.Surface;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
-import fr.clixmods.mcsc.mod.ui.Icons;
 import fr.clixmods.mcsc.mod.ui.Paint;
 import net.minecraft.network.chat.Component;
 
 /**
- * A window of cards: an icon, a bold title, a sentence of explanation, and the whole
- * card is the button.
+ * A window of cards: a bold title, a sentence of explanation, and the whole card is
+ * the button.
  *
  * <p>This is the export menu's shape. Making the card itself the target rather than
  * putting a small button in the corner of it is what makes the choice readable: the
  * sentence is part of what you are choosing, not a caption beside it.
+ *
+ * <p>The site puts an icon on each card. The mod has none to put there and will not
+ * invent one, so the title carries the card.
  */
 public class CardWindow extends ModalWindow {
-    /** One choice. {@code icon} names an atlas icon, never an emoji. */
-    public record Card(String icon, String titleKey, String detailKey, Runnable action) {
+    /** One choice: a bold title, a sentence under it, and the whole card is the button. */
+    public record Card(String titleKey, String detailKey, Runnable action) {
     }
 
     private final List<Card> cards;
@@ -39,7 +41,7 @@ public class CardWindow extends ModalWindow {
     }
 
     private int cardHeight(Canvas canvas) {
-        return Math.max(Icons.SIZE * 2, canvas.lineHeight() * 2 + Metrics.PAD_TIGHT) + Metrics.PAD * 2;
+        return canvas.lineHeight() * 2 + Metrics.PAD_TIGHT + Metrics.SLOT_INSET * 2;
     }
 
     @Override
@@ -76,19 +78,17 @@ public class CardWindow extends ModalWindow {
         public void draw(Paint paint) {
             Canvas canvas = paint.canvas();
             boolean hot = paint.hot(this);
-            Surface.slot(canvas, this.x, this.y, this.width, this.height,
-                    hot ? Palette.SLOT_HOVER : Palette.SLOT);
+            Surface.slot(canvas, this.x, this.y, this.width, this.height);
+            if (hot) {
+                Surface.slotHighlight(canvas, this.x, this.y, this.width, this.height);
+            }
 
-            int iconX = this.x + Metrics.PAD;
-            int iconY = this.y + (this.height - Icons.SIZE * 2) / 2;
-            Icons.draw(canvas, this.card.icon(), iconX, iconY, 2);
-
-            int textX = iconX + Icons.SIZE * 2 + Metrics.PAD;
-            int textY = this.y + Metrics.PAD;
+            int textX = this.x + Metrics.SLOT_INSET;
+            int textY = this.y + Metrics.SLOT_INSET;
             canvas.text(Component.translatable(this.card.titleKey()), textX, textY,
-                    hot ? Palette.GOLD : Palette.INK);
+                    hot ? Palette.INK_HOVERED : Palette.INK);
             canvas.textFlat(Component.translatable(this.card.detailKey()), textX,
-                    textY + canvas.lineHeight() + Metrics.PAD_TIGHT, Palette.INK_DIM);
+                    textY + canvas.lineHeight() + Metrics.PAD_TIGHT, Palette.INK_MUTED);
         }
 
         @Override

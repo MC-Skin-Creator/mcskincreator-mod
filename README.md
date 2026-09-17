@@ -10,9 +10,10 @@ skin editor into the game.
 The editor stacks a skin out of layers and shows it on a player model. It does not
 apply the skin yet: nothing you build leaves the screen.
 
-The screen is the site's, in the game — the same materials, the same palette, the
-same gestures, the same three zones. The rules it follows are in
-[`INTERFACE.md`](INTERFACE.md).
+The screen takes its arrangement from the site — the same three zones, the same
+gestures — and its paint from Minecraft: every surface on it is one of the game's own
+interface sprites, so a resource pack that restyles the game restyles this screen too.
+The rules it follows are in [`INTERFACE.md`](INTERFACE.md).
 
 What is in:
 

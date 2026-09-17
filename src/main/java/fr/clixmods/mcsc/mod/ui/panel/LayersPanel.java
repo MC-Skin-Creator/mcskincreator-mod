@@ -27,6 +27,7 @@ import fr.clixmods.mcsc.mod.ui.Element;
 import fr.clixmods.mcsc.mod.ui.Paint;
 import fr.clixmods.mcsc.mod.ui.ScrollPane;
 import fr.clixmods.mcsc.mod.ui.widget.LayerRow;
+import fr.clixmods.mcsc.mod.ui.widget.ArrowButton;
 import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
 import fr.clixmods.mcsc.mod.ui.widget.Slider;
 import net.minecraft.network.chat.Component;
@@ -60,7 +61,7 @@ public class LayersPanel extends Panel {
     private final List<GroupTitle> titles = new ArrayList<>();
     private final List<Element> fixed = new ArrayList<>();
 
-    private PixelButton foldButton;
+    private ArrowButton foldButton;
     private int bodyTop;
     private int bodyHeight;
     private int inspectorTop;
@@ -95,7 +96,7 @@ public class LayersPanel extends Panel {
         this.fixed.clear();
 
         int header = headerHeight(canvas);
-        this.foldButton = new PixelButton(foldLabel(), PixelButton.Style.GHOST, () -> {
+        this.foldButton = new ArrowButton(foldPointsLeft(), () -> {
             toggleFolded();
             this.relayout.run();
         }).withTooltip(Component.translatable(foldTooltipKey()));
@@ -208,7 +209,7 @@ public class LayersPanel extends Panel {
             return line * 3;
         }
         return Metrics.PAD_TIGHT * 2 + line
-                + Metrics.SLIDER_KNOB_HEIGHT * 4 + Metrics.PAD_TIGHT * 4
+                + Metrics.SLIDER_ROW * 4 + Metrics.PAD_TIGHT * 4
                 + Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD_TIGHT;
     }
 
@@ -256,9 +257,9 @@ public class LayersPanel extends Panel {
                 format,
                 // One drag is one entry in the history, however many frames it lasts.
                 () -> this.history.beginGesture(id), this.history::endGesture);
-        slider.setBounds(left, top, width, Metrics.SLIDER_KNOB_HEIGHT);
+        slider.setBounds(left, top, width, Metrics.SLIDER_ROW);
         this.fixed.add(addChild(slider));
-        return top + Metrics.SLIDER_KNOB_HEIGHT + Metrics.PAD_TIGHT;
+        return top + Metrics.SLIDER_ROW + Metrics.PAD_TIGHT;
     }
 
     private void select(Layer layer) {
@@ -331,7 +332,7 @@ public class LayersPanel extends Panel {
 
     private void drawGroupTitle(Canvas canvas, GroupTitle title, int left, int right, int y) {
         String name = LibraryPanel.regionLabel(title.region()).getString().toUpperCase(Locale.ROOT);
-        canvas.textTracked(name, left, y, Palette.INK_DIM, Metrics.TITLE_TRACKING);
+        canvas.textTracked(name, left, y, Palette.INK_MUTED, Metrics.TITLE_TRACKING);
         int nameWidth = canvas.trackedWidth(name, Metrics.TITLE_TRACKING);
 
         String count = Integer.toString(title.count());
@@ -339,18 +340,18 @@ public class LayersPanel extends Panel {
         int ruleX = left + nameWidth + Metrics.PAD_TIGHT;
         int ruleWidth = right - countWidth - Metrics.PAD_TIGHT - ruleX;
         if (ruleWidth > 0) {
-            canvas.fill(ruleX, y + canvas.lineHeight() / 2, ruleWidth, 1, Palette.PANEL_MID);
+            Surface.rule(canvas, ruleX, y + canvas.lineHeight() / 2, ruleWidth);
         }
         canvas.textFlat(Component.literal(count), right - countWidth, y, Palette.INK_FAINT);
     }
 
     private void drawInspector(Paint paint, int left, int right) {
         Canvas canvas = paint.canvas();
-        int height = this.y + this.height - this.inspectorTop - Metrics.OUTLINE;
-        Surface.flat(canvas, this.x + Metrics.OUTLINE, this.inspectorTop,
-                this.width - Metrics.OUTLINE * 2, height, Palette.PANEL_HEADER);
-        canvas.fill(this.x + Metrics.OUTLINE, this.inspectorTop,
-                this.width - Metrics.OUTLINE * 2, 1, Palette.PANEL_MID);
+        int height = this.y + this.height - this.inspectorTop - Metrics.PANEL_INSET;
+        // Ruled off rather than tinted: the panel is one sprite, and painting a second
+        // shade over part of it would be inventing a material the game does not have.
+        Surface.rule(canvas, this.x + Metrics.PANEL_INSET, this.inspectorTop,
+                this.width - Metrics.PANEL_INSET * 2);
 
         Layer layer = this.project.selected();
         if (layer == null) {
@@ -363,7 +364,7 @@ public class LayersPanel extends Panel {
         String title = Component.translatable("gui.mcskincreator.settings").getString()
                 .toUpperCase(Locale.ROOT);
         canvas.textTracked(title, left, this.inspectorTop + Metrics.PAD_TIGHT,
-                Palette.INK_DIM, Metrics.TITLE_TRACKING);
+                Palette.INK_MUTED, Metrics.TITLE_TRACKING);
         int titleWidth = canvas.trackedWidth(title, Metrics.TITLE_TRACKING);
         canvas.text(layer.name(), left + titleWidth + Metrics.PAD_TIGHT,
                 this.inspectorTop + Metrics.PAD_TIGHT, Palette.INK);

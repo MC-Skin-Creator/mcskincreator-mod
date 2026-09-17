@@ -20,8 +20,9 @@ import net.minecraft.network.chat.Component;
 /**
  * Notifications: a stone panel low on the screen, for two and a half seconds.
  *
- * <p>Whether it went well is read off the band down the left flank — green or red —
- * and never off the border, which stays the black one everything else has.
+ * <p>The panel is the game's. Whether it went well is read off the band down the left
+ * flank — green or red — which is the one thing the site does that the game has no
+ * sprite for, and the only colour of the mod's own left in the interface.
  *
  * <p>A failure that keeps happening is said once. {@link #failed} will not raise the
  * same complaint twice until {@link #succeeded} has been called for it, because a red
@@ -63,17 +64,19 @@ public final class Toasts {
 
         int index = 0;
         for (Toast toast : this.live) {
-            int height = canvas.lineHeight() + Metrics.PAD * 2;
-            int width = canvas.textWidth(toast.text()) + Metrics.BAND + Metrics.PAD * 3;
+            int height = canvas.lineHeight() + Metrics.PANEL_INSET * 2;
+            int width = canvas.textWidth(toast.text()) + Metrics.BAND
+                    + Metrics.PANEL_INSET * 2 + Metrics.PAD_TIGHT * 2;
             int x = (screenWidth - width) / 2;
             int y = screenHeight - Metrics.PAD * 3 - height - index * (height + Metrics.PAD_TIGHT);
 
             Surface.panel(canvas, x, y, width, height);
-            canvas.fill(x + Metrics.OUTLINE, y + Metrics.OUTLINE,
-                    Metrics.BAND, height - Metrics.OUTLINE * 2,
-                    toast.ok() ? Palette.GREEN : Palette.RED);
-            canvas.text(toast.text(), x + Metrics.OUTLINE + Metrics.BAND + Metrics.PAD,
-                    y + Metrics.PAD, toast.ok() ? Palette.INK : Palette.FAIL_INK);
+            canvas.fill(x + Metrics.PANEL_INSET, y + Metrics.PANEL_INSET,
+                    Metrics.BAND, height - Metrics.PANEL_INSET * 2,
+                    toast.ok() ? Palette.BAND_SUCCESS : Palette.BAND_FAILURE);
+            canvas.text(toast.text(), x + Metrics.PANEL_INSET + Metrics.BAND + Metrics.PAD_TIGHT,
+                    y + (height - canvas.lineHeight()) / 2,
+                    toast.ok() ? Palette.INK : Palette.INK_FAILURE);
             index++;
         }
     }

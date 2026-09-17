@@ -20,9 +20,9 @@ import net.minecraft.network.chat.Component;
  * A window that is only prose: About, the beta notice, where an element came from,
  * the credits of a skin.
  *
- * <p>A line can be marked a warning, and then it is a slot with a gold band down its
- * left flank and a gold heading on its own line — never a coloured border, which is
- * the one way this interface never says anything.
+ * <p>A line can be marked a warning, and then it is set into a slot with a band down
+ * its left flank and a heading of its own — the same shape the notifications use, so
+ * one thing said in two places looks like one thing.
  */
 public class TextWindow extends ModalWindow {
     /**
@@ -59,7 +59,9 @@ public class TextWindow extends ModalWindow {
     private int heightOf(Canvas canvas, Line line) {
         int rows = wrapped(canvas, line).size();
         int text = rows * (canvas.lineHeight() + 1) + Metrics.PAD_TIGHT;
-        return line.warning() ? text + canvas.lineHeight() + Metrics.PAD_TIGHT * 3 : text;
+        return line.warning()
+                ? text + canvas.lineHeight() + Metrics.SLOT_INSET * 2 + Metrics.PAD_TIGHT
+                : text;
     }
 
     /**
@@ -69,7 +71,8 @@ public class TextWindow extends ModalWindow {
      * needs the line count first to know how tall it is before it draws anything.
      */
     private List<String> wrapped(Canvas canvas, Line line) {
-        int room = width() - Metrics.PAD * 2 - (line.warning() ? Metrics.BAND + Metrics.PAD : 0);
+        int room = width() - Metrics.PANEL_INSET * 2
+                - (line.warning() ? Metrics.SLOT_INSET * 2 + Metrics.BAND + Metrics.PAD_TIGHT : 0);
         List<String> rows = new java.util.ArrayList<>();
         StringBuilder current = new StringBuilder();
         for (String word : line.text().getString().split(" ")) {
@@ -97,13 +100,13 @@ public class TextWindow extends ModalWindow {
             List<String> rows = wrapped(canvas, line);
             if (line.warning()) {
                 int boxHeight = heightOf(canvas, line) - Metrics.PAD_TIGHT;
-                Surface.slot(canvas, left, cursorY, width, boxHeight, Palette.SLOT);
-                canvas.fill(left + Metrics.OUTLINE, cursorY + Metrics.OUTLINE,
-                        Metrics.BAND, boxHeight - Metrics.OUTLINE * 2, Palette.GOLD);
-                int textX = left + Metrics.BAND + Metrics.PAD;
+                Surface.slot(canvas, left, cursorY, width, boxHeight);
+                canvas.fill(left + Metrics.SLOT_INSET, cursorY + Metrics.SLOT_INSET,
+                        Metrics.BAND, boxHeight - Metrics.SLOT_INSET * 2, Palette.INK_HOVERED);
+                int textX = left + Metrics.SLOT_INSET + Metrics.BAND + Metrics.PAD_TIGHT;
                 canvas.text(Component.translatable("gui.mcskincreator.warning"),
-                        textX, cursorY + Metrics.PAD_TIGHT, Palette.GOLD);
-                int rowY = cursorY + Metrics.PAD_TIGHT + canvas.lineHeight() + Metrics.PAD_TIGHT;
+                        textX, cursorY + Metrics.SLOT_INSET, Palette.INK_HOVERED);
+                int rowY = cursorY + Metrics.SLOT_INSET + canvas.lineHeight() + Metrics.PAD_TIGHT;
                 for (String row : rows) {
                     canvas.text(Component.literal(row), textX, rowY, Palette.INK_MUTED);
                     rowY += canvas.lineHeight() + 1;

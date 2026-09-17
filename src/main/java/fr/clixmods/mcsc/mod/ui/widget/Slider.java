@@ -12,6 +12,7 @@ import java.util.function.IntSupplier;
 
 import fr.clixmods.mcsc.mod.style.Metrics;
 import fr.clixmods.mcsc.mod.style.Palette;
+import fr.clixmods.mcsc.mod.style.Sprites;
 import fr.clixmods.mcsc.mod.style.Surface;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
@@ -53,7 +54,7 @@ public class Slider extends Element {
         this.format = format;
         this.beginGesture = beginGesture;
         this.endGesture = endGesture;
-        this.height = Metrics.SLIDER_KNOB_HEIGHT;
+        this.height = Metrics.SLIDER_ROW;
     }
 
     @Override
@@ -67,19 +68,17 @@ public class Slider extends Element {
 
         int railX = railX();
         int railWidth = railWidth();
-        int railY = this.y + (this.height - Metrics.SLIDER_HEIGHT) / 2;
 
         canvas.text(Component.literal(fr.clixmods.mcsc.mod.ui.Marquee.cut(
                         canvas, this.label.getString(), this.width / 3 - Metrics.PAD_TIGHT)),
                 this.x, this.y + (this.height - canvas.lineHeight()) / 2,
-                hot ? Palette.GOLD : Palette.INK_MUTED);
+                hot ? Palette.INK_HOVERED : Palette.INK_MUTED);
 
-        Surface.slot(canvas, railX, railY, railWidth, Metrics.SLIDER_HEIGHT, Palette.FIELD);
+        Surface.sliderRail(canvas, railX, this.y, railWidth, this.height, hot);
 
-        int travel = railWidth - Metrics.SLIDER_KNOB_WIDTH - Metrics.OUTLINE * 2;
-        int knobX = railX + Metrics.OUTLINE + Math.round(travel * fraction(value));
-        Surface.button(canvas, knobX, this.y, Metrics.SLIDER_KNOB_WIDTH, this.height,
-                Surface.Tone.NEUTRAL, hot, false);
+        int travel = railWidth - Sprites.SLIDER_HANDLE_WIDTH;
+        int handleX = railX + Math.round(travel * fraction(value));
+        Surface.sliderHandle(canvas, handleX, this.y, this.height, hot);
 
         Component shown = this.format.apply(value);
         canvas.text(shown,
@@ -146,8 +145,8 @@ public class Slider extends Element {
     }
 
     private void apply(double mouseX) {
-        int travel = Math.max(1, railWidth() - Metrics.SLIDER_KNOB_WIDTH - Metrics.OUTLINE * 2);
-        double along = (mouseX - railX() - Metrics.OUTLINE - Metrics.SLIDER_KNOB_WIDTH / 2.0) / travel;
+        int travel = Math.max(1, railWidth() - Sprites.SLIDER_HANDLE_WIDTH);
+        double along = (mouseX - railX() - Sprites.SLIDER_HANDLE_WIDTH / 2.0) / travel;
         this.write.accept(clamp(this.minimum + (int) Math.round(along * (this.maximum - this.minimum))));
     }
 

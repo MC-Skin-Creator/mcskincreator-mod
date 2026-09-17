@@ -115,7 +115,7 @@ public class ScenePanel extends Element {
         int segmentedWidth = 0;
         for (View candidate : View.values()) {
             PixelButton button = new PixelButton(Component.translatable(candidate.labelKey()),
-                    PixelButton.Style.NORMAL, () -> {
+                    PixelButton.Style.TAB, () -> {
                         this.view = candidate;
                         this.relayout.run();
                     });
@@ -209,12 +209,12 @@ public class ScenePanel extends Element {
         recentre.fit(canvas);
         recentre.withTooltip(Component.translatable("gui.mcskincreator.recentre.tooltip"));
 
-        int dockWidth = recentre.width() + Metrics.PAD * 2;
-        int dockHeight = Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD * 2;
+        int dockWidth = recentre.width() + Metrics.PANEL_INSET * 2;
+        int dockHeight = Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PANEL_INSET * 2;
         int dockX = this.x + this.width - Metrics.PAD_TIGHT - dockWidth;
         int dockY = this.y + this.height - Metrics.PAD_TIGHT - dockHeight;
 
-        recentre.setBounds(dockX + Metrics.PAD, dockY + Metrics.PAD,
+        recentre.setBounds(dockX + Metrics.PANEL_INSET, dockY + Metrics.PANEL_INSET,
                 recentre.width(), Metrics.BUTTON_HEIGHT_COMPACT);
         this.controls.add(recentre);
         this.dock = new int[] {dockX, dockY, dockWidth, dockHeight};
@@ -233,7 +233,6 @@ public class ScenePanel extends Element {
 
     public void draw(Paint paint, float delta) {
         Canvas canvas = paint.canvas();
-        Surface.dark(canvas, this.x, this.y, this.width, this.height, Palette.EMPTY);
 
         switch (this.view) {
             case MODEL -> drawModel(canvas, paint, delta);
@@ -241,15 +240,14 @@ public class ScenePanel extends Element {
             case BOTH -> {
                 drawModel(canvas, paint, delta);
                 int half = this.width / 2;
-                canvas.fill(this.x + half, this.viewport[1], Metrics.OUTLINE, this.viewport[3],
-                        Palette.OUTLINE);
+                canvas.fill(this.x + half, this.viewport[1], 1, this.viewport[3], Palette.RULE);
                 drawTexture(canvas, this.x + half, this.viewport[1], this.width - half, this.viewport[3]);
             }
         }
 
         if (!barFloats()) {
-            Surface.dark(canvas, this.x, this.y, this.width,
-                    Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD_TIGHT * 2, Palette.DARK);
+            Surface.panel(canvas, this.x, this.y - Metrics.PANEL_INSET, this.width,
+                    Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD_TIGHT * 2 + Metrics.PANEL_INSET);
         }
         for (Element control : this.controls) {
             control.draw(paint);
@@ -278,14 +276,14 @@ public class ScenePanel extends Element {
         Surface.checker(canvas, drawnX, drawnY, size * scale, size * scale);
         canvas.blit(this.preview.texture(), drawnX, drawnY, size * scale, size * scale,
                 0, 0, size, size, size, size);
-        Surface.outline(canvas, drawnX - Metrics.OUTLINE, drawnY - Metrics.OUTLINE,
-                size * scale + Metrics.OUTLINE * 2, size * scale + Metrics.OUTLINE * 2);
+        Surface.slot(canvas, drawnX - Metrics.SLOT_INSET, drawnY - Metrics.SLOT_INSET,
+                size * scale + Metrics.SLOT_INSET * 2, size * scale + Metrics.SLOT_INSET * 2);
+        canvas.blit(this.preview.texture(), drawnX, drawnY, size * scale, size * scale,
+                0, 0, size, size, size, size);
     }
 
     private void drawDock(Canvas canvas) {
-        Surface.dark(canvas, this.dock[0], this.dock[1], this.dock[2], this.dock[3], Palette.DARK);
-        Surface.bevel(canvas, this.dock[0], this.dock[1], this.dock[2], this.dock[3],
-                Palette.PANEL_TOP, Palette.PANEL_BOTTOM, Palette.PANEL_MID, Metrics.BEVEL);
+        Surface.panel(canvas, this.dock[0], this.dock[1], this.dock[2], this.dock[3]);
     }
 
     /**
@@ -303,24 +301,22 @@ public class ScenePanel extends Element {
         lines.add(Component.translatable("gesture.mcskincreator.turn"));
 
         int lineHeight = canvas.lineHeight() + Metrics.PAD_TIGHT;
-        int boxHeight = lines.size() * lineHeight + Metrics.PAD_TIGHT;
+        int boxHeight = lines.size() * lineHeight + Metrics.PANEL_INSET;
         int boxWidth = 0;
         for (Component line : lines) {
             boxWidth = Math.max(boxWidth, canvas.textWidth(line));
         }
-        boxWidth += Metrics.PAD * 2;
+        boxWidth += Metrics.PANEL_INSET * 2;
 
         int boxX = this.x + Metrics.PAD_TIGHT;
         int boxY = this.y + this.height - Metrics.PAD_TIGHT - boxHeight;
-        Surface.dark(canvas, boxX, boxY, boxWidth, boxHeight, Palette.DARK);
-        Surface.bevel(canvas, boxX, boxY, boxWidth, boxHeight,
-                Palette.PANEL_TOP, Palette.PANEL_BOTTOM, Palette.PANEL_MID, Metrics.BEVEL);
+        Surface.panel(canvas, boxX, boxY, boxWidth, boxHeight);
 
         for (int index = 0; index < lines.size(); index++) {
             boolean isLabel = hovered != null && index == 0;
-            canvas.textRinged(lines.get(index), boxX + Metrics.PAD,
-                    boxY + Metrics.PAD_TIGHT + index * lineHeight,
-                    isLabel ? Palette.GOLD : Palette.INK_MUTED);
+            canvas.textRinged(lines.get(index), boxX + Metrics.PANEL_INSET,
+                    boxY + Metrics.PANEL_INSET / 2 + index * lineHeight,
+                    isLabel ? Palette.INK_HOVERED : Palette.INK_MUTED);
         }
     }
 

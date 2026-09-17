@@ -14,34 +14,37 @@ package fr.clixmods.mcsc.mod.style;
  * spacing and every line height is therefore two thirds of its reference value —
  * {@link #ui(int)} does that conversion and nothing else does it ad hoc.
  *
- * <p>Two values deliberately do <em>not</em> shrink. The 2 px bevel and the 2 px
- * black outline are the graphic identity itself: at 1 px they stop reading as a
- * bevel and the interface turns into flat rectangles. Boxes sized by an icon do not
- * shrink either, because an icon may only be drawn at a whole scale — a category
- * tab holds a 16 px icon at exactly x2, so it stays 38 px wide whatever the font is.
+ * <p>What is <em>not</em> converted is anything the game already has an opinion
+ * about. A button is 20 px tall because that is what a Minecraft button is; the
+ * insets below are the borders of the game's own sprites, so a label sits clear of
+ * the frame the sprite draws rather than clear of one the mod invented.
  */
 public final class Metrics {
     private Metrics() {
     }
 
-    /** Never scaled: the bevel is drawn inside the element, over 2 px. */
-    public static final int BEVEL = 2;
-    /** Never scaled: a single pure black outline, always the same thickness. */
-    public static final int OUTLINE = 2;
-    /** A window is told from a panel by a 3 px bevel instead of 2. */
-    public static final int WINDOW_BEVEL = 3;
-    /** Black rim drawn around a window, outside its outline. */
-    public static final int WINDOW_RIM = 4;
+    // The borders of the sprites in Sprites, so content is laid inside them.
+    /** {@code popup/background} carries a 6 px border. */
+    public static final int PANEL_INSET = 6;
+    /** {@code slot_background} carries a 4 px border. */
+    public static final int SLOT_INSET = 4;
+    /** {@code widget/button} carries a 3 px border. */
+    public static final int BUTTON_INSET = 3;
+    /** {@code widget/text_field} carries a 1 px border; a second pixel keeps the caret clear. */
+    public static final int FIELD_INSET = 2;
 
-    /** Pressing offsets the content by one pixel. That is the whole press feedback. */
-    public static final int PRESS_OFFSET = 1;
+    /** A Minecraft button is 20 px tall. The game wins on widget mechanics. */
+    public static final int BUTTON_HEIGHT = 20;
+    /** The same sprite in a crowded strip: its border plus a line of the game's font. */
+    public static final int BUTTON_HEIGHT_COMPACT = 16;
+    public static final int BUTTON_PAD_X = ui(10);
 
     // Panels.
     /** Library column, 300 site px. */
     public static final int LIBRARY_WIDTH = ui(300);
     /** Layers column, 318 site px. */
     public static final int LAYERS_WIDTH = ui(318);
-    /** A collapsed column keeps just enough room for the button that unfolds it. */
+    /** A folded column keeps just enough room for the button that unfolds it. */
     public static final int COLLAPSED_WIDTH = ui(40);
     /** Top bar, 46 site px. */
     public static final int TOP_BAR_HEIGHT = ui(46);
@@ -49,18 +52,9 @@ public final class Metrics {
     /** The scene below this width is not worth showing, so the columns become drawers. */
     public static final int MIN_SCENE_WIDTH = 180;
 
-    // Components.
-    /** A category tab holds a 16 px icon at x2 plus its frame; icon-sized, so not scaled. */
-    public static final int CATEGORY_TAB = 38;
-    /** The category icon, drawn at exactly x2 in the tab row. */
-    public static final int CATEGORY_ICON = 32;
+    /** A category tab: a slot big enough for an element's face and its frame. */
+    public static final int CATEGORY_TAB = 28;
 
-    /** Standard vanilla button height; the game wins on widget mechanics. */
-    public static final int BUTTON_HEIGHT = 20;
-    /** The same button in a crowded strip: the game's font plus padding and outline. */
-    public static final int BUTTON_HEIGHT_COMPACT = 18;
-    public static final int BUTTON_PAD_X = ui(10);
-    public static final int BUTTON_PAD_Y = ui(5);
     /** Buttons of a segmented group are 3 site px apart. */
     public static final int SEGMENT_GAP = ui(3);
 
@@ -68,11 +62,10 @@ public final class Metrics {
      * A layer row holds a name and a subtitle under it, plus its frame — which is what
      * the site's 26 px row holds too, at its own font size.
      */
-    public static final int LAYER_ROW = 22;
+    public static final int LAYER_ROW = 24;
     /** The layer's own thumbnail, the size of an inventory icon. */
     public static final int LAYER_PREVIEW = 16;
-    /** Letter spacing of a panel title, 1.5 site px rounded to a whole pixel. */
-    public static final int TITLE_TRACKING = 1;
+
     /** Thumbnails sit in a three column grid, 5 site px apart. */
     public static final int GRID_GAP = ui(5);
     public static final int GRID_COLUMNS = 3;
@@ -81,15 +74,10 @@ public final class Metrics {
     /** Transparency checker squares, 8 site px. */
     public static final int CHECKER = ui(8);
 
-    /** Slider rail, 14 site px. */
-    public static final int SLIDER_HEIGHT = ui(14);
-    public static final int SLIDER_KNOB_WIDTH = ui(10);
-    public static final int SLIDER_KNOB_HEIGHT = ui(18);
+    /** A slider is a Minecraft slider: the game's handle is 20 tall and sets the row. */
+    public static final int SLIDER_ROW = BUTTON_HEIGHT;
     /** Slider values are right aligned in a fixed 38 site px column. */
     public static final int SLIDER_VALUE_WIDTH = ui(38);
-
-    /** Checkbox, 16 site px. */
-    public static final int CHECKBOX = ui(16);
 
     /** Generic inner padding, 8 site px. */
     public static final int PAD = ui(8);
@@ -109,6 +97,9 @@ public final class Metrics {
     public static final double MARQUEE_SPEED = ui(45);
     /** ...and rests 450 ms at each end. */
     public static final long MARQUEE_PAUSE = 450L;
+
+    /** Letter spacing of a panel title, 1.5 site px rounded to a whole pixel. */
+    public static final int TITLE_TRACKING = 1;
 
     /** The history keeps 60 states. */
     public static final int HISTORY_DEPTH = 60;
