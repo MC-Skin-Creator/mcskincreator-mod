@@ -15,6 +15,7 @@ import fr.clixmods.mcsc.mod.catalog.Catalog;
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
 import fr.clixmods.mcsc.mod.catalog.CatalogItem;
 import fr.clixmods.mcsc.mod.catalog.CatalogText;
+import fr.clixmods.mcsc.mod.catalog.ThumbCrop;
 import fr.clixmods.mcsc.mod.skin.CategorySprites;
 import fr.clixmods.mcsc.mod.skin.FrontSprite;
 import net.minecraft.client.Minecraft;
@@ -55,10 +56,9 @@ final class ElementLibrary {
     private static final int THUMBNAIL_SLOT_WIDTH = FrontSprite.WIDTH + 4;
     private static final int THUMBNAIL_SLOT_HEIGHT = FrontSprite.HEIGHT + 4;
     private static final int SCROLLBAR_WIDTH = 3;
+    private static final int MIN_COLUMNS = 2;
+    private static final int MAX_COLUMNS = 6;
     private static final int SCROLL_STEP = THUMBNAIL_SLOT_HEIGHT / 2;
-    /** Enough for the head and shoulders of a thumbnail, which is what an icon shows. */
-    private static final int ICON_SOURCE_HEIGHT = 16;
-
     private static final int PANEL_BACKGROUND = 0xC0101010;
     private static final int PANEL_BORDER = 0xFF5A5A5A;
     private static final int SLOT_BACKGROUND = 0xFF2B2B2B;
@@ -182,9 +182,19 @@ final class ElementLibrary {
         this.clampScroll();
     }
 
-    /** The width the panel wants: four thumbnails across, plus its own margins. */
-    static int preferredWidth() {
-        return (THUMBNAIL_SLOT_WIDTH + GAP) * 4 - GAP + GAP * 2 + SCROLLBAR_WIDTH + GAP;
+    /**
+     * The widest panel that fits in {@code available} while holding whole slot
+     * columns, between {@value #MIN_COLUMNS} and {@value #MAX_COLUMNS} of them.
+     *
+     * <p>Rounded to whole columns because a panel wider than its columns is a strip of
+     * unused background down the side, and bounded because a fixed width is a narrow
+     * column on a wide window while more columns than this is a wall of thumbnails.
+     */
+    static int preferredWidth(int available) {
+        int forSlots = available - GAP * 2 - SCROLLBAR_WIDTH - GAP;
+        int columns = Math.clamp((forSlots + GAP) / (THUMBNAIL_SLOT_WIDTH + GAP),
+                MIN_COLUMNS, MAX_COLUMNS);
+        return (THUMBNAIL_SLOT_WIDTH + GAP) * columns - GAP + SCROLLBAR_WIDTH + GAP + GAP * 2;
     }
 
     /**
@@ -199,8 +209,10 @@ final class ElementLibrary {
                 PANEL_BORDER);
 
         if (this.regions.isEmpty()) {
-            painter.centeredText(noCatalog, this.panel.x() + this.panel.width() / 2,
-                    this.panel.y() + this.panel.height() / 2, LABEL_DIM);
+            int width = Math.max(1, this.panel.width() - GAP * 2);
+            painter.wrappedText(noCatalog, this.panel.x() + GAP,
+                    this.panel.y() + Math.max(GAP, (this.panel.height() - wrappedHeight(noCatalog, width)) / 2),
+                    width, LABEL_DIM);
             return;
         }
 
@@ -240,14 +252,9 @@ final class ElementLibrary {
             // means it only appears once that category's atlas has arrived. Until then
             // the slot stands empty rather than the row rearranging itself later.
             CategorySprites loaded = this.sprites.apply(category);
-            int first = category.items().isEmpty() ? -1 : category.items().get(0).atlasIndex();
-            if (loaded != null && first >= 0 && first < loaded.count()) {
-                painter.blit(loaded.texture(),
-                        icon.x() + (icon.width() - FrontSprite.WIDTH) / 2,
-                        icon.y() + (icon.height() - ICON_SOURCE_HEIGHT) / 2,
-                        loaded.spriteU(first), loaded.spriteV(first),
-                        FrontSprite.WIDTH, ICON_SOURCE_HEIGHT,
-                        loaded.sheetWidth(), loaded.sheetHeight());
+            if (loaded != null && !category.items().isEmpty()) {
+                CatalogItem first = category.items().get(0);
+                drawThumbnail(painter, loaded, category.thumbCrop(first), first.atlasIndex(), icon);
             }
 
             if (hovered) {
@@ -264,10 +271,11 @@ final class ElementLibrary {
 
         CategorySprites loaded = this.sprites.apply(category);
         if (loaded == null) {
-            painter.centeredText(noThumbnails,
-                    this.viewport.x() + this.viewport.width() / 2,
-                    this.viewport.y() + Math.max(0, this.viewport.height() / 2 - lineHeight() / 2),
-                    LABEL_DIM);
+            painter.wrappedText(noThumbnails, this.viewport.x(),
+                    this.viewport.y()
+                            + Math.max(0, (this.viewport.height()
+                                    - wrappedHeight(noThumbnails, this.viewport.width())) / 2),
+                    this.viewport.width(), LABEL_DIM);
             return;
         }
 
@@ -294,14 +302,7 @@ final class ElementLibrary {
             }
 
             this.renderSlot(painter, slot, selected, hovered);
-            if (item.atlasIndex() < loaded.count()) {
-                painter.blit(loaded.texture(),
-                        slot.x() + (slot.width() - FrontSprite.WIDTH) / 2,
-                        slot.y() + (slot.height() - FrontSprite.HEIGHT) / 2,
-                        loaded.spriteU(item.atlasIndex()), loaded.spriteV(item.atlasIndex()),
-                        FrontSprite.WIDTH, FrontSprite.HEIGHT,
-                        loaded.sheetWidth(), loaded.sheetHeight());
-            }
+            drawThumbnail(painter, loaded, category.thumbCrop(item), item.atlasIndex(), slot);
         }
         painter.popScissor();
 
@@ -313,12 +314,41 @@ final class ElementLibrary {
                 ? name(hoveredItem.name())
                 : selectedItemLabel(category);
         if (label != null) {
-            painter.text(label, this.labelLine.x(), this.labelLine.y(),
+            painter.text(ellipsize(label, this.labelLine.width()),
+                    this.labelLine.x(), this.labelLine.y(),
                     hoveredItem != null ? LABEL : LABEL_DIM);
         }
         if (hoveredItem != null) {
             painter.tooltip(name(hoveredItem.name()), mouseX, mouseY);
         }
+    }
+
+    /**
+     * Draws one element's thumbnail centred in {@code slot}, cropped to the part of the
+     * body the catalogue says the element covers.
+     *
+     * <p>The crop is a rectangle of the element's front view, so cropping costs nothing
+     * at draw time: it only narrows what is read out of the sheet. An element whose
+     * buffer the atlas did not carry gets an empty slot rather than another element's
+     * pixels.
+     */
+    private static void drawThumbnail(
+            Painter painter, CategorySprites sheet, ThumbCrop crop, int atlasIndex, Rect slot) {
+        if (atlasIndex < 0 || atlasIndex >= sheet.count()) {
+            return;
+        }
+        // A few elements are drawn outside the part of the body their category claims.
+        // Widening to the whole figure shows them instead of an empty slot; the ones
+        // drawn only on faces a front view cannot reach stay empty either way.
+        if (!sheet.covers(atlasIndex, crop) && sheet.covers(atlasIndex, ThumbCrop.ALL)) {
+            crop = ThumbCrop.ALL;
+        }
+        painter.blit(sheet.texture(),
+                slot.x() + (slot.width() - crop.width()) / 2,
+                slot.y() + (slot.height() - crop.height()) / 2,
+                sheet.spriteU(atlasIndex) + crop.x(), sheet.spriteV(atlasIndex) + crop.y(),
+                crop.width(), crop.height(),
+                sheet.sheetWidth(), sheet.sheetHeight());
     }
 
     private Component selectedItemLabel(CatalogCategory category) {
@@ -467,6 +497,27 @@ final class ElementLibrary {
 
     private static int textWidth(Component text) {
         return Minecraft.getInstance().font.width(text);
+    }
+
+    /** How tall {@code text} is once broken to {@code width}. */
+    static int wrappedHeight(Component text, int width) {
+        return Math.max(1, Minecraft.getInstance().font.split(text, Math.max(1, width)).size())
+                * lineHeight();
+    }
+
+    /**
+     * {@code text} cut to {@code width} with an ellipsis, for the one line that has to
+     * stay one line. An element's name comes from the catalogue, so its length is not
+     * the mod's to decide and a long one would otherwise run past the panel.
+     */
+    private static Component ellipsize(Component text, int width) {
+        if (textWidth(text) <= width) {
+            return text;
+        }
+        String ellipsis = "…";
+        int room = Math.max(0, width - textWidth(Component.literal(ellipsis)));
+        return Component.literal(
+                Minecraft.getInstance().font.plainSubstrByWidth(text.getString(), room) + ellipsis);
     }
 
     private static int lineHeight() {

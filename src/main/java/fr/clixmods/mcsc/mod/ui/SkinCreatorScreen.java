@@ -23,6 +23,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import fr.clixmods.mcsc.mod.MCSkinCreatorClient;
 import fr.clixmods.mcsc.mod.catalog.Catalog;
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
+import fr.clixmods.mcsc.mod.catalog.CatalogFormatException;
 import fr.clixmods.mcsc.mod.catalog.CatalogItem;
 import fr.clixmods.mcsc.mod.remote.ApiException;
 import fr.clixmods.mcsc.mod.remote.McscApi;
@@ -87,9 +88,10 @@ public class SkinCreatorScreen extends Screen implements ElementLibrary.Listener
     private final ElementLibrary library = new ElementLibrary(this, this.sprites::get);
 
     private Button modelButton;
-    /** Where a status line is centred: over the model, clear of the library panel. */
-    private int statusCenterX;
-    private int statusY;
+    /** The column a status line wraps in: over the model, clear of the library panel. */
+    private int statusX;
+    private int statusWidth;
+    private int statusBottom;
     private Component status = Component.empty();
     private boolean loadingCatalog;
     private boolean closed;
@@ -112,7 +114,11 @@ public class SkinCreatorScreen extends Screen implements ElementLibrary.Listener
 
     @Override
     protected void init() {
-        int panelWidth = Math.min(ElementLibrary.preferredWidth(), Math.max(60, this.width / 2 - MARGIN));
+        // A third of the window for the library, the rest for the model. The panel
+        // rounds that down to whole slot columns and holds itself within bounds, so a
+        // wide window gets more thumbnails across rather than a strip of background.
+        int panelWidth = Math.min(ElementLibrary.preferredWidth(this.width / 3),
+                Math.max(MARGIN, this.width - MARGIN * 2));
         int contentTop = TITLE_Y + this.font.lineHeight + MARGIN;
         int buttonRowTop = this.height - MARGIN - BUTTON_HEIGHT;
         int contentHeight = Math.max(0, buttonRowTop - MARGIN - contentTop);
@@ -134,8 +140,11 @@ public class SkinCreatorScreen extends Screen implements ElementLibrary.Listener
             this.addRenderableWidget(model);
         }
 
-        this.statusCenterX = previewLeft + previewSpace / 2;
-        this.statusY = buttonRowTop - MARGIN - this.font.lineHeight;
+        // The status line lives over the model, and wraps within that column: these
+        // messages are sentences, and one of them is longer than a narrow column.
+        this.statusWidth = Math.max(1, previewSpace);
+        this.statusX = previewLeft;
+        this.statusBottom = buttonRowTop - MARGIN;
 
         int buttonsWidth = Math.min(BUTTON_WIDTH * 2 + MARGIN, Math.max(120, previewSpace));
         int buttonWidth = (buttonsWidth - MARGIN) / 2;
@@ -189,7 +198,11 @@ public class SkinCreatorScreen extends Screen implements ElementLibrary.Listener
                 Component.translatable("library.mcskincreator.thumbnails"));
 
         if (!this.status.getString().isEmpty()) {
-            painter.centeredText(this.status, this.statusCenterX, this.statusY, STATUS_COLOR);
+            // Grown upwards from the button row, so a message that takes two lines does
+            // not end up underneath the buttons.
+            painter.wrappedText(this.status, this.statusX,
+                    this.statusBottom - ElementLibrary.wrappedHeight(this.status, this.statusWidth),
+                    this.statusWidth, STATUS_COLOR);
         }
     }
 
@@ -224,19 +237,33 @@ public class SkinCreatorScreen extends Screen implements ElementLibrary.Listener
 
     @Override
     public void onElementPicked(CatalogCategory category, CatalogItem item) {
-        // Show the element straight away from the atlas buffer already in memory - it
-        // is a 64x64 skin in its own right - and let the composed texture replace it
-        // when it lands. Picking therefore never waits on the network, and a server
-        // that cannot be reached costs the message below rather than the preview.
-        CategorySprites loaded = this.sprites.get(category.id());
-        byte[] buffer = loaded == null ? null : loaded.buffer(item.atlasIndex());
+        this.pickedCategory = category;
+        this.pickedItem = item;
+        this.showPickedLocally();
+        this.queueCompose();
+    }
+
+    /**
+     * Puts the picked element on the model from the atlas buffer already in memory -
+     * it is a 64x64 skin in its own right - and lets the composed texture replace it
+     * when it lands.
+     *
+     * <p>Picking therefore never waits on the network, and a server that cannot
+     * compose costs the message on screen rather than the preview. It also picks the
+     * buffer for the model on show: an element drawn for the slim model carries its
+     * own, and the atlas holds it right after the classic one.
+     */
+    private void showPickedLocally() {
+        if (this.pickedCategory == null || this.pickedItem == null) {
+            return;
+        }
+        CategorySprites loaded = this.sprites.get(this.pickedCategory.id());
+        byte[] buffer = loaded == null
+                ? null
+                : loaded.buffer(this.pickedItem.atlasIndex(this.preview.isSlim()));
         if (buffer != null) {
             this.show(buffer, Component.translatable("library.mcskincreator.thumbnails_failed"));
         }
-
-        this.pickedCategory = category;
-        this.pickedItem = item;
-        this.queueCompose();
     }
 
     /** Puts the current pick back in the queue, restarting the wait. */
@@ -294,8 +321,9 @@ public class SkinCreatorScreen extends Screen implements ElementLibrary.Listener
                     if (failure != null) {
                         // A player gets a sentence, the log gets the cause. A stack
                         // trace on screen tells them nothing they can act on.
-                        MCSkinCreatorClient.LOGGER.warn("Reading the catalogue failed", failure);
-                        this.status = Component.translatable("library.mcskincreator.unreachable");
+                        MCSkinCreatorClient.LOGGER.warn("Reading the catalogue from {} failed",
+                                McscApi.shared().baseUrl(), failure);
+                        this.status = catalogFailure(failure);
                         return;
                     }
                     catalog = loaded;
@@ -345,21 +373,54 @@ public class SkinCreatorScreen extends Screen implements ElementLibrary.Listener
     }
 
     private static boolean notFound(Throwable failure) {
+        ApiException refusal = refusal(failure);
+        return refusal != null && refusal.isNotFound();
+    }
+
+    /** The server's own refusal inside a failure, or {@code null} if it never answered. */
+    private static ApiException refusal(Throwable failure) {
         for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
             if (cause instanceof ApiException api) {
-                return api.isNotFound();
+                return api;
             }
         }
-        return false;
+        return null;
+    }
+
+    /**
+     * What to tell the player when the catalogue does not arrive.
+     *
+     * <p>The three cases are worth separating because they call for different things
+     * from whoever reads them: a host that never answered is a network or an address
+     * problem, a status is the server declining, and a body that is not a catalogue
+     * means the address reached something else entirely. Reporting all three as
+     * "unreachable" sends the reader looking at their connection when the address is
+     * what is wrong. The address is named for the same reason - the mod can be pointed
+     * at another deployment, so which one it tried is half the answer.
+     */
+    private static Component catalogFailure(Throwable failure) {
+        String address = McscApi.shared().baseUrl();
+        ApiException refusal = refusal(failure);
+        if (refusal != null) {
+            return Component.translatable("library.mcskincreator.http_error",
+                    refusal.status(), address);
+        }
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof CatalogFormatException) {
+                return Component.translatable("library.mcskincreator.not_a_catalog", address);
+            }
+        }
+        return Component.translatable("library.mcskincreator.unreachable", address);
     }
 
     private void toggleModel() {
         this.preview.model(this.preview.isSlim() ? PlayerModelType.WIDE : PlayerModelType.SLIM);
         this.modelButton.setMessage(this.modelLabel());
-        // The model decides how the server lays the arms out, so the pick is composed
-        // again for the model now on screen. The widget picks the new model up on its
-        // own: it reads it from the PlayerSkin on every frame.
+        // The widget picks the new model up on its own - it reads it from the
+        // PlayerSkin every frame - but the texture on it is the wrong variant now, so
+        // the element is put back on from the other buffer and composed again.
         if (this.pickedItem != null) {
+            this.showPickedLocally();
             this.queueCompose();
         }
     }
