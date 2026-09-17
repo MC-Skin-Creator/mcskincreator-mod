@@ -14,6 +14,9 @@ short, imperative and in English. The type is not decoration — it decides the 
 released version number, see **Versioning and releases**. Do not add AI attribution
 lines (`Co-Authored-By`, session links) to commits or pull requests.
 
+Keep the commit body short: **5 lines maximum**. No exhaustive rationale, no
+restating the diff line by line — a couple of sentences on the why is enough.
+
 ## What this is
 
 A Fabric **client-side** mod that brings the MC Skin Creator skin editor into
