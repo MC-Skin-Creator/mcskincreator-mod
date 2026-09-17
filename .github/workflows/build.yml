@@ -10,7 +10,9 @@ on:
       - 'fix/**'
   pull_request:
 
-# Compiles every Minecraft target and produces nothing: jars come from releases.
+# Compiles every Minecraft target and attaches the resulting jars as a
+# short-lived workflow artifact, so a PR can be test-installed before it merges.
+# These are not releases: no tag, no GitHub release, no version bump.
 # No secret is needed, so none is granted.
 permissions:
   contents: read
@@ -48,6 +50,16 @@ jobs:
 
       - name: Build
         # Points Gradle at the JDK installed above rather than downloading another one.
+        # buildAndCollect compiles the same as build and additionally copies the jar
+        # to build/libs/<mod version>/, which is what gets uploaded below.
         run: >-
-          ./gradlew ":${{ matrix.minecraft }}:build" --stacktrace
+          ./gradlew ":${{ matrix.minecraft }}:buildAndCollect" --stacktrace
           -Porg.gradle.java.installations.fromEnv=JAVA_HOME_21_X64,JAVA_HOME_25_X64
+
+      - name: Upload jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcskincreator-${{ matrix.minecraft }}
+          path: build/libs/*/*.jar
+          # A preview build, not a release: no need to keep it around.
+          retention-days: 7
