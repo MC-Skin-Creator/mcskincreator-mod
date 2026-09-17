@@ -80,6 +80,17 @@ public class PixelButton extends Element {
         return this.label;
     }
 
+    /** The room the sprite's own frame and the label's air take from the width. */
+    private int padding() {
+        return switch (this.style) {
+            case GHOST -> Metrics.PAD_TIGHT * 2;
+            // The tab sprite's own border is 2 px, and a row of them has to fit a
+            // column barely a hundred pixels wide.
+            case TAB -> Metrics.PAD_TIGHT * 2 + 4;
+            default -> (Metrics.BUTTON_INSET + Metrics.BUTTON_PAD_X) * 2;
+        };
+    }
+
     /** Measures against the real font, once the screen has one. */
     public PixelButton fit(Canvas canvas) {
         if (this.style == Style.CROSS) {
@@ -87,10 +98,14 @@ public class PixelButton extends Element {
             this.height = Sprites.CROSS_SIZE;
             return this;
         }
-        int padding = this.style == Style.GHOST
-                ? Metrics.PAD_TIGHT * 2
-                : (Metrics.BUTTON_INSET + Metrics.BUTTON_PAD_X) * 2;
-        this.width = canvas.textWidth(this.label) + padding;
+        this.width = canvas.textWidth(this.label) + padding();
+        return this;
+    }
+
+    /** Measures, then gives up whatever will not fit. */
+    public PixelButton fitWithin(Canvas canvas, int available) {
+        fit(canvas);
+        this.width = Math.min(this.width, Math.max(padding(), available));
         return this;
     }
 
@@ -117,7 +132,12 @@ public class PixelButton extends Element {
             }
         }
 
-        canvas.textCentered(this.label, this.x + this.width / 2,
+        // Cut to the button rather than drawn past it: a label that overflows its own
+        // sprite is the one thing a caller cannot see coming from the layout.
+        int room = this.width - padding();
+        canvas.textCentered(Component.literal(
+                        fr.clixmods.mcsc.mod.ui.Marquee.cut(canvas, this.label.getString(), room)),
+                this.x + this.width / 2,
                 this.y + (this.height - canvas.lineHeight()) / 2, ink(hot));
     }
 

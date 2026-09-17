@@ -81,9 +81,6 @@ import org.lwjgl.glfw.GLFW;
  * reply arriving after it has gone is dropped rather than uploaded.
  */
 public class SkinCreatorScreen extends Screen {
-    /** Below this width the side columns become drawers. */
-    private static final int COLUMNS_MINIMUM =
-            Metrics.LIBRARY_WIDTH + Metrics.LAYERS_WIDTH + Metrics.MIN_SCENE_WIDTH;
 
     /**
      * How long to wait before asking the server to compose.
@@ -204,15 +201,16 @@ public class SkinCreatorScreen extends Screen {
         this.topBar.layout(canvas);
 
         int top = Metrics.TOP_BAR_HEIGHT;
-        if (this.width >= COLUMNS_MINIMUM) {
+        int column = Metrics.columnWidth(this.width);
+        if (this.width >= columnsMinimum()) {
             this.drawer = Drawer.NONE;
             this.libraryTab = null;
             this.layersTab = null;
             this.library.setVisible(true);
             this.layers.setVisible(true);
 
-            int libraryWidth = this.library.folded() ? Metrics.COLLAPSED_WIDTH : Metrics.LIBRARY_WIDTH;
-            int layersWidth = this.layers.folded() ? Metrics.COLLAPSED_WIDTH : Metrics.LAYERS_WIDTH;
+            int libraryWidth = this.library.folded() ? Metrics.COLLAPSED_WIDTH : column;
+            int layersWidth = this.layers.folded() ? Metrics.COLLAPSED_WIDTH : column;
             this.library.setBounds(0, top, libraryWidth, this.height - top);
             this.layers.setBounds(this.width - layersWidth, top, layersWidth, this.height - top);
             this.scene.setBounds(libraryWidth, top,
@@ -276,7 +274,7 @@ public class SkinCreatorScreen extends Screen {
             this.scene.setBounds(0, top, this.width, usableBottom - top - drawerHeight);
             open.setBounds(0, usableBottom - drawerHeight, this.width, drawerHeight);
         } else {
-            int drawerWidth = Math.min(Metrics.LIBRARY_WIDTH, this.width / 2);
+            int drawerWidth = Math.min(Metrics.columnWidth(this.width), this.width / 2);
             open.setBounds(0, top, drawerWidth, usableBottom - top);
             this.scene.setBounds(drawerWidth, top, this.width - drawerWidth, usableBottom - top);
         }
@@ -287,10 +285,15 @@ public class SkinCreatorScreen extends Screen {
         relayout();
     }
 
+    /** Below this width the two columns and the scene no longer fit side by side. */
+    private int columnsMinimum() {
+        return Metrics.columnWidth(this.width) * 2 + Metrics.MIN_SCENE_WIDTH;
+    }
+
     /** The "+" of the layers panel: bring the library forward. */
     private void revealLibrary() {
         this.library.setFolded(false);
-        if (this.width < COLUMNS_MINIMUM) {
+        if (this.width < columnsMinimum()) {
             this.drawer = Drawer.LIBRARY;
         }
         relayout();

@@ -27,7 +27,6 @@ import fr.clixmods.mcsc.mod.ui.Element;
 import fr.clixmods.mcsc.mod.ui.Paint;
 import fr.clixmods.mcsc.mod.ui.ScrollPane;
 import fr.clixmods.mcsc.mod.ui.widget.LayerRow;
-import fr.clixmods.mcsc.mod.ui.widget.ArrowButton;
 import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
 import fr.clixmods.mcsc.mod.ui.widget.Slider;
 import net.minecraft.network.chat.Component;
@@ -61,7 +60,7 @@ public class LayersPanel extends Panel {
     private final List<GroupTitle> titles = new ArrayList<>();
     private final List<Element> fixed = new ArrayList<>();
 
-    private ArrowButton foldButton;
+    private PixelButton foldButton;
     private int bodyTop;
     private int bodyHeight;
     private int inspectorTop;
@@ -96,31 +95,32 @@ public class LayersPanel extends Panel {
         this.fixed.clear();
 
         int header = headerHeight(canvas);
-        this.foldButton = new ArrowButton(foldPointsLeft(), () -> {
+        this.foldButton = new PixelButton(foldLabel(), PixelButton.Style.GHOST, () -> {
             toggleFolded();
             this.relayout.run();
-        }).withTooltip(Component.translatable(foldTooltipKey()));
+        });
+        this.foldButton.withTooltip(Component.translatable(foldTooltipKey()));
         this.foldButton.fit(canvas);
 
         if (folded()) {
             this.foldButton.setBounds(this.x + (this.width - this.foldButton.width()) / 2,
-                    this.y + (header - Metrics.BUTTON_HEIGHT) / 2,
-                    this.foldButton.width(), Metrics.BUTTON_HEIGHT);
+                    this.y + (header - Metrics.TAB_HEIGHT) / 2,
+                    this.foldButton.width(), Metrics.TAB_HEIGHT);
             this.fixed.add(addChild(this.foldButton));
             return;
         }
 
         int right = this.x + this.width - Metrics.PAD_TIGHT;
         this.foldButton.setBounds(right - this.foldButton.width(),
-                this.y + (header - Metrics.BUTTON_HEIGHT) / 2,
-                this.foldButton.width(), Metrics.BUTTON_HEIGHT);
+                this.y + (header - Metrics.TAB_HEIGHT) / 2,
+                this.foldButton.width(), Metrics.TAB_HEIGHT);
         this.fixed.add(addChild(this.foldButton));
 
         PixelButton add = new PixelButton(Component.literal("+"), PixelButton.Style.GHOST,
                 this.onAddRequested);
         add.fit(canvas).withTooltip(Component.translatable("gui.mcskincreator.add.tooltip"));
         add.setBounds(this.foldButton.x() - add.width() - Metrics.PAD_TIGHT,
-                this.foldButton.y(), add.width(), Metrics.BUTTON_HEIGHT);
+                this.foldButton.y(), add.width(), Metrics.TAB_HEIGHT);
         this.fixed.add(addChild(add));
 
         int left = this.x + Metrics.PAD_TIGHT;
@@ -129,14 +129,14 @@ public class LayersPanel extends Panel {
         int segmentX = left;
         for (PlayerModelType kind : new PlayerModelType[] {PlayerModelType.WIDE, PlayerModelType.SLIM}) {
             PixelButton button = new PixelButton(Component.translatable(modelLabelKey(kind)),
-                    PixelButton.Style.NORMAL, () -> {
+                    PixelButton.Style.TAB, () -> {
                         this.history.record();
                         this.project.setModel(kind);
                         this.relayout.run();
                     });
             button.fit(canvas).setActive(this.project.model() == kind);
             button.withTooltip(Component.translatable(modelLabelKey(kind) + ".tooltip"));
-            button.setBounds(segmentX, cursorY, button.width(), Metrics.BUTTON_HEIGHT_COMPACT);
+            button.setBounds(segmentX, cursorY, button.width(), Metrics.TAB_HEIGHT);
             this.fixed.add(addChild(button));
             segmentX += button.width() + Metrics.SEGMENT_GAP;
         }
@@ -144,25 +144,28 @@ public class LayersPanel extends Panel {
         PixelButton importTexture = new PixelButton(
                 Component.translatable("gui.mcskincreator.import"),
                 PixelButton.Style.NORMAL, this.onImportRequested);
-        importTexture.fit(canvas)
-                .withTooltip(Component.translatable("gui.mcskincreator.import.tooltip"));
+        importTexture.withTooltip(Component.translatable("gui.mcskincreator.import.tooltip"));
+        importTexture.fit(canvas);
         if (segmentX + importTexture.width() <= right) {
             importTexture.setBounds(right - importTexture.width(), cursorY,
-                    importTexture.width(), Metrics.BUTTON_HEIGHT_COMPACT);
+                    importTexture.width(), Metrics.TAB_HEIGHT);
             this.fixed.add(addChild(importTexture));
-            cursorY += Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD_TIGHT;
+            cursorY += Metrics.TAB_HEIGHT + Metrics.PAD_TIGHT;
         } else {
-            cursorY += Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD_TIGHT;
-            importTexture.setBounds(left, cursorY, importTexture.width(), Metrics.BUTTON_HEIGHT_COMPACT);
+            // On its own row, and never wider than the row: the label is cut to fit
+            // rather than drawn over the panel's edge.
+            cursorY += Metrics.TAB_HEIGHT + Metrics.PAD_TIGHT;
+            importTexture.fitWithin(canvas, right - left);
+            importTexture.setBounds(left, cursorY, importTexture.width(), Metrics.TAB_HEIGHT);
             this.fixed.add(addChild(importTexture));
-            cursorY += Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD_TIGHT;
+            cursorY += Metrics.TAB_HEIGHT + Metrics.PAD_TIGHT;
         }
 
         int inspectorHeight = inspectorHeight(canvas);
         this.bodyTop = cursorY;
         this.bodyHeight = Math.max(Metrics.LAYER_ROW,
-                this.y + this.height - inspectorHeight - cursorY);
-        this.inspectorTop = this.y + this.height - inspectorHeight;
+                this.y + this.height - Metrics.PANEL_INSET - inspectorHeight - cursorY);
+        this.inspectorTop = this.y + this.height - Metrics.PANEL_INSET - inspectorHeight;
 
         layoutStack(canvas, left, right);
         layoutInspector(canvas, left, right);
@@ -237,9 +240,9 @@ public class LayersPanel extends Panel {
                     layer.resetAdjustments();
                     this.project.touch();
                 });
-        reset.fit(canvas).withTooltip(Component.translatable("gui.mcskincreator.reset_colors.tooltip"));
-        reset.setBounds(left, cursorY, Math.min(reset.width(), right - left),
-                Metrics.BUTTON_HEIGHT_COMPACT);
+        reset.withTooltip(Component.translatable("gui.mcskincreator.reset_colors.tooltip"));
+        reset.fitWithin(canvas, right - left);
+        reset.setBounds(left, cursorY, reset.width(), Metrics.BUTTON_HEIGHT_COMPACT);
         this.fixed.add(addChild(reset));
     }
 
@@ -308,9 +311,8 @@ public class LayersPanel extends Panel {
         int right = this.x + this.width - Metrics.PAD_TIGHT;
 
         if (this.rows.isEmpty()) {
-            canvas.textCentered(Component.translatable("empty.mcskincreator.layers"),
-                    (left + right) / 2, this.bodyTop + this.bodyHeight / 2 - canvas.lineHeight(),
-                    Palette.INK_FAINT);
+            drawEmptyState(canvas, Component.translatable("empty.mcskincreator.layers"),
+                    left, right, this.bodyTop, this.bodyHeight);
         } else {
             placeRows();
             canvas.pushScissor(left, this.bodyTop, right - left, this.bodyHeight);
@@ -347,7 +349,7 @@ public class LayersPanel extends Panel {
 
     private void drawInspector(Paint paint, int left, int right) {
         Canvas canvas = paint.canvas();
-        int height = this.y + this.height - this.inspectorTop - Metrics.PANEL_INSET;
+        int height = this.y + this.height - Metrics.PANEL_INSET - this.inspectorTop;
         // Ruled off rather than tinted: the panel is one sprite, and painting a second
         // shade over part of it would be inventing a material the game does not have.
         Surface.rule(canvas, this.x + Metrics.PANEL_INSET, this.inspectorTop,
@@ -355,9 +357,8 @@ public class LayersPanel extends Panel {
 
         Layer layer = this.project.selected();
         if (layer == null) {
-            canvas.textCentered(Component.translatable("empty.mcskincreator.inspector"),
-                    (left + right) / 2, this.inspectorTop + height / 2 - canvas.lineHeight() / 2,
-                    Palette.INK_FAINT);
+            drawEmptyState(canvas, Component.translatable("empty.mcskincreator.inspector"),
+                    left, right, this.inspectorTop, height);
             return;
         }
 
@@ -374,6 +375,20 @@ public class LayersPanel extends Panel {
                 element.draw(paint);
             }
         }
+    }
+
+    /**
+     * An empty state, wrapped to the panel and centred in the band it explains.
+     *
+     * <p>Wrapped rather than centred on one line: these are sentences, the panel is
+     * narrow, and a sentence centred on one line runs off both ends of it.
+     */
+    private static void drawEmptyState(Canvas canvas, Component message,
+                                       int left, int right, int top, int height) {
+        int width = Math.max(1, right - left);
+        canvas.textWrapped(message, left,
+                top + (height - canvas.wrappedHeight(message, width)) / 2,
+                width, Palette.INK_FAINT);
     }
 
     private void placeRows() {

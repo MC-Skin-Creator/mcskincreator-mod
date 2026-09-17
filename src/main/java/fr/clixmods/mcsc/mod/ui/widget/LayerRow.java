@@ -41,6 +41,8 @@ import net.minecraft.network.chat.Component;
  */
 public class LayerRow extends Element {
     private static final int BAND = Metrics.ui(6);
+    /** Below this, the name is an ellipsis and the row stops being worth reading. */
+    private static final int MIN_NAME_ROOM = 30;
 
     private final Layer layer;
     private final Supplier<CategorySprites> sprites;
@@ -131,7 +133,9 @@ public class LayerRow extends Element {
                 ThumbCrop.ALL, cursorX, this.y + (this.height - preview) / 2, preview, preview);
         cursorX += preview + Metrics.PAD_TIGHT;
 
-        int actionsWidth = lit ? actionWidth() * 2 + Metrics.PAD_TIGHT : 0;
+        boolean duplicate = showsDuplicate(contentX());
+        int actionsWidth = !lit ? 0
+                : duplicate ? actionWidth() * 2 + Metrics.PAD_TIGHT : actionWidth();
         int room = this.x + this.width - Metrics.SLOT_INSET - actionsWidth - cursorX;
 
         int nameY = this.y + Metrics.SLOT_INSET / 2 + 1;
@@ -142,8 +146,10 @@ public class LayerRow extends Element {
         if (lit) {
             int actionX = this.x + this.width - Metrics.SLOT_INSET - actionWidth();
             drawCross(canvas, paint, actionX, this.y + (this.height - Sprites.CROSS_SIZE) / 2);
-            drawAction(canvas, paint, actionX - actionWidth() - Metrics.PAD_TIGHT, "+",
-                    Palette.INK_MUTED);
+            if (duplicate) {
+                drawAction(canvas, paint, actionX - actionWidth() - Metrics.PAD_TIGHT, "+",
+                        Palette.INK_MUTED);
+            }
         }
 
         if (!this.layer.visible()) {
@@ -165,6 +171,24 @@ public class LayerRow extends Element {
 
     private static int actionWidth() {
         return Sprites.CROSS_SIZE;
+    }
+
+    /**
+     * Whether the row is wide enough to also offer duplication.
+     *
+     * <p>In a narrow column the two actions and the thumbnail leave the name a handful
+     * of pixels, and a stack of rows all reading "..." is a stack you cannot use.
+     * Removing is the one that must always be there, so duplication is what goes.
+     */
+    private boolean showsDuplicate(int contentX) {
+        int room = this.x + this.width - Metrics.SLOT_INSET - contentX;
+        return room - (actionWidth() * 2 + Metrics.PAD_TIGHT) >= MIN_NAME_ROOM;
+    }
+
+    /** Where the row's own content starts, past the visibility box. */
+    private int contentX() {
+        return this.x + Metrics.SLOT_INSET + Sprites.CHECKBOX_SIZE + Metrics.PAD_TIGHT
+                + Metrics.LAYER_PREVIEW + Metrics.PAD_TIGHT;
     }
 
     /** Removing a layer is the game's close cross, which is what it means everywhere. */
@@ -205,7 +229,9 @@ public class LayerRow extends Element {
             this.onRemove.accept(this.layer);
             return true;
         }
-        if (mouseX >= duplicateX) {
+        // Only where the glyph was actually drawn: a narrow row has no duplicate
+        // action, and must not have an invisible one either.
+        if (showsDuplicate(contentX()) && mouseX >= duplicateX) {
             this.onDuplicate.accept(this.layer);
             return true;
         }

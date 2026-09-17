@@ -52,9 +52,15 @@ public abstract class Panel extends Element {
         this.folded = !this.folded;
     }
 
-    /** True when the fold button should point left rather than right. */
-    public boolean foldPointsLeft() {
-        return this.folded != this.foldsLeft;
+    /**
+     * The chevron the fold button shows, pointing the way the panel would go.
+     *
+     * <p>Drawn in the game's own font. Vanilla's page arrow is the only arrow it
+     * ships, and at 23 by 13 pixels of near-white it swamps a header this size — the
+     * font's chevron is the same typeface as everything else on the row.
+     */
+    public Component foldLabel() {
+        return Component.literal(this.folded != this.foldsLeft ? "<" : ">");
     }
 
     public String foldTooltipKey() {
@@ -62,7 +68,7 @@ public abstract class Panel extends Element {
     }
 
     protected int headerHeight(Canvas canvas) {
-        return canvas.lineHeight() + Metrics.PANEL_INSET + Metrics.PAD;
+        return canvas.lineHeight() + Metrics.PANEL_INSET + Metrics.PAD_TIGHT;
     }
 
     /** The children the screen walks for focus and hit testing, in that order. */

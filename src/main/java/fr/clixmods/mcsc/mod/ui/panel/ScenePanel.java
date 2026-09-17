@@ -107,7 +107,7 @@ public class ScenePanel extends Element {
     public void layout(Canvas canvas) {
         this.controls.clear();
 
-        int barHeight = Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD_TIGHT * 2;
+        int barHeight = Metrics.TAB_HEIGHT + Metrics.PAD_TIGHT * 2;
         int cursorX = this.x + Metrics.PAD_TIGHT;
         int barY = this.y + Metrics.PAD_TIGHT;
 
@@ -131,7 +131,7 @@ public class ScenePanel extends Element {
         // runs past the edge of its strip is a control nobody can reach.
         if (segmentedWidth + Metrics.ui(90) <= this.width) {
             for (PixelButton button : viewButtons) {
-                button.setBounds(cursorX, barY, button.width(), Metrics.BUTTON_HEIGHT_COMPACT);
+                button.setBounds(cursorX, barY, button.width(), Metrics.TAB_HEIGHT);
                 this.controls.add(button);
                 cursorX += button.width() + Metrics.SEGMENT_GAP;
             }
@@ -145,7 +145,7 @@ public class ScenePanel extends Element {
                     },
                     candidate -> true);
             int chooserWidth = Math.min(Metrics.ui(150), Math.max(1, this.width - Metrics.PAD_TIGHT * 2));
-            chooser.setBounds(cursorX, barY, chooserWidth, Metrics.BUTTON_HEIGHT_COMPACT);
+            chooser.setBounds(cursorX, barY, chooserWidth, Metrics.TAB_HEIGHT);
             chooser.inScreen(this.y + this.height);
             this.controls.add(chooser);
         }
@@ -168,7 +168,7 @@ public class ScenePanel extends Element {
         int space = this.view == View.BOTH ? this.width / 2 : this.width;
         int inset = Metrics.PAD;
         int usableWidth = Math.max(0, space - inset * 2);
-        int usableHeight = Math.max(0, viewHeight - inset * 2);
+        int usableHeight = (int) Math.max(0, (viewHeight - inset * 2) * Metrics.SCENE_MODEL_SHARE);
 
         int height = Math.min(usableHeight, usableWidth * PORTRAIT_HEIGHT / Math.max(1, PORTRAIT_WIDTH));
         int width = height * PORTRAIT_WIDTH / PORTRAIT_HEIGHT;
@@ -210,12 +210,12 @@ public class ScenePanel extends Element {
         recentre.withTooltip(Component.translatable("gui.mcskincreator.recentre.tooltip"));
 
         int dockWidth = recentre.width() + Metrics.PANEL_INSET * 2;
-        int dockHeight = Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PANEL_INSET * 2;
+        int dockHeight = Metrics.TAB_HEIGHT + Metrics.PANEL_INSET * 2;
         int dockX = this.x + this.width - Metrics.PAD_TIGHT - dockWidth;
         int dockY = this.y + this.height - Metrics.PAD_TIGHT - dockHeight;
 
         recentre.setBounds(dockX + Metrics.PANEL_INSET, dockY + Metrics.PANEL_INSET,
-                recentre.width(), Metrics.BUTTON_HEIGHT_COMPACT);
+                recentre.width(), Metrics.TAB_HEIGHT);
         this.controls.add(recentre);
         this.dock = new int[] {dockX, dockY, dockWidth, dockHeight};
     }
@@ -247,14 +247,18 @@ public class ScenePanel extends Element {
 
         if (!barFloats()) {
             Surface.panel(canvas, this.x, this.y - Metrics.PANEL_INSET, this.width,
-                    Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD_TIGHT * 2 + Metrics.PANEL_INSET);
+                    Metrics.TAB_HEIGHT + Metrics.PAD_TIGHT * 2 + Metrics.PANEL_INSET);
         }
+
+        // The two corner boxes are backdrops, so they go down before what sits on
+        // them. Drawing them afterwards is what left the dock looking like an empty
+        // frame: the panel was covering its own button.
+        drawDock(canvas);
+        drawCorner(canvas);
+
         for (Element control : this.controls) {
             control.draw(paint);
         }
-
-        drawDock(canvas);
-        drawCorner(canvas);
     }
 
     private void drawModel(Canvas canvas, Paint paint, float delta) {
@@ -300,8 +304,8 @@ public class ScenePanel extends Element {
         }
         lines.add(Component.translatable("gesture.mcskincreator.turn"));
 
-        int lineHeight = canvas.lineHeight() + Metrics.PAD_TIGHT;
-        int boxHeight = lines.size() * lineHeight + Metrics.PANEL_INSET;
+        int lineHeight = canvas.lineHeight() + 1;
+        int boxHeight = lines.size() * lineHeight + Metrics.PANEL_INSET * 2 - 1;
         int boxWidth = 0;
         for (Component line : lines) {
             boxWidth = Math.max(boxWidth, canvas.textWidth(line));
@@ -315,7 +319,7 @@ public class ScenePanel extends Element {
         for (int index = 0; index < lines.size(); index++) {
             boolean isLabel = hovered != null && index == 0;
             canvas.textRinged(lines.get(index), boxX + Metrics.PANEL_INSET,
-                    boxY + Metrics.PANEL_INSET / 2 + index * lineHeight,
+                    boxY + Metrics.PANEL_INSET + index * lineHeight,
                     isLabel ? Palette.INK_HOVERED : Palette.INK_MUTED);
         }
     }

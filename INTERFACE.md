@@ -69,14 +69,27 @@ The site is laid out around a 12 px font; the game's is 8 px. Every spacing and 
 height is two thirds of its reference value — `Metrics.ui(int)`, and nothing does
 that conversion anywhere else.
 
-What is **not** converted is anything the game already has an opinion about. A button
-is 20 px tall because that is what a Minecraft button is. The insets in `Metrics` are
-the borders of the sprites above, so a label sits clear of the frame the sprite
-draws.
+**A width is not a spacing, and converting one that way is the trap this interface
+already fell into.** The site's library is 300 px wide, which `ui()` turns into 200 —
+and 200 is wrong, because the site has some 1900 px to spend and the game, at a GUI
+scale of 3, has about 640. Two columns of 200 ate two thirds of the screen and left
+the model a strip. What carries over is the **share**: a side column is about a fifth
+of the width, within bounds that keep it readable at one end and from sprawling at the
+other. That is `Metrics.columnWidth(int)`.
 
-Images and icons are drawn at whole scales only, and the nine-sliced sprites are
-scaled by the game, which knows where their borders are — so the mod never stretches
-a corner.
+What is **not** converted at all is anything the game already has an opinion about. A
+button is 20 px tall because that is what a Minecraft button is. The insets in
+`Metrics` are the borders of the sprites above, so a label sits clear of the frame the
+sprite draws.
+
+Images are drawn at whole scales only, and the nine-sliced sprites are scaled by the
+game, which knows where their borders are — so the mod never stretches a corner.
+
+Everything gives way before the column does: the element grid drops from three
+thumbnails to two rather than splitting the width into ones too small to tell apart, a
+button cuts its own label rather than drawing past its sprite, and a layer row too
+narrow for both actions keeps the one that removes and drops the one that duplicates —
+and drops its click target with it.
 
 ## Layout
 
@@ -136,6 +149,12 @@ preview.
   it, say it with the game's words instead — a checkbox for a yes, a tab for a
   choice, the right mouse button for a second action.
 - Don't let a folded panel lose the button that unfolds it.
+- Don't lay a backdrop after what sits on it. The scene's corner boxes were drawn
+  after their own controls once, and the dock spent a release looking like an empty
+  frame.
+- Don't trust a layout you have only read. The two side panels can be laid out with no
+  game running — `Font` and `Language` are both subclassable — and doing so found a
+  button wider than its own panel in a single run.
 - Never write to the display. The state changes and the display follows, through
   `SkinProject.revision()`; a mutation that forgot to bump it would leave the preview
   a step behind with no error anywhere.

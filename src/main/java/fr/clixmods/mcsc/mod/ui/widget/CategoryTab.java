@@ -12,7 +12,6 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
-import fr.clixmods.mcsc.mod.catalog.ThumbCrop;
 import fr.clixmods.mcsc.mod.skin.CategorySprites;
 import fr.clixmods.mcsc.mod.style.Metrics;
 import fr.clixmods.mcsc.mod.style.Surface;
@@ -71,8 +70,10 @@ public class CategoryTab extends Element {
 
         Surface.slot(canvas, this.x, this.y, this.width, this.height);
 
+        // Cropped the way the category asks its own thumbnails to be cropped, so a
+        // hair tab shows hair rather than eight rows of it over an empty figure.
         int inset = Metrics.SLOT_INSET;
-        Thumbnail.draw(canvas, this.sprites.get(), firstIndex(), ThumbCrop.ALL,
+        Thumbnail.draw(canvas, this.sprites.get(), firstIndex(), this.category.thumbCrop(),
                 this.x + inset, this.y + inset,
                 this.width - inset * 2, this.height - inset * 2);
 
