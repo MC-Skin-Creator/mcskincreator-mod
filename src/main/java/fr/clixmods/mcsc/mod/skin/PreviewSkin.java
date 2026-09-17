@@ -64,7 +64,8 @@ public final class PreviewSkin implements AutoCloseable {
         }
     }
 
-    static NativeImage decode(byte[] payload) throws IOException {
+    /** Reads either shape the API answers with: a PNG, or a raw RGBA buffer. */
+    public static NativeImage decode(byte[] payload) throws IOException {
         if (payload.length == FrontSprite.SKIN_SIZE * FrontSprite.SKIN_SIZE * 4) {
             return fromRgba(payload);
         }
@@ -84,6 +85,21 @@ public final class PreviewSkin implements AutoCloseable {
             }
         }
         return image;
+    }
+
+    /** Back to the default skin: what starting over leaves on the model. */
+    public void clear() {
+        this.texture.close();
+    }
+
+    /** Whether anything has been composed yet, and so whether the sheet can be shown. */
+    public boolean hasTexture() {
+        return this.texture.isUploaded();
+    }
+
+    /** The composed sheet itself, for the view that shows the 64x64 rather than the player. */
+    public Identifier texture() {
+        return this.texture.id();
     }
 
     /**
