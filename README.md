@@ -26,17 +26,19 @@ What is not in yet: stacking layers, colours and HSL, the account, and applying 
 skin. They all live in the
 [issues](https://github.com/MC-Skin-Creator/mcskincreator-mod/issues).
 
-The editor reads the MC Skin Creator API, so it needs to reach it. Point the mod at
-another deployment - a local back-end, say - with a system property or an
-environment variable, whichever is easier to set where you launch the game:
+The editor reads the MC Skin Creator API at `https://mcskincreator.app/api/v1`, so
+it needs to reach it. Point the mod at another deployment - a local back-end, say -
+with a system property or an environment variable, whichever is easier to set where
+you launch the game:
 
 ```sh
 -Dmcskincreator.api=http://localhost:3000/api/v1
 MCSKINCREATOR_API=http://localhost:3000/api/v1
 ```
 
-Neither is needed to play: without them the mod uses the public API. A server it
-cannot reach leaves the library empty and says so on the screen.
+Neither is needed to play. When the library does not arrive, the screen says which
+address the mod tried and what came back, so a wrong address reads differently from
+a network that is down.
 
 ## Install
 

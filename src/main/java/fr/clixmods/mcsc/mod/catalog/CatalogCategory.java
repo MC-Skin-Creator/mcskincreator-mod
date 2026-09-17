@@ -16,19 +16,30 @@ import java.util.List;
  *                  screen browses
  * @param single    whether the category replaces its layer instead of stacking one,
  *                  the way the skin does
- * @param atlasHash the content hash naming the category's atlas; it changes whenever
- *                  the category's pixels change, which is what lets a downloaded
- *                  atlas be kept indefinitely
+ * @param thumbCrop the part of the body its elements' thumbnails show, which an
+ *                  element may override
+ * @param atlasPath where the category's atlas is served, exactly as the catalogue
+ *                  gives it. The catalogue's address carries the hash of the
+ *                  category's pixels, so a downloaded atlas can be kept
+ *                  indefinitely - and the mod follows the address it is handed
+ *                  rather than building one from the hash, so that moving the route
+ *                  is the server's business alone.
  */
 public record CatalogCategory(
         String id,
         String region,
         CatalogText name,
         boolean single,
-        String atlasHash,
+        ThumbCrop thumbCrop,
+        String atlasPath,
         List<CatalogItem> items) {
 
     public CatalogCategory {
         items = List.copyOf(items);
+    }
+
+    /** The crop for one of this category's elements: its own, or the category's. */
+    public ThumbCrop thumbCrop(CatalogItem item) {
+        return item.thumbCrop() == null ? this.thumbCrop : item.thumbCrop();
     }
 }

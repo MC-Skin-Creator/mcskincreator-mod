@@ -237,19 +237,33 @@ public class SkinCreatorScreen extends Screen implements ElementLibrary.Listener
 
     @Override
     public void onElementPicked(CatalogCategory category, CatalogItem item) {
-        // Show the element straight away from the atlas buffer already in memory - it
-        // is a 64x64 skin in its own right - and let the composed texture replace it
-        // when it lands. Picking therefore never waits on the network, and a server
-        // that cannot be reached costs the message below rather than the preview.
-        CategorySprites loaded = this.sprites.get(category.id());
-        byte[] buffer = loaded == null ? null : loaded.buffer(item.atlasIndex());
+        this.pickedCategory = category;
+        this.pickedItem = item;
+        this.showPickedLocally();
+        this.queueCompose();
+    }
+
+    /**
+     * Puts the picked element on the model from the atlas buffer already in memory -
+     * it is a 64x64 skin in its own right - and lets the composed texture replace it
+     * when it lands.
+     *
+     * <p>Picking therefore never waits on the network, and a server that cannot
+     * compose costs the message on screen rather than the preview. It also picks the
+     * buffer for the model on show: an element drawn for the slim model carries its
+     * own, and the atlas holds it right after the classic one.
+     */
+    private void showPickedLocally() {
+        if (this.pickedCategory == null || this.pickedItem == null) {
+            return;
+        }
+        CategorySprites loaded = this.sprites.get(this.pickedCategory.id());
+        byte[] buffer = loaded == null
+                ? null
+                : loaded.buffer(this.pickedItem.atlasIndex(this.preview.isSlim()));
         if (buffer != null) {
             this.show(buffer, Component.translatable("library.mcskincreator.thumbnails_failed"));
         }
-
-        this.pickedCategory = category;
-        this.pickedItem = item;
-        this.queueCompose();
     }
 
     /** Puts the current pick back in the queue, restarting the wait. */
@@ -402,10 +416,11 @@ public class SkinCreatorScreen extends Screen implements ElementLibrary.Listener
     private void toggleModel() {
         this.preview.model(this.preview.isSlim() ? PlayerModelType.WIDE : PlayerModelType.SLIM);
         this.modelButton.setMessage(this.modelLabel());
-        // The model decides how the server lays the arms out, so the pick is composed
-        // again for the model now on screen. The widget picks the new model up on its
-        // own: it reads it from the PlayerSkin on every frame.
+        // The widget picks the new model up on its own - it reads it from the
+        // PlayerSkin every frame - but the texture on it is the wrong variant now, so
+        // the element is put back on from the other buffer and composed again.
         if (this.pickedItem != null) {
+            this.showPickedLocally();
             this.queueCompose();
         }
     }

@@ -15,6 +15,7 @@ import fr.clixmods.mcsc.mod.catalog.Catalog;
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
 import fr.clixmods.mcsc.mod.catalog.CatalogItem;
 import fr.clixmods.mcsc.mod.catalog.CatalogText;
+import fr.clixmods.mcsc.mod.catalog.ThumbCrop;
 import fr.clixmods.mcsc.mod.skin.CategorySprites;
 import fr.clixmods.mcsc.mod.skin.FrontSprite;
 import net.minecraft.client.Minecraft;
@@ -58,9 +59,6 @@ final class ElementLibrary {
     private static final int MIN_COLUMNS = 2;
     private static final int MAX_COLUMNS = 6;
     private static final int SCROLL_STEP = THUMBNAIL_SLOT_HEIGHT / 2;
-    /** Enough for the head and shoulders of a thumbnail, which is what an icon shows. */
-    private static final int ICON_SOURCE_HEIGHT = 16;
-
     private static final int PANEL_BACKGROUND = 0xC0101010;
     private static final int PANEL_BORDER = 0xFF5A5A5A;
     private static final int SLOT_BACKGROUND = 0xFF2B2B2B;
@@ -254,14 +252,9 @@ final class ElementLibrary {
             // means it only appears once that category's atlas has arrived. Until then
             // the slot stands empty rather than the row rearranging itself later.
             CategorySprites loaded = this.sprites.apply(category);
-            int first = category.items().isEmpty() ? -1 : category.items().get(0).atlasIndex();
-            if (loaded != null && first >= 0 && first < loaded.count()) {
-                painter.blit(loaded.texture(),
-                        icon.x() + (icon.width() - FrontSprite.WIDTH) / 2,
-                        icon.y() + (icon.height() - ICON_SOURCE_HEIGHT) / 2,
-                        loaded.spriteU(first), loaded.spriteV(first),
-                        FrontSprite.WIDTH, ICON_SOURCE_HEIGHT,
-                        loaded.sheetWidth(), loaded.sheetHeight());
+            if (loaded != null && !category.items().isEmpty()) {
+                CatalogItem first = category.items().get(0);
+                drawThumbnail(painter, loaded, category.thumbCrop(first), first.atlasIndex(), icon);
             }
 
             if (hovered) {
@@ -309,14 +302,7 @@ final class ElementLibrary {
             }
 
             this.renderSlot(painter, slot, selected, hovered);
-            if (item.atlasIndex() < loaded.count()) {
-                painter.blit(loaded.texture(),
-                        slot.x() + (slot.width() - FrontSprite.WIDTH) / 2,
-                        slot.y() + (slot.height() - FrontSprite.HEIGHT) / 2,
-                        loaded.spriteU(item.atlasIndex()), loaded.spriteV(item.atlasIndex()),
-                        FrontSprite.WIDTH, FrontSprite.HEIGHT,
-                        loaded.sheetWidth(), loaded.sheetHeight());
-            }
+            drawThumbnail(painter, loaded, category.thumbCrop(item), item.atlasIndex(), slot);
         }
         painter.popScissor();
 
@@ -335,6 +321,34 @@ final class ElementLibrary {
         if (hoveredItem != null) {
             painter.tooltip(name(hoveredItem.name()), mouseX, mouseY);
         }
+    }
+
+    /**
+     * Draws one element's thumbnail centred in {@code slot}, cropped to the part of the
+     * body the catalogue says the element covers.
+     *
+     * <p>The crop is a rectangle of the element's front view, so cropping costs nothing
+     * at draw time: it only narrows what is read out of the sheet. An element whose
+     * buffer the atlas did not carry gets an empty slot rather than another element's
+     * pixels.
+     */
+    private static void drawThumbnail(
+            Painter painter, CategorySprites sheet, ThumbCrop crop, int atlasIndex, Rect slot) {
+        if (atlasIndex < 0 || atlasIndex >= sheet.count()) {
+            return;
+        }
+        // A few elements are drawn outside the part of the body their category claims.
+        // Widening to the whole figure shows them instead of an empty slot; the ones
+        // drawn only on faces a front view cannot reach stay empty either way.
+        if (!sheet.covers(atlasIndex, crop) && sheet.covers(atlasIndex, ThumbCrop.ALL)) {
+            crop = ThumbCrop.ALL;
+        }
+        painter.blit(sheet.texture(),
+                slot.x() + (slot.width() - crop.width()) / 2,
+                slot.y() + (slot.height() - crop.height()) / 2,
+                sheet.spriteU(atlasIndex) + crop.x(), sheet.spriteV(atlasIndex) + crop.y(),
+                crop.width(), crop.height(),
+                sheet.sheetWidth(), sheet.sheetHeight());
     }
 
     private Component selectedItemLabel(CatalogCategory category) {

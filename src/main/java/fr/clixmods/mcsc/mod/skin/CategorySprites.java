@@ -10,6 +10,7 @@ package fr.clixmods.mcsc.mod.skin;
 import java.util.List;
 
 import com.mojang.blaze3d.platform.NativeImage;
+import fr.clixmods.mcsc.mod.catalog.ThumbCrop;
 import net.minecraft.resources.Identifier;
 
 /**
@@ -30,21 +31,29 @@ public final class CategorySprites implements AutoCloseable {
     private final ManagedTexture texture;
     private final List<byte[]> buffers;
     private final int rows;
+    /**
+     * The box of drawn pixels in each sprite, as {@code minX, minY, maxX, maxY}, or
+     * an empty box when the sprite has none. Measured while the sheet is built, which
+     * already walks every pixel, and used to tell a crop that would come out blank
+     * from one that will not - the pixels are on the GPU by the time anything draws.
+     */
+    private final int[] bounds;
 
-    private CategorySprites(ManagedTexture texture, List<byte[]> buffers, int rows) {
+    private CategorySprites(ManagedTexture texture, List<byte[]> buffers, int rows, int[] bounds) {
         this.texture = texture;
         this.buffers = buffers;
         this.rows = rows;
+        this.bounds = bounds;
     }
 
     /**
      * Projects every buffer of an atlas and uploads the sheet. Must run on the client
      * thread, since it ends in a texture upload.
      *
-     * <p>Thumbnails are drawn from the classic model whatever the player previews
-     * with: the two models differ by one pixel down each arm, which no 16-pixel-wide
-     * thumbnail shows, and building the sheet again on every model toggle would cost a
-     * full re-upload for nothing.
+     * <p>One sprite per atlas buffer, which means both model variants of an element
+     * get one. Indexing the sheet by the buffer's own rank is then the whole of the
+     * bookkeeping, and the preview can reach either variant without the sheet being
+     * built again.
      */
     public static CategorySprites of(String categoryId, List<byte[]> buffers) {
         int rows = Math.max(1, (buffers.size() + COLUMNS - 1) / COLUMNS);
@@ -52,14 +61,12 @@ public final class CategorySprites implements AutoCloseable {
         int height = rows * FrontSprite.HEIGHT;
 
         int[] pixels = new int[width * height];
+        int[] bounds = new int[buffers.size() * 4];
         for (int index = 0; index < buffers.size(); index++) {
-            FrontSprite.draw(
-                    buffers.get(index),
-                    false,
-                    pixels,
-                    width,
-                    index % COLUMNS * FrontSprite.WIDTH,
-                    index / COLUMNS * FrontSprite.HEIGHT);
+            int left = index % COLUMNS * FrontSprite.WIDTH;
+            int top = index / COLUMNS * FrontSprite.HEIGHT;
+            FrontSprite.draw(buffers.get(index), false, pixels, width, left, top);
+            measure(pixels, width, left, top, bounds, index * 4);
         }
 
         NativeImage image = new NativeImage(width, height, false);
@@ -71,7 +78,53 @@ public final class CategorySprites implements AutoCloseable {
 
         ManagedTexture texture = new ManagedTexture(categoryId);
         texture.upload(image);
-        return new CategorySprites(texture, List.copyOf(buffers), rows);
+        return new CategorySprites(texture, List.copyOf(buffers), rows, bounds);
+    }
+
+    /** Records the box of drawn pixels of the sprite at {@code left, top}. */
+    private static void measure(int[] pixels, int stride, int left, int top, int[] into, int at) {
+        int minX = FrontSprite.WIDTH;
+        int minY = FrontSprite.HEIGHT;
+        int maxX = -1;
+        int maxY = -1;
+        for (int y = 0; y < FrontSprite.HEIGHT; y++) {
+            for (int x = 0; x < FrontSprite.WIDTH; x++) {
+                if ((pixels[(top + y) * stride + left + x] >>> 24) != 0) {
+                    minX = Math.min(minX, x);
+                    minY = Math.min(minY, y);
+                    maxX = Math.max(maxX, x);
+                    maxY = Math.max(maxY, y);
+                }
+            }
+        }
+        into[at] = minX;
+        into[at + 1] = minY;
+        into[at + 2] = maxX;
+        into[at + 3] = maxY;
+    }
+
+    /**
+     * Whether {@code crop} would show anything of the sprite at {@code index}.
+     *
+     * <p>A handful of elements in the library are drawn outside the part of the body
+     * their category claims - and a few are drawn only on faces a front view cannot
+     * show at all, for which no crop helps. This tells the first case from the second,
+     * so the panel can widen the crop for the one it can rescue.
+     */
+    public boolean covers(int index, ThumbCrop crop) {
+        if (index < 0 || index >= this.buffers.size()) {
+            return false;
+        }
+        int at = index * 4;
+        int maxX = this.bounds[at + 2];
+        int maxY = this.bounds[at + 3];
+        if (maxX < 0 || maxY < 0) {
+            return false;
+        }
+        return this.bounds[at] <= crop.x() + crop.width() - 1
+                && crop.x() <= maxX
+                && this.bounds[at + 1] <= crop.y() + crop.height() - 1
+                && crop.y() <= maxY;
     }
 
     public Identifier texture() {

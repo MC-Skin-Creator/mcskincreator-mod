@@ -14,5 +14,10 @@
   "library.mcskincreator.thumbnails_failed": "Les éléments de cette catégorie n'ont pas pu être chargés.",
   "library.mcskincreator.thumbnails_stale": "Cette catégorie a changé. Rouvrez l'éditeur.",
   "library.mcskincreator.region.all": "Éléments",
+  "library.mcskincreator.region.base": "Base",
+  "library.mcskincreator.region.head": "Tête",
+  "library.mcskincreator.region.torso": "Torse",
+  "library.mcskincreator.region.arms": "Bras",
+  "library.mcskincreator.region.legs": "Jambes",
   "preview.mcskincreator.compose_failed": "L'aperçu montre cet élément seul : le serveur ne l'a pas composé."
 }

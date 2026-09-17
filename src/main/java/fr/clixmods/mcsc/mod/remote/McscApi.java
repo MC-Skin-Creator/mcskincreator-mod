@@ -51,7 +51,7 @@ public final class McscApi implements AutoCloseable {
      */
     public static final String BASE_URL_PROPERTY = "mcskincreator.api";
     public static final String BASE_URL_ENV = "MCSKINCREATOR_API";
-    static final String DEFAULT_BASE_URL = "https://www.mcskincreator.com/api/v1";
+    static final String DEFAULT_BASE_URL = "https://mcskincreator.app/api/v1";
 
     /** One element's buffer inside an atlas: 64 x 64 pixels, four bytes each. */
     public static final int ATLAS_BUFFER_BYTES = 64 * 64 * 4;
@@ -67,7 +67,13 @@ public final class McscApi implements AutoCloseable {
 
     public McscApi(String baseUrl) {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
-        this.http = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
+        // HttpClient does not follow redirects unless told to, and a deployment may
+        // well answer one - a bare host sent to www, or a path normalised. Left alone,
+        // that arrives as a bare 301 that looks like the server refusing.
+        this.http = HttpClient.newBuilder()
+                .connectTimeout(CONNECT_TIMEOUT)
+                .followRedirects(HttpClient.Redirect.NORMAL)
+                .build();
     }
 
     /**
@@ -107,16 +113,39 @@ public final class McscApi implements AutoCloseable {
     }
 
     /**
-     * {@code GET /atlas/{category}/{hash}}, sliced into one buffer per element.
+     * The category's atlas, sliced into one buffer per element.
      *
-     * <p>The answer is gzipped raw RGBA, which is already the layout
-     * {@code NativeImage} wants, so there is no image to decode: decompress, then cut
-     * every {@value #ATLAS_BUFFER_BYTES} bytes.
+     * <p>The answer is raw RGBA, which is already the layout {@code NativeImage}
+     * wants, so there is no image to decode: cut it every
+     * {@value #ATLAS_BUFFER_BYTES} bytes. It arrives gzipped or not depending on the
+     * deployment, and {@link #gunzip} takes either.
+     *
+     * <p>The address is the one the catalogue gave for this category, not one built
+     * here from a hash: where the atlases live is the server's to decide, and the
+     * catalogue already says. It is relative to the site root, so it resolves against
+     * the origin of the base URL rather than against the API path.
      */
     public CompletableFuture<List<byte[]>> atlas(CatalogCategory category) {
-        String path = "/atlas/" + encode(category.id()) + "/" + encode(category.atlasHash());
-        return get(path, "application/octet-stream")
-                .thenApply(bytes -> unchecked(() -> slice(gunzip(bytes), path)));
+        String path = category.atlasPath();
+        if (path.isBlank()) {
+            return CompletableFuture.failedFuture(
+                    new IOException("the catalogue gives no atlas address for " + category.id()));
+        }
+
+        URI target = this.origin().resolve(path);
+        HttpRequest request = HttpRequest.newBuilder(target)
+                .timeout(REQUEST_TIMEOUT)
+                .header("User-Agent", userAgent())
+                .header("Accept", "application/octet-stream")
+                .GET()
+                .build();
+        return send(request, target.toString())
+                .thenApply(bytes -> unchecked(() -> slice(gunzip(bytes), target.toString())));
+    }
+
+    /** The scheme and host the API lives on, which the atlas addresses hang off. */
+    private URI origin() {
+        return URI.create(this.baseUrl).resolve("/");
     }
 
     /**
@@ -153,7 +182,11 @@ public final class McscApi implements AutoCloseable {
     private HttpRequest.Builder request(String path) {
         return HttpRequest.newBuilder(URI.create(this.baseUrl + path))
                 .timeout(REQUEST_TIMEOUT)
-                .header("User-Agent", "mcskincreator-mod/" + MCSkinCreatorClient.version());
+                .header("User-Agent", userAgent());
+    }
+
+    private static String userAgent() {
+        return "mcskincreator-mod/" + MCSkinCreatorClient.version();
     }
 
     static List<byte[]> slice(byte[] atlas, String path) throws IOException {
@@ -182,10 +215,6 @@ public final class McscApi implements AutoCloseable {
         try (GZIPInputStream gzip = new GZIPInputStream(new ByteArrayInputStream(body))) {
             return gzip.readAllBytes();
         }
-    }
-
-    private static String encode(String segment) {
-        return java.net.URLEncoder.encode(segment, StandardCharsets.UTF_8);
     }
 
     /**
