@@ -58,6 +58,13 @@ src/main/java/fr/clixmods/mcsc/mod/
 One shared source tree serves every Minecraft version. There is no `src-1.21.11/`
 and there never should be.
 
+`src/test/java/` holds the tests, and is shared the same way: every target compiles
+and runs all of them. They cover the pure logic — the layer stack and its history,
+the project body sent to the server, the catalogue reader and its fallbacks — and
+need no game, though they do resolve against the target's Minecraft jar for
+`Component` and `PlayerModelType`. Nothing that draws is tested: that is what
+running the game is for.
+
 The interface has its own rules — the four materials, the palette, the scale
 conversion, what is deliberately not built — in [`INTERFACE.md`](INTERFACE.md). Read
 it before changing anything that draws.
@@ -91,12 +98,18 @@ target on its own.
 All of these were run and verified in this repository.
 
 ```sh
-./gradlew build                        # builds EVERY target
-./gradlew :1.21.11:build               # builds one target
+./gradlew build                        # builds and tests EVERY target
+./gradlew :1.21.11:build               # builds and tests one target
 ./gradlew :26.2.x:build
+./gradlew test                         # every target's tests, nothing else
+./gradlew :26.2.x:test                 # one target's tests
 ./gradlew buildAndCollect              # all targets, jars collected in build/libs/0.1.0/
 ./gradlew tasks                        # lists the generated Stonecutter tasks
 ```
+
+`buildAndCollect` copies the jar and nothing more: it does not run the tests, which
+is why CI asks for `build` as well as `buildAndCollect`. A test report lands in
+`versions/<target>/build/reports/tests/test/`.
 
 Switching the active version (note the spaces — the task name is a sentence):
 
@@ -185,6 +198,11 @@ The Fabric API is pulled per module (`fapi("fabric-screen-api-v1")` in
 `build.gradle.kts`) rather than whole, so each target only fetches what the mod
 uses. Add modules there as they become necessary.
 
+JUnit 5 is one line — `deps.junit` at the top of the TOML rather than in a per-target
+table — because the same version runs on Java 21 and on Java 25 alike. It is pulled
+through the JUnit BOM, so the engine, the parameterised runner and the launcher all
+follow that one number.
+
 ## Adding a Minecraft version
 
 1. Add the node in `settings.gradle.kts` (`versions(…)` or `version(alias, value)`).
@@ -201,9 +219,10 @@ uses. Add modules there as they become necessary.
 
 `.github/workflows/build.yml` runs **one job per Stonecutter target** on every pull
 request and on pushes to `feature/**` and `fix/**`, with `fail-fast: false` so one
-broken version does not mask another. It is primarily a compile check, and each job
-also uploads its jar as a **workflow artifact** (`retention-days: 7`) so a PR can be
-test-installed before it merges — this is not a release: no tag, no GitHub release,
+broken version does not mask another. Each job compiles that target and runs its
+tests, uploads the test report when something failed, and uploads its jar as a
+**workflow artifact** (`retention-days: 7`) so a PR can be test-installed before it
+merges — this is not a release: no tag, no GitHub release,
 `mod.version` unchanged. It deliberately does not run on `main` or `develop`, where
 `release.yml` compiles the same commit anyway. No secret is declared.
 

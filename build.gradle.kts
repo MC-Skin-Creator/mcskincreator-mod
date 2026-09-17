@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+
 plugins {
     // Applies the Loom variant matching this node's Minecraft version.
     id("dev.kikugie.loom-back-compat")
@@ -27,6 +29,15 @@ dependencies {
     modImplementation("net.fabricmc:fabric-loader:${property("deps.fabric_loader")}")
     // Only the module the mod actually uses, to keep each target's setup quick.
     fapi("fabric-screen-api-v1")
+
+    // JUnit 5, one version for every target. Nothing else is declared for the tests:
+    // Loom already puts this target's own Minecraft jar on their classpath, which is
+    // what lets them speak in Component and PlayerModelType without a game.
+    testImplementation(platform("org.junit:junit-bom:${property("deps.junit")}"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    // Gradle stopped supplying the launcher itself; without it the test task starts
+    // and finds no engine.
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 loom {
@@ -48,6 +59,17 @@ java {
 }
 
 tasks {
+    test {
+        useJUnitPlatform()
+
+        // A failing assertion says what it was in the console: the default prints
+        // the test's name and leaves the reason in the HTML report.
+        testLogging {
+            events("failed")
+            exceptionFormat = TestExceptionFormat.FULL
+        }
+    }
+
     processResources {
         fun MutableMap<String, String>.register(key: String, property: String) {
             val value: String = sc.properties[property]

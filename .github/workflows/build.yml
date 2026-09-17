@@ -10,7 +10,7 @@ on:
       - 'fix/**'
   pull_request:
 
-# Compiles every Minecraft target and attaches the resulting jars as a
+# Compiles and tests every Minecraft target and attaches the resulting jars as a
 # short-lived workflow artifact, so a PR can be test-installed before it merges.
 # These are not releases: no tag, no GitHub release, no version bump.
 # No secret is needed, so none is granted.
@@ -19,8 +19,9 @@ permissions:
 
 jobs:
   build:
-    # One job per Stonecutter target: a version that stops compiling fails the run
-    # on its own line instead of hiding behind whichever version happens to be active.
+    # One job per Stonecutter target: a version that stops compiling, or a test that
+    # only fails on one of them, fails the run on its own line instead of hiding
+    # behind whichever version happens to be active.
     strategy:
       fail-fast: false
       matrix:
@@ -50,11 +51,23 @@ jobs:
 
       - name: Build
         # Points Gradle at the JDK installed above rather than downloading another one.
-        # buildAndCollect compiles the same as build and additionally copies the jar
-        # to build/libs/<mod version>/, which is what gets uploaded below.
+        # build compiles and runs the tests; buildAndCollect only copies the jar to
+        # build/libs/<mod version>/, which is what gets uploaded below, so both are
+        # asked for rather than relying on one to imply the other.
         run: >-
-          ./gradlew ":${{ matrix.minecraft }}:buildAndCollect" --stacktrace
+          ./gradlew ":${{ matrix.minecraft }}:build" ":${{ matrix.minecraft }}:buildAndCollect"
+          --stacktrace
           -Porg.gradle.java.installations.fromEnv=JAVA_HOME_21_X64,JAVA_HOME_25_X64
+
+      - name: Upload test report
+        # The report is only worth having when something failed, and then it is the
+        # first thing anyone opens.
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-${{ matrix.minecraft }}
+          path: versions/${{ matrix.minecraft }}/build/reports/tests/test
+          retention-days: 7
 
       - name: Upload jar
         uses: actions/upload-artifact@v4
