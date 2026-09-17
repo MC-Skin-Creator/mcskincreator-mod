@@ -5,25 +5,37 @@
 Fabric client mod that brings the [MC Skin Creator](https://github.com/MC-Skin-Creator)
 skin editor into the game.
 
-## Status: read-only editor
+## Status: the editor, in the site's own interface
 
-The editor browses the library and shows what you pick on a player model. It does
-not edit or apply a skin yet: nothing you do in it leaves the screen.
+The editor stacks a skin out of layers and shows it on a player model. It does not
+apply the skin yet: nothing you build leaves the screen.
+
+The screen is the site's, in the game — the same materials, the same palette, the
+same gestures, the same three zones. The rules it follows are in
+[`INTERFACE.md`](INTERFACE.md).
 
 What is in:
 
 - a **Skin Creator** panel on the right of the title screen and the pause menu
-- the **element library**: regions, the categories of a region as a row of icons,
-  and that category's elements as scrolling inventory slots, named in your language
-- a **player model preview** that turns under the mouse and follows the classic or
-  slim model
-- English, French and Spanish translations
+- the **library**, left: regions, the categories of a region as a fixed row of
+  icons, search across every region, and a scrolling grid of elements in inventory
+  slots, named in your language
+- the **scene**, middle: the player model, which turns under the mouse and never
+  goes away — it shrinks, it never hides. Point at an element to try it on
+- the **layers**, right: the stack grouped by region, drag to reorder, show and
+  hide, duplicate and remove, and an inspector for opacity, hue, saturation and
+  brightness
+- three columns while the window is wide enough, drawers below that, either side
+  column foldable
+- undo and redo over 60 states, with one entry per gesture rather than per frame
+- export of the composed 64x64 sheet as a PNG, into `<game>/mcskincreator/`
+- English, French and Spanish, with a label and a tooltip for every control
 - multi-version builds through [Stonecutter](https://stonecutter.kikugie.dev/):
   **Minecraft 1.21.11 and 26.2** from the same code
 - CI building every supported version on each push and pull request
 
-What is not in yet: stacking layers, colours and HSL, the account, and applying the
-skin. They all live in the
+What is not in yet: the pixel drawing tools, per-element colours, importing a
+texture, the account, and applying the skin. They all live in the
 [issues](https://github.com/MC-Skin-Creator/mcskincreator-mod/issues).
 
 The editor reads the MC Skin Creator API at `https://mcskincreator.app/api/v1`, so
@@ -81,8 +93,9 @@ not a new version of the mod.
 Supported versions and their dependencies are declared in
 [`stonecutter.properties.toml`](stonecutter.properties.toml) — the only file to
 touch when adding a version or bumping a dependency. The reasoning behind the
-toolchain is in [`DECISIONS.md`](DECISIONS.md), and the working rules for the
-multi-version source tree are in [`CLAUDE.md`](CLAUDE.md).
+toolchain is in [`DECISIONS.md`](DECISIONS.md), the working rules for the
+multi-version source tree are in [`CLAUDE.md`](CLAUDE.md), and the rules the
+interface follows are in [`INTERFACE.md`](INTERFACE.md).
 
 ## License
 

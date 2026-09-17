@@ -39,15 +39,28 @@ why the whole project is on Mojang mappings.
 ```
 src/main/java/fr/clixmods/mcsc/mod/
 ├── MCSkinCreatorClient.java   ClientModInitializer: logs on load, registers the menu buttons
+├── remote/                    the HTTP side of the site's /api/v1 contract
+├── catalog/                   what the catalogue says: regions, categories, elements, crops
+├── skin/                      pixels: front sprites, category sheets, the previewed skin, textures
+├── project/                   what is being edited: the layer stack and its history
+├── style/                     the design system: palette, metrics, the four materials, the grain
 └── ui/
-    ├── MenuButtons.java       hooks TitleScreen and PauseScreen via ScreenEvents.AFTER_INIT
-    ├── SkinPanel.java         the right-hand panel: player name, player model, button
-    ├── SkinCreatorScreen.java the editor screen (placeholder content for now)
-    └── ScreenCompat.java      the only home for cross-version call renames
+    ├── Canvas.java            the drawing surface, and the only file the interface versions
+    ├── ScreenCompat.java      the two call renames outside drawing
+    ├── Element.java, Paint.java   the widget base and the per-frame context
+    ├── SkinCreatorScreen.java the editor: layout, focus, shortcuts, requests, window routing
+    ├── MenuButtons.java, SkinPanel.java   the entry on the vanilla menus
+    ├── widget/                button, tabs, tile, field, slider, checkbox, dropdown, layer row
+    ├── panel/                 top bar, library, scene, layers
+    └── window/                the modal base and the windows built on it
 ```
 
 One shared source tree serves every Minecraft version. There is no `src-1.21.11/`
 and there never should be.
+
+The interface has its own rules — the four materials, the palette, the scale
+conversion, what is deliberately not built — in [`INTERFACE.md`](INTERFACE.md). Read
+it before changing anything that draws.
 
 ## Stonecutter architecture
 
@@ -142,6 +155,9 @@ and `}` are load-bearing: breaking them silently changes what a target compiles.
 | Open a screen | `Minecraft#setScreen` | `setScreenAndShow` | `ScreenCompat` |
 | Screen widget list | `Screens#getButtons` | `Screens#getWidgets` (Fabric screen API v5) | `ScreenCompat` |
 | Screen draw hook | `render(GuiGraphics, …)` | `extractRenderState(GuiGraphicsExtractor, …)` | `SkinCreatorScreen` |
+| Drawing object | `GuiGraphics` | `GuiGraphicsExtractor` | `Canvas` |
+| Draw a string | `drawString` / `drawCenteredString` | `text` / `centeredText` | `Canvas` |
+| Draw a widget | `Renderable#render` | `Renderable#extractRenderState` | `Canvas` |
 | Centered text | `drawCenteredString` | `centeredText` | `SkinCreatorScreen` |
 
 26.x replaced immediate-mode GUI drawing with a render-state extraction pass, so
