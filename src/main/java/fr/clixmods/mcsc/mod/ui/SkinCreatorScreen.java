@@ -23,6 +23,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import fr.clixmods.mcsc.mod.MCSkinCreatorClient;
 import fr.clixmods.mcsc.mod.catalog.Catalog;
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
+import fr.clixmods.mcsc.mod.catalog.CatalogFormatException;
 import fr.clixmods.mcsc.mod.catalog.CatalogItem;
 import fr.clixmods.mcsc.mod.remote.ApiException;
 import fr.clixmods.mcsc.mod.remote.McscApi;
@@ -306,8 +307,9 @@ public class SkinCreatorScreen extends Screen implements ElementLibrary.Listener
                     if (failure != null) {
                         // A player gets a sentence, the log gets the cause. A stack
                         // trace on screen tells them nothing they can act on.
-                        MCSkinCreatorClient.LOGGER.warn("Reading the catalogue failed", failure);
-                        this.status = Component.translatable("library.mcskincreator.unreachable");
+                        MCSkinCreatorClient.LOGGER.warn("Reading the catalogue from {} failed",
+                                McscApi.shared().baseUrl(), failure);
+                        this.status = catalogFailure(failure);
                         return;
                     }
                     catalog = loaded;
@@ -357,12 +359,44 @@ public class SkinCreatorScreen extends Screen implements ElementLibrary.Listener
     }
 
     private static boolean notFound(Throwable failure) {
+        ApiException refusal = refusal(failure);
+        return refusal != null && refusal.isNotFound();
+    }
+
+    /** The server's own refusal inside a failure, or {@code null} if it never answered. */
+    private static ApiException refusal(Throwable failure) {
         for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
             if (cause instanceof ApiException api) {
-                return api.isNotFound();
+                return api;
             }
         }
-        return false;
+        return null;
+    }
+
+    /**
+     * What to tell the player when the catalogue does not arrive.
+     *
+     * <p>The three cases are worth separating because they call for different things
+     * from whoever reads them: a host that never answered is a network or an address
+     * problem, a status is the server declining, and a body that is not a catalogue
+     * means the address reached something else entirely. Reporting all three as
+     * "unreachable" sends the reader looking at their connection when the address is
+     * what is wrong. The address is named for the same reason - the mod can be pointed
+     * at another deployment, so which one it tried is half the answer.
+     */
+    private static Component catalogFailure(Throwable failure) {
+        String address = McscApi.shared().baseUrl();
+        ApiException refusal = refusal(failure);
+        if (refusal != null) {
+            return Component.translatable("library.mcskincreator.http_error",
+                    refusal.status(), address);
+        }
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof CatalogFormatException) {
+                return Component.translatable("library.mcskincreator.not_a_catalog", address);
+            }
+        }
+        return Component.translatable("library.mcskincreator.unreachable", address);
     }
 
     private void toggleModel() {

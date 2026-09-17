@@ -83,6 +83,11 @@ public final class McscApi implements AutoCloseable {
         return shared;
     }
 
+    /** Where this client is pointed, so a failure can say which address it tried. */
+    public String baseUrl() {
+        return this.baseUrl;
+    }
+
     static String configuredBaseUrl() {
         String property = System.getProperty(BASE_URL_PROPERTY);
         if (property != null && !property.isBlank()) {
