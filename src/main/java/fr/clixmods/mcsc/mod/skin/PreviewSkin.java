@@ -118,18 +118,4 @@ public final class PreviewSkin implements AutoCloseable {
     public void close() {
         this.texture.close();
     }
-
-    /**
-     * A texture the mod registered itself.
-     *
-     * <p>The game's own implementations derive the texture path from the asset id;
-     * a runtime texture is registered under its name directly, so the two are the
-     * same here.
-     */
-    private record RuntimeTexture(Identifier id) implements ClientAsset.Texture {
-        @Override
-        public Identifier texturePath() {
-            return this.id;
-        }
-    }
 }

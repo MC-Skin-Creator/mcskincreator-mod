@@ -58,6 +58,19 @@ public final class Toasts {
         this.silenced.remove(kind);
     }
 
+    /**
+     * Reports a failure that is never silenced, because the player asked for it.
+     *
+     * <p>{@link #failed} exists for what the mod does on its own — composing on every
+     * change, fetching an atlas — where repeating the same complaint teaches people to
+     * click past it. An action someone pressed a button for is the opposite case: it
+     * has to answer every time, and the second attempt above all, because a button that
+     * says nothing is one they will conclude did nothing.
+     */
+    public void error(Component text) {
+        this.live.addLast(new Toast(text, false, System.currentTimeMillis()));
+    }
+
     public void draw(Canvas canvas, int screenWidth, int screenHeight, long now) {
         this.live.removeIf(toast -> now - toast.shownAt() > Metrics.TOAST_MILLIS);
 

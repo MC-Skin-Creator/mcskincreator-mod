@@ -6,16 +6,99 @@ Mojang's version manifest, not copied from a tutorial.
 
 ## 1. Skin level
 
-Three levels were on the table. We ship **level 1 first**:
+Three levels were on the table:
 
 | Level | What it does | Who sees the skin | Status |
 |---|---|---|---|
-| 1. Fitting room | the mod replaces the skin texture locally | you only | planned first |
-| 2. Mojang upload | upload to the account through the official API | everyone, everywhere | after level 1 |
+| 1. Fitting room | the mod replaces the skin texture locally | you only | not built, issue #11 |
+| 2. Mojang upload | upload to the account through the official API | everyone, everywhere | **built** |
 | 3. Server mod | rewriting the `textures` property server-side | everyone on that server | out of scope, another repository |
 
-Players **will** mistake level 1 for a real skin change. The interface has to spell
-the difference out, or every attempt will look like a bug.
+**Level 2 shipped before level 1**, which reverses the order this file first set out.
+The reason is worth recording, because the original order was not wrong so much as
+answering a different question: level 1 was first because it is the safe one, not
+because it is the one a player wants. What makes the mod a product is the skin
+actually changing, and level 1 is a mirror — every hour of it would have been spent
+explaining to players that the change they just made is not a change. Level 2 needs
+no such explaining, and it turned out not to depend on level 1 for anything: the
+composed sheet already existed, because export writes it to a file.
+
+Level 1 is still worth having, and it is still issue #11. Its value is what it always
+was, only smaller than it looked: trying a skin on without spending an upload against
+Mojang's rate limit, and working offline.
+
+Players **will** mistake level 1 for a real skin change when it lands. The interface
+has to spell the difference out, or every attempt will look like a bug — and now that
+level 2 exists to be confused with, that is no longer a hypothetical.
+
+### What level 2 costs, and what pays for it
+
+The session token is the account. Three rules hold the whole design, and each is one
+a reader of this repository can check rather than take on trust:
+
+- **One address.** The token goes to `api.minecraftservices.com` and nowhere else,
+  from one file — `account/MojangSkins.java`. Nothing outside `account/` can reach it:
+  `GameSession` is package-private and `AccountSkin` is the only way in. `MojangSkinsTest`
+  pins the endpoint so that changing it has to be argued for in a diff.
+- **Never in a log.** `SkinUploadException` carries a status code and a `Retry-After`,
+  and deliberately nothing of the request. A failure ends up in crash reports, and a
+  crash report is the likeliest way a token escapes a mod that meant well.
+- **Never on its own.** One press, one upload. The mod has no timer, no batch and no
+  retry, and `UploadCooldown` locks the button between two uploads — with Mojang's own
+  `Retry-After` honoured when it sends one.
+
+The cooldown's floor after a success is the mod's own number, not a published limit:
+Mojang documents no rate for skin changes. A generous floor costs a player nothing —
+the CDN takes longer than the floor does to show the change anyway — and a session
+rate-limited by an impatient click costs them ten minutes.
+
+### Wearing it before Mojang has propagated it
+
+An upload changes the account, and the account is not what a running client draws. The
+profile the client was handed on joining still carries the old `textures` property, and
+Minecraft's caches sit on top of that, so the new skin used to appear only on a
+restart — a minute in which a successful upload is indistinguishable from a failed one.
+
+The mod closes that minute by wearing the uploaded pixels itself: `skin/AppliedSkin`
+holds them, and they reach the screen through **two doors**, because the game draws the
+player's skin two ways. The mod's one mixin takes the return of
+`AbstractClientPlayer#getSkin`, which covers everything drawn from a player entity; the
+panel on the title and pause menus has no entity and asks `SkinManager` for a supplier
+instead, so it wraps that supplier with `AppliedSkin.over(…)`. Missing the second door
+is what left the menu preview showing the old skin while the player in the world already
+wore the new one. Wrapping the supplier rather than its result is deliberate:
+`PlayerSkinWidget` keeps the supplier and calls it as it draws, so a panel built before
+the upload updates without being rebuilt.
+
+Three further choices are deliberate:
+
+- **After the upload, never before.** A client wearing a skin that failed to send would
+  be a worse lie than the wait it replaces.
+- **The body only.** The cape and the elytra stay the ones the game resolved, because
+  they belong to the account and this mod has not touched them. An override that
+  dropped them would take a player's cape off to show them a skin.
+- **It lasts the session.** There is no reliable moment at which the real profile can be
+  seen to have caught up — the client is not told, and its copy is not refreshed until
+  it reconnects — so rather than guess at one, the override stands. It cannot drift:
+  the pixels are the ones the account now holds, and the only thing that replaces them
+  is another upload, which replaces the account skin in the same breath.
+
+Editing the game's state instead — clearing the entity's cached `PlayerInfo`, as is
+sometimes suggested — does not work and is worth writing down so it is not tried again:
+the profile it would be rebuilt from still carries the old texture property, so the
+game would resolve the old skin a second time.
+
+**Other players are out of scope, and not by preference.** Their clients read the
+profile from the server; a client-side mod cannot make them refresh. Doing it properly
+needs something server-side, which is level 3 above and another repository. Until then
+the honest thing is to say so in the interface, which is what the confirmation does.
+
+`PlayerModelType` goes up with the sheet as Mojang's `classic` or `slim`, so the arms
+are the width the skin was drawn for. The upload needs a PNG, and the composer answers
+either a PNG or a raw RGBA buffer; `NativeImage` on both target versions can read a PNG
+and write one to a *file*, but has no call that hands back the bytes — so `skin/Png.java`
+encodes the raw shape. Sixty lines of well-specified format beat a temporary file
+between two buffers already in memory.
 
 ## 2. Loader: Fabric
 

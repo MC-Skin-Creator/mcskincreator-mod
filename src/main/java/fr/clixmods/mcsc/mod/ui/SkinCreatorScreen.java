@@ -22,6 +22,8 @@ import java.util.stream.Collectors;
 import com.google.gson.JsonParser;
 
 import fr.clixmods.mcsc.mod.MCSkinCreatorClient;
+import fr.clixmods.mcsc.mod.account.AccountSkin;
+import fr.clixmods.mcsc.mod.account.SkinUploadException;
 import fr.clixmods.mcsc.mod.catalog.Catalog;
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
 import fr.clixmods.mcsc.mod.catalog.CatalogFormatException;
@@ -36,6 +38,7 @@ import fr.clixmods.mcsc.mod.remote.ItemCredit;
 import fr.clixmods.mcsc.mod.remote.McscApi;
 import fr.clixmods.mcsc.mod.remote.SavedSkin;
 import fr.clixmods.mcsc.mod.remote.SearchResults;
+import fr.clixmods.mcsc.mod.skin.AppliedSkin;
 import fr.clixmods.mcsc.mod.skin.CategorySprites;
 import fr.clixmods.mcsc.mod.skin.PreviewSkin;
 import fr.clixmods.mcsc.mod.skin.ProjectJson;
@@ -52,11 +55,13 @@ import fr.clixmods.mcsc.mod.ui.widget.Dropdown;
 import fr.clixmods.mcsc.mod.ui.widget.ItemTile;
 import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
 import fr.clixmods.mcsc.mod.ui.window.CardWindow;
+import fr.clixmods.mcsc.mod.ui.window.ConfirmWindow;
 import fr.clixmods.mcsc.mod.ui.window.ModalWindow;
 import fr.clixmods.mcsc.mod.ui.window.NameWindow;
 import fr.clixmods.mcsc.mod.ui.window.SkinsWindow;
 import fr.clixmods.mcsc.mod.ui.window.TextWindow;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.User;
 //? if >=26.1 {
 /*import net.minecraft.client.gui.GuiGraphicsExtractor;
 *///?} else {
@@ -189,6 +194,13 @@ public class SkinCreatorScreen extends Screen {
      * happen, instead of every caller having to remember to say so.
      */
     private int shownRevision;
+    /**
+     * The cooldown the apply button is currently showing.
+     *
+     * <p>That button's label is built when the window is laid out, so a wait counting
+     * down is a window that has to be laid out again on every second it loses.
+     */
+    private long shownLockSeconds;
 
     /** Which side column is open, when the width is too small to show both. */
     private enum Drawer {
@@ -460,6 +472,14 @@ public class SkinCreatorScreen extends Screen {
         if (this.searchPending && now - this.searchSince >= SEARCH_DEBOUNCE_MS) {
             this.searchPending = false;
             search();
+        }
+
+        long lockSeconds = AccountSkin.secondsLeft();
+        if (lockSeconds != this.shownLockSeconds) {
+            this.shownLockSeconds = lockSeconds;
+            if (this.window != null) {
+                relayout();
+            }
         }
     }
 
@@ -1024,11 +1044,150 @@ public class SkinCreatorScreen extends Screen {
     }
 
     private void openExport() {
-        open(new CardWindow("window.mcskincreator.export", List.of(
-                new CardWindow.Card("save", "export.mcskincreator.file",
-                        "export.mcskincreator.file_detail", this::openExportName),
-                new CardWindow.Card("skin", "export.mcskincreator.front",
-                        "export.mcskincreator.front_detail", this::openFrontViewName)), null));
+        List<CardWindow.Card> cards = new ArrayList<>();
+        cards.add(new CardWindow.Card("save", "export.mcskincreator.file",
+                "export.mcskincreator.file_detail", this::openExportName));
+        cards.add(new CardWindow.Card("skin", "export.mcskincreator.front",
+                "export.mcskincreator.front_detail", this::openFrontViewName));
+
+        // Last of the three, and the only one that leaves this machine. Without a
+        // signed-in session there is no token, so the card is left out rather than shown
+        // refusing — and the note under the cards says why, because a choice that
+        // silently disappears is one nobody can ask about.
+        boolean canApply = AccountSkin.available(this.minecraft);
+        if (canApply) {
+            cards.add(new CardWindow.Card("outfit", "export.mcskincreator.account",
+                    "export.mcskincreator.account_detail", this::openApply));
+        }
+        open(new CardWindow("window.mcskincreator.export", cards,
+                canApply ? null : Component.translatable("export.mcskincreator.no_session"), null));
+    }
+
+    /**
+     * What applying to the account costs, said before it is done rather than after.
+     *
+     * <p>The propagation notice is the one that earns its place: the profile CDN takes
+     * its time, so a successful upload looks exactly like a failed one for a minute or
+     * more. Someone who has not been told that presses the button again, and again,
+     * until Mojang rate-limits them for it.
+     */
+    private void openApply() {
+        open(new ConfirmWindow("window.mcskincreator.apply", List.of(
+                TextWindow.Line.of("apply.mcskincreator.what"),
+                TextWindow.Line.of("apply.mcskincreator.model"),
+                TextWindow.Line.warning("apply.mcskincreator.propagation")),
+                this::applyLabel, AccountSkin::ready, this::applyToAccount, null));
+    }
+
+    /** The apply button says what it is doing, and what it is waiting for. */
+    private Component applyLabel() {
+        if (AccountSkin.uploading()) {
+            return Component.translatable("apply.mcskincreator.sending");
+        }
+        long left = AccountSkin.secondsLeft();
+        return left > 0
+                ? Component.translatable("apply.mcskincreator.wait", left)
+                : Component.translatable("apply.mcskincreator.confirm");
+    }
+
+    /**
+     * Sends the composed sheet to the account. One press, one upload.
+     *
+     * <p>What goes up is the sheet the server composed — the same bytes an export writes
+     * out — so what lands on the account is what was on the model, and never the single
+     * layer the preview stands in with while a composition is on its way.
+     */
+    private void applyToAccount() {
+        if (this.composed == null) {
+            this.toasts.error(Component.translatable("toast.mcskincreator.nothing_to_apply"));
+            return;
+        }
+        // The button is disabled in both these cases, so getting here means a click beat
+        // the layout that would have disabled it. Answering is still cheaper than
+        // sending a second upload, and far cheaper than saying nothing.
+        if (AccountSkin.uploading()) {
+            this.toasts.ok(Component.translatable("toast.mcskincreator.applying"));
+            return;
+        }
+        if (!AccountSkin.ready()) {
+            this.toasts.error(Component.translatable("toast.mcskincreator.apply_rate_limited",
+                    AccountSkin.secondsLeft()));
+            return;
+        }
+
+        byte[] sheet = this.composed;
+        PlayerModelType model = this.project.model();
+        this.toasts.ok(Component.translatable("toast.mcskincreator.applying"));
+        AccountSkin.apply(this.minecraft, sheet, model)
+                .whenComplete((nothing, failure) -> Minecraft.getInstance().execute(() -> {
+                    // Put on before the screen is consulted: the editor may well have
+                    // been closed while the upload was in flight, and a skin that
+                    // reached the account should go on the player either way.
+                    if (failure == null) {
+                        wearLocally(sheet, model);
+                    }
+                    if (this.closed) {
+                        return;
+                    }
+                    if (failure != null) {
+                        // The status and what threw, never the request: the log is the
+                        // one place the token must not reach.
+                        MCSkinCreatorClient.LOGGER.warn("Applying the skin to the account failed",
+                                failure);
+                        this.toasts.error(applyFailure(failure));
+                        return;
+                    }
+                    this.toasts.ok(Component.translatable("toast.mcskincreator.applied"));
+                }));
+    }
+
+    /**
+     * Wears what was just uploaded, so the player sees it now rather than on the next
+     * start of the game.
+     *
+     * <p>Only ever after Mojang accepted it, so this cannot show a skin that failed to
+     * send. A failure here costs the immediacy and nothing else: the account has the
+     * skin, and the game will draw it on its own next time it starts.
+     */
+    private void wearLocally(byte[] sheet, PlayerModelType model) {
+        User user = Minecraft.getInstance().getUser();
+        if (user == null) {
+            return;
+        }
+        try {
+            AppliedSkin.wear(user.getProfileId(), sheet, model);
+        } catch (IOException | RuntimeException cause) {
+            MCSkinCreatorClient.LOGGER.warn("Wearing the applied skin locally failed", cause);
+        }
+    }
+
+    /**
+     * What to tell the player when the skin did not reach the account.
+     *
+     * <p>Mojang's three refusals ask different things of whoever reads them: an expired
+     * session is fixed by signing in again, a rate limit is fixed by waiting and by
+     * nothing else, and a status is worth reporting. A network that never answered is a
+     * fourth thing again, and everything left over is the mod's own fault rather than
+     * anyone's connection — saying "unreachable" for that would send the reader to look
+     * at a router that is working perfectly.
+     */
+    private static Component applyFailure(Throwable failure) {
+        SkinUploadException refusal = AccountSkin.refusal(failure);
+        if (refusal != null) {
+            return switch (refusal.reason()) {
+                case SESSION_EXPIRED -> Component.translatable("toast.mcskincreator.apply_session");
+                case RATE_LIMITED -> Component.translatable("toast.mcskincreator.apply_rate_limited",
+                        AccountSkin.secondsLeft());
+                case REFUSED -> Component.translatable("toast.mcskincreator.apply_refused",
+                        refusal.status());
+            };
+        }
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof IOException) {
+                return Component.translatable("toast.mcskincreator.apply_unreachable");
+            }
+        }
+        return Component.translatable("toast.mcskincreator.apply_failed");
     }
 
     private void openExportName() {

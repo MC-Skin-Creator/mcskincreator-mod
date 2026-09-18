@@ -20,6 +20,12 @@
       "fr.clixmods.mcsc.mod.MCSkinCreatorClient"
     ]
   },
+  "mixins": [
+    {
+      "config": "mcskincreator.mixins.json",
+      "environment": "client"
+    }
+  ],
   "depends": {
     "fabricloader": ">=${loader}",
     "minecraft": "${minecraft}",

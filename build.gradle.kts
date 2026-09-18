@@ -88,7 +88,11 @@ tasks {
         }
 
         inputs.property("java", requiredJava.majorVersion)
-        filesMatching("fabric.mod.json") { expand(props) }
+        // The mixin config is expanded too, for its compatibility level alone: Mixin
+        // checks it against the class file version of the mixin classes, and those are
+        // Java 21 on one target and Java 25 on the other. One hardcoded level would be
+        // wrong on one of them.
+        filesMatching(listOf("fabric.mod.json", "mcskincreator.mixins.json")) { expand(props) }
     }
 
     withType<Jar> {

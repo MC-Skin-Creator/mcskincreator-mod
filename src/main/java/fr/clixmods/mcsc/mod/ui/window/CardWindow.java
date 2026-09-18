@@ -16,6 +16,7 @@ import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
 import fr.clixmods.mcsc.mod.ui.Icons;
 import fr.clixmods.mcsc.mod.ui.Paint;
+import fr.clixmods.mcsc.mod.ui.Prose;
 import net.minecraft.network.chat.Component;
 
 /**
@@ -32,19 +33,39 @@ public class CardWindow extends ModalWindow {
     }
 
     private final List<Card> cards;
+    private final Component note;
 
     public CardWindow(String titleKey, List<Card> cards, ModalWindow returnsTo) {
+        this(titleKey, cards, null, returnsTo);
+    }
+
+    /**
+     * @param note a paragraph set under the cards, or null for none. It is how a window
+     *             says why a choice it is <em>not</em> offering is missing: a card that
+     *             cannot work is left out rather than shown dead, and a choice that
+     *             silently disappears is one nobody can ask about.
+     */
+    public CardWindow(String titleKey, List<Card> cards, Component note, ModalWindow returnsTo) {
         super(titleKey, returnsTo);
         this.cards = cards;
+        this.note = note;
     }
 
     private int cardHeight(Canvas canvas) {
         return Math.max(Icons.SIZE * 2, canvas.lineHeight() * 2 + Metrics.PAD_TIGHT) + Metrics.PAD * 2;
     }
 
+    private int noteHeight(Canvas canvas) {
+        if (this.note == null) {
+            return 0;
+        }
+        int body = width() - Metrics.PAD * 2;
+        return Prose.noteHeight(canvas, Prose.wrap(canvas, this.note, Prose.noteRoom(body)).size());
+    }
+
     @Override
     protected int contentHeight(Canvas canvas) {
-        return this.cards.size() * (cardHeight(canvas) + Metrics.PAD_TIGHT);
+        return this.cards.size() * (cardHeight(canvas) + Metrics.PAD_TIGHT) + noteHeight(canvas);
     }
 
     @Override
@@ -61,7 +82,14 @@ public class CardWindow extends ModalWindow {
 
     @Override
     protected void drawBody(Paint paint, int left, int top, int width) {
-        // The cards are children, so the window draws them with everything else.
+        // The cards are children, so the window draws them with everything else. The
+        // note is not a control and so is drawn here.
+        if (this.note == null) {
+            return;
+        }
+        Canvas canvas = paint.canvas();
+        int noteTop = top + this.cards.size() * (cardHeight(canvas) + Metrics.PAD_TIGHT);
+        Prose.drawNote(canvas, left, noteTop, width, Prose.wrap(canvas, this.note, Prose.noteRoom(width)));
     }
 
     /** A card. Its own element so it can be focused and reached without a mouse. */
