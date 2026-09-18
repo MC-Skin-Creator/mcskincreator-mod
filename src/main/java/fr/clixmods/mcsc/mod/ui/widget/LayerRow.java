@@ -41,8 +41,14 @@ import net.minecraft.network.chat.Component;
  */
 public class LayerRow extends Element {
     private static final int BAND = Metrics.ui(6);
-    /** Below this, the name is an ellipsis and the row stops being worth reading. */
-    private static final int MIN_NAME_ROOM = 30;
+    /**
+     * Below this, the name is an ellipsis and the row stops being worth reading.
+     *
+     * <p>Wide enough for a short word and not for a long one, which is the honest
+     * threshold: "Bandana" is 42 pixels, and a row that can show it in full is a row
+     * worth giving the picture up for.
+     */
+    private static final int MIN_NAME_ROOM = 45;
 
     private final Layer layer;
     private final Supplier<CategorySprites> sprites;
@@ -128,20 +134,29 @@ public class LayerRow extends Element {
                 this.layer.visible(), paint.over(cursorX, this.y, Sprites.CHECKBOX_SIZE, this.height));
         cursorX += Sprites.CHECKBOX_SIZE + Metrics.PAD_TIGHT;
 
-        int preview = Metrics.LAYER_PREVIEW;
-        Thumbnail.draw(canvas, this.sprites.get(), this.layer.atlasIndex(this.slim.get()),
-                ThumbCrop.ALL, cursorX, this.y + (this.height - preview) / 2, preview, preview);
-        cursorX += preview + Metrics.PAD_TIGHT;
-
         boolean duplicate = showsDuplicate(contentX());
         int actionsWidth = !lit ? 0
                 : duplicate ? actionWidth() * 2 + Metrics.PAD_TIGHT : actionWidth();
-        int room = this.x + this.width - Metrics.SLOT_INSET - actionsWidth - cursorX;
+        int rightEdge = this.x + this.width - Metrics.SLOT_INSET - actionsWidth;
 
-        int nameY = this.y + Metrics.SLOT_INSET / 2 + 1;
+        // The thumbnail is dropped rather than shrunk when the row is narrow. A tick
+        // box and a picture take 39 of a hundred pixels, and what was left was a name
+        // cut after six letters — "Braided c…" identifies a layer no better than no
+        // picture and the whole word do.
+        int preview = Metrics.LAYER_PREVIEW;
+        if (rightEdge - cursorX - preview - Metrics.PAD_TIGHT >= MIN_NAME_ROOM) {
+            Thumbnail.draw(canvas, this.sprites.get(), this.layer.atlasIndex(this.slim.get()),
+                    ThumbCrop.ALL, cursorX, this.y + (this.height - preview) / 2, preview, preview);
+            cursorX += preview + Metrics.PAD_TIGHT;
+        }
+
+        int room = rightEdge - cursorX;
+
+        int nameY = this.y + Metrics.SLOT_INSET;
         this.marquee.draw(paint, this.layer.name(), cursorX, nameY, room,
                 hot ? Palette.INK_HOVERED : Palette.INK, hot);
-        canvas.textFlat(subtitle(), cursorX, nameY + canvas.lineHeight() + 1, Palette.INK_FAINT);
+        canvas.textFlat(Component.literal(Marquee.cut(canvas, subtitle().getString(), room)),
+                cursorX, nameY + canvas.lineHeight() + 1, Palette.INK_MUTED);
 
         if (lit) {
             int actionX = this.x + this.width - Metrics.SLOT_INSET - actionWidth();

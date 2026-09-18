@@ -42,17 +42,18 @@ class EditorPreviewTest {
      * <p>A 1920x1080 window is 640x360 at a GUI scale of 3 and 480x270 at 4, which is
      * what most people play at; 854x480 is scale 2 on the same window and the widest
      * this screen realistically sees. The two small ones are where the columns give up
-     * and become drawers.
+     * and become drawers. Each is written out magnified by its own scale, so the
+     * picture is the size the player's screen shows it at.
      */
     private static final int[][] SIZES = {
-        {854, 480}, {640, 360}, {480, 270}, {427, 240}, {320, 240},
+        {854, 480, 2}, {640, 360, 3}, {480, 270, 4}, {427, 240, 3}, {320, 240, 3},
     };
 
     @Test
     void theEditorRendersAtEverySizeTheGameGivesIt() throws IOException {
         Files.createDirectories(OUTPUT);
         for (int[] size : SIZES) {
-            BufferedImage image = EditorPreview.of(size[0], size[1]);
+            BufferedImage image = EditorPreview.of(size[0], size[1], size[2]);
             assertNotNull(image);
             ImageIO.write(image, "png", OUTPUT.resolve(size[0] + "x" + size[1] + ".png").toFile());
         }
@@ -63,7 +64,7 @@ class EditorPreviewTest {
         Files.createDirectories(OUTPUT);
         BufferedImage image = new EditorPreview()
                 .withCatalog(EditorPreview.sampleCatalog())
-                .render(640, 360);
+                .render(640, 360, 3);
         ImageIO.write(image, "png", OUTPUT.resolve("640x360-empty.png").toFile());
     }
 

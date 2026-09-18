@@ -34,6 +34,8 @@ public abstract class Element {
     private boolean enabled = true;
     private boolean visible = true;
     private boolean focusable = true;
+    /** The band this element is allowed to be clicked in, or null for all of it. */
+    private int[] clip;
 
     public void setBounds(int x, int y, int width, int height) {
         this.x = x;
@@ -85,11 +87,41 @@ public abstract class Element {
         return this;
     }
 
+    /**
+     * Limits where the element answers to a click.
+     *
+     * <p>Scrolling content is drawn clipped to its band, and half a tile hanging below
+     * that band is drawn as half a tile — but it was still a whole tile to the pointer,
+     * so a click under the panel picked an element nobody could see. What is clipped
+     * away is not merely invisible, it is out of reach.
+     *
+     * @return this, so a caller can place and clip in one line
+     */
+    public Element clipTo(int x, int y, int width, int height) {
+        this.clip = new int[] {x, y, width, height};
+        return this;
+    }
+
+    /** The rectangle the element actually answers to: its bounds, clipped. */
+    public int[] hitBox() {
+        if (this.clip == null) {
+            return new int[] {this.x, this.y, this.width, this.height};
+        }
+        int left = Math.max(this.x, this.clip[0]);
+        int top = Math.max(this.y, this.clip[1]);
+        int right = Math.min(this.x + this.width, this.clip[0] + this.clip[2]);
+        int bottom = Math.min(this.y + this.height, this.clip[1] + this.clip[3]);
+        return new int[] {left, top, Math.max(0, right - left), Math.max(0, bottom - top)};
+    }
+
     /** Hit test. A hidden or disabled element is never hit, only drawn or not drawn. */
     public boolean contains(double mouseX, double mouseY) {
-        return enabled()
-                && mouseX >= this.x && mouseX < this.x + this.width
-                && mouseY >= this.y && mouseY < this.y + this.height;
+        if (!enabled()) {
+            return false;
+        }
+        int[] box = hitBox();
+        return mouseX >= box[0] && mouseX < box[0] + box[2]
+                && mouseY >= box[1] && mouseY < box[1] + box[3];
     }
 
     public abstract void draw(Paint paint);

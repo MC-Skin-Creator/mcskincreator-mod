@@ -105,6 +105,34 @@ public final class EditorPreview {
         this.laidOut = false;
     }
 
+    /**
+     * Lays the editor out at this size and paints it, magnified.
+     *
+     * <p>The magnification is not decoration. The game draws this interface into a
+     * 640x360 buffer and blows it up to a 1920x1080 window — that is what a GUI scale
+     * of 3 is — so a preview looked at pixel for pixel is a preview three times smaller
+     * than anything a player sees. Whole factors only, sampled nearest-neighbour, which
+     * is the same thing the game does.
+     */
+    public BufferedImage render(int width, int height, int scale) {
+        return magnify(render(width, height), scale);
+    }
+
+    /** Blows a picture up by a whole factor, sampled the way the game samples it. */
+    public BufferedImage magnify(BufferedImage small, int scale) {
+        if (scale <= 1) {
+            return small;
+        }
+        BufferedImage large = new BufferedImage(small.getWidth() * scale,
+                small.getHeight() * scale, BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < large.getHeight(); y++) {
+            for (int x = 0; x < large.getWidth(); x++) {
+                large.setRGB(x, y, small.getRGB(x / scale, y / scale));
+            }
+        }
+        return large;
+    }
+
     /** Lays the editor out at this size and paints it. */
     public BufferedImage render(int width, int height) {
         ImageCanvas canvas = new ImageCanvas(width, height);
@@ -169,8 +197,9 @@ public final class EditorPreview {
     }
 
     /** The one call a caller needs when all it wants is a picture. */
-    public static BufferedImage of(int width, int height) {
-        return new EditorPreview().withCatalog(sampleCatalog()).withLayers(5).render(width, height);
+    public static BufferedImage of(int width, int height, int scale) {
+        return new EditorPreview().withCatalog(sampleCatalog()).withLayers(5)
+                .render(width, height, scale);
     }
 
     /** Measuring alone, for a caller that wants the geometry rather than the picture. */

@@ -33,17 +33,24 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.PlayerModelType;
 
 /**
- * The right column: the stack, grouped by region, and the inspector pinned under it.
+ * The right column: the stack, grouped by region, with the selected layer's settings
+ * under it — all of it in one scroll.
  *
- * <p>The stack is stored bottom to top, the order the sheet composes in, and shown
- * the other way up — the layer on top of the skin is the one at the top of the list.
- * Each region is its own group with a rule and a count, and dragging moves a row
- * within its own region only: a hat cannot be dragged below a pair of trousers,
- * because on the model it never is.
+ * <p>The stack is stored bottom to top, the order the sheet composes in, and shown the
+ * other way up — the layer on top of the skin is the one at the top of the list. Each
+ * region is its own group with a rule and a count, and dragging moves a row within its
+ * own region only: a hat cannot be dragged below a pair of trousers, because on the
+ * model it never is.
  *
- * <p>The inspector shows the selected layer and nothing else. With no selection it
- * says so in the middle of its own area rather than leaving an empty box, which is
- * what an empty state is for.
+ * <p>One scroll rather than a list above a pinned inspector. Pinned, the settings
+ * wanted 137 pixels of a column that on a 720p window has 163 to give, and the list
+ * was left one row that drew straight over them. A band that has to fit in whatever is
+ * left is a band that will one day not fit; a band that scrolls fits every screen the
+ * game has. The settings follow the selected layer down the list, which is also where
+ * one is looking when changing them.
+ *
+ * <p>With no selection the settings area says so rather than leaving an empty box,
+ * which is what an empty state is for.
  */
 public class LayersPanel extends Panel {
     private final SkinProject project;
@@ -58,15 +65,25 @@ public class LayersPanel extends Panel {
     private final ScrollPane scroll = new ScrollPane();
     private final List<PlacedRow> rows = new ArrayList<>();
     private final List<GroupTitle> titles = new ArrayList<>();
+    /** The header's controls, which do not scroll. */
     private final List<Element> fixed = new ArrayList<>();
+    /** The settings, which do: they are the tail of the same content as the rows. */
+    private final List<Placed> scrolled = new ArrayList<>();
 
     private PixelButton foldButton;
+    /** Where the rule under the model tabs goes: they are a tab bar, so they have one. */
+    private int modelTabsBottom;
     private int bodyTop;
     private int bodyHeight;
-    private int inspectorTop;
+    /** Where the settings begin, measured from the top of the scrolling content. */
+    private int settingsContentY;
     private Layer dragged;
 
     private record PlacedRow(LayerRow row, int contentY) {
+    }
+
+    /** Anything else that scrolls with the rows, and how far down the content it sits. */
+    private record Placed(Element element, int contentY) {
     }
 
     private record GroupTitle(String region, int count, int contentY) {
@@ -91,6 +108,7 @@ public class LayersPanel extends Panel {
     public void layout(Canvas canvas) {
         clearChildren();
         this.rows.clear();
+        this.scrolled.clear();
         this.titles.clear();
         this.fixed.clear();
 
@@ -110,7 +128,7 @@ public class LayersPanel extends Panel {
             return;
         }
 
-        int right = this.x + this.width - Metrics.PAD_TIGHT;
+        int right = contentRight();
         this.foldButton.setBounds(right - this.foldButton.width(),
                 this.y + (header - Metrics.TAB_HEIGHT) / 2,
                 this.foldButton.width(), Metrics.TAB_HEIGHT);
@@ -123,7 +141,7 @@ public class LayersPanel extends Panel {
                 this.foldButton.y(), add.width(), Metrics.TAB_HEIGHT);
         this.fixed.add(addChild(add));
 
-        int left = this.x + Metrics.PAD_TIGHT;
+        int left = contentLeft();
         int cursorY = this.y + header + Metrics.PAD_TIGHT;
 
         int segmentX = left;
@@ -141,34 +159,25 @@ public class LayersPanel extends Panel {
             segmentX += button.width() + Metrics.SEGMENT_GAP;
         }
 
+        // The two model tabs stand on a rule, the way the game's tabs stand on the thing
+        // they open; the import button is an action rather than one of that pair, so it
+        // takes a row of its own rather than sharing theirs.
+        this.modelTabsBottom = cursorY + Metrics.TAB_HEIGHT;
+        cursorY = this.modelTabsBottom + Metrics.PAD;
+
         PixelButton importTexture = new PixelButton(
                 Component.translatable("gui.mcskincreator.import"),
                 PixelButton.Style.NORMAL, this.onImportRequested);
         importTexture.withTooltip(Component.translatable("gui.mcskincreator.import.tooltip"));
-        importTexture.fit(canvas);
-        if (segmentX + importTexture.width() <= right) {
-            importTexture.setBounds(right - importTexture.width(), cursorY,
-                    importTexture.width(), Metrics.TAB_HEIGHT);
-            this.fixed.add(addChild(importTexture));
-            cursorY += Metrics.TAB_HEIGHT + Metrics.PAD_TIGHT;
-        } else {
-            // On its own row, and never wider than the row: the label is cut to fit
-            // rather than drawn over the panel's edge.
-            cursorY += Metrics.TAB_HEIGHT + Metrics.PAD_TIGHT;
-            importTexture.fitWithin(canvas, right - left);
-            importTexture.setBounds(left, cursorY, importTexture.width(), Metrics.TAB_HEIGHT);
-            this.fixed.add(addChild(importTexture));
-            cursorY += Metrics.TAB_HEIGHT + Metrics.PAD_TIGHT;
-        }
+        importTexture.fitWithin(canvas, right - left);
+        importTexture.setBounds(left, cursorY, right - left, Metrics.BUTTON_HEIGHT_COMPACT);
+        this.fixed.add(addChild(importTexture));
+        cursorY += Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD;
 
-        int inspectorHeight = inspectorHeight(canvas);
         this.bodyTop = cursorY;
-        this.bodyHeight = Math.max(Metrics.LAYER_ROW,
-                this.y + this.height - Metrics.PANEL_INSET - inspectorHeight - cursorY);
-        this.inspectorTop = this.y + this.height - Metrics.PANEL_INSET - inspectorHeight;
+        this.bodyHeight = Math.max(0, this.y + this.height - Metrics.PANEL_INSET - cursorY);
 
         layoutStack(canvas, left, right);
-        layoutInspector(canvas, left, right);
     }
 
     private static String modelLabelKey(PlayerModelType kind) {
@@ -203,26 +212,29 @@ public class LayersPanel extends Panel {
                 cursorY += Metrics.LAYER_ROW + Metrics.SEGMENT_GAP;
             }
         }
+
+        if (cursorY > 0) {
+            cursorY += Metrics.PAD;
+        }
+        this.settingsContentY = cursorY;
+        cursorY = layoutSettings(canvas, left, right, cursorY);
         this.scroll.setContent(cursorY, this.bodyHeight);
     }
 
-    private int inspectorHeight(Canvas canvas) {
-        int line = canvas.lineHeight() + Metrics.PAD_TIGHT;
-        if (this.project.selected() == null) {
-            return line * 3;
-        }
-        return Metrics.PAD_TIGHT * 2 + line
-                + Metrics.SLIDER_ROW * 4 + Metrics.PAD_TIGHT * 4
-                + Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD_TIGHT;
-    }
-
-    private void layoutInspector(Canvas canvas, int left, int right) {
+    /**
+     * The settings of the selected layer, at the foot of the scrolling content.
+     *
+     * @return where the content ends
+     */
+    private int layoutSettings(Canvas canvas, int left, int right, int top) {
+        int cursorY = top + canvas.lineHeight() + Metrics.PAD_TIGHT;
         Layer layer = this.project.selected();
         if (layer == null) {
-            return;
+            // Nothing to set, so nothing is laid out: the band says why in its own place.
+            return cursorY;
         }
-        int cursorY = this.inspectorTop + canvas.lineHeight() + Metrics.PAD_TIGHT * 2;
-        int width = right - left;
+        int gutter = ScrollPane.BAR_WIDTH + Metrics.PAD_TIGHT;
+        int width = right - left - gutter;
 
         cursorY = addSlider(canvas, left, cursorY, width, "opacity", 0, 100,
                 layer::opacity, layer::setOpacity, value -> Component.literal(value + "%"));
@@ -241,9 +253,10 @@ public class LayersPanel extends Panel {
                     this.project.touch();
                 });
         reset.withTooltip(Component.translatable("gui.mcskincreator.reset_colors.tooltip"));
-        reset.fitWithin(canvas, right - left);
-        reset.setBounds(left, cursorY, reset.width(), Metrics.BUTTON_HEIGHT_COMPACT);
-        this.fixed.add(addChild(reset));
+        reset.fitWithin(canvas, width);
+        reset.setBounds(left, cursorY, width, Metrics.BUTTON_HEIGHT_COMPACT);
+        this.scrolled.add(new Placed(addChild(reset), cursorY));
+        return cursorY + Metrics.BUTTON_HEIGHT_COMPACT;
     }
 
     private int addSlider(Canvas canvas, int left, int top, int width, String id,
@@ -260,9 +273,9 @@ public class LayersPanel extends Panel {
                 format,
                 // One drag is one entry in the history, however many frames it lasts.
                 () -> this.history.beginGesture(id), this.history::endGesture);
-        slider.setBounds(left, top, width, Metrics.SLIDER_ROW);
-        this.fixed.add(addChild(slider));
-        return top + Metrics.SLIDER_ROW + Metrics.PAD_TIGHT;
+        slider.setBounds(left, top, width, Slider.heightFor(canvas));
+        this.scrolled.add(new Placed(addChild(slider), top));
+        return top + Slider.heightFor(canvas) + Metrics.PAD_TIGHT;
     }
 
     private void select(Layer layer) {
@@ -299,42 +312,43 @@ public class LayersPanel extends Panel {
         Canvas canvas = paint.canvas();
         drawFrame(paint);
         for (Element element : this.fixed) {
-            if (!(element instanceof Slider)) {
-                element.draw(paint);
-            }
+            element.draw(paint);
         }
         if (folded()) {
             return;
         }
+        Surface.rule(canvas, contentLeft(), this.modelTabsBottom, contentWidth());
 
-        int left = this.x + Metrics.PAD_TIGHT;
-        int right = this.x + this.width - Metrics.PAD_TIGHT;
+        int left = contentLeft();
+        int right = contentRight();
+        int railRight = right - ScrollPane.BAR_WIDTH - Metrics.PAD_TIGHT;
+
+        place();
+        canvas.pushScissor(left, this.bodyTop, right - left, this.bodyHeight);
+        int offset = this.bodyTop - this.scroll.offset();
 
         if (this.rows.isEmpty()) {
             drawEmptyState(canvas, Component.translatable("empty.mcskincreator.layers"),
-                    left, right, this.bodyTop, this.bodyHeight);
+                    left, railRight, this.bodyTop, this.settingsContentY);
         } else {
-            placeRows();
-            canvas.pushScissor(left, this.bodyTop, right - left, this.bodyHeight);
-            int offset = this.bodyTop - this.scroll.offset();
             for (GroupTitle title : this.titles) {
-                drawGroupTitle(canvas, title, left, right, offset + title.contentY());
+                drawGroupTitle(canvas, title, left, railRight, offset + title.contentY());
             }
             for (PlacedRow placed : this.rows) {
                 if (onScreen(placed.row())) {
                     placed.row().draw(paint);
                 }
             }
-            canvas.popScissor();
-            this.scroll.drawBar(canvas, right, this.bodyTop, this.bodyHeight);
         }
 
-        drawInspector(paint, left, right);
+        drawSettings(paint, left, railRight, offset + this.settingsContentY);
+        canvas.popScissor();
+        this.scroll.drawBar(canvas, right, this.bodyTop, this.bodyHeight);
     }
 
     private void drawGroupTitle(Canvas canvas, GroupTitle title, int left, int right, int y) {
         String name = LibraryPanel.regionLabel(title.region()).getString().toUpperCase(Locale.ROOT);
-        canvas.textTracked(name, left, y, Palette.INK_MUTED, Metrics.TITLE_TRACKING);
+        canvas.textTracked(name, left, y, Palette.INK, Metrics.TITLE_TRACKING);
         int nameWidth = canvas.trackedWidth(name, Metrics.TITLE_TRACKING);
 
         String count = Integer.toString(title.count());
@@ -344,35 +358,35 @@ public class LayersPanel extends Panel {
         if (ruleWidth > 0) {
             Surface.rule(canvas, ruleX, y + canvas.lineHeight() / 2, ruleWidth);
         }
-        canvas.textFlat(Component.literal(count), right - countWidth, y, Palette.INK_FAINT);
+        canvas.textFlat(Component.literal(count), right - countWidth, y, Palette.INK_MUTED);
     }
 
-    private void drawInspector(Paint paint, int left, int right) {
+    /** The settings, drawn where the scroll has put them: a heading, then the controls. */
+    private void drawSettings(Paint paint, int left, int right, int top) {
         Canvas canvas = paint.canvas();
-        int height = this.y + this.height - Metrics.PANEL_INSET - this.inspectorTop;
-        // Ruled off rather than tinted: the panel is one sprite, and painting a second
-        // shade over part of it would be inventing a material the game does not have.
-        Surface.rule(canvas, this.x + Metrics.PANEL_INSET, this.inspectorTop,
-                this.width - Metrics.PANEL_INSET * 2);
-
         Layer layer = this.project.selected();
         if (layer == null) {
-            drawEmptyState(canvas, Component.translatable("empty.mcskincreator.inspector"),
-                    left, right, this.inspectorTop, height);
+            canvas.textWrapped(Component.translatable("empty.mcskincreator.inspector"),
+                    left, top, Math.max(1, right - left), Palette.INK_MUTED);
             return;
         }
 
+        // Ruled off from the stack above it: these settings belong to one row of that
+        // list, and without a line the heading reads as one more group of it.
+        Surface.rule(canvas, left, top - Metrics.PAD_TIGHT, Math.max(0, right - left));
+
         String title = Component.translatable("gui.mcskincreator.settings").getString()
                 .toUpperCase(Locale.ROOT);
-        canvas.textTracked(title, left, this.inspectorTop + Metrics.PAD_TIGHT,
-                Palette.INK_MUTED, Metrics.TITLE_TRACKING);
+        canvas.textTracked(title, left, top, Palette.INK, Metrics.TITLE_TRACKING);
         int titleWidth = canvas.trackedWidth(title, Metrics.TITLE_TRACKING);
-        canvas.text(layer.name(), left + titleWidth + Metrics.PAD_TIGHT,
-                this.inspectorTop + Metrics.PAD_TIGHT, Palette.INK);
+        int nameRoom = Math.max(0, right - left - titleWidth - Metrics.PAD_TIGHT);
+        canvas.text(Component.literal(fr.clixmods.mcsc.mod.ui.Marquee.cut(
+                        canvas, layer.name().getString(), nameRoom)),
+                left + titleWidth + Metrics.PAD_TIGHT, top, Palette.INK);
 
-        for (Element element : this.fixed) {
-            if (element instanceof Slider) {
-                element.draw(paint);
+        for (Placed placed : this.scrolled) {
+            if (onScreen(placed.element())) {
+                placed.element().draw(paint);
             }
         }
     }
@@ -388,20 +402,29 @@ public class LayersPanel extends Panel {
         int width = Math.max(1, right - left);
         canvas.textWrapped(message, left,
                 top + (height - canvas.wrappedHeight(message, width)) / 2,
-                width, Palette.INK_FAINT);
+                width, Palette.INK_MUTED);
     }
 
-    private void placeRows() {
+    /** Moves everything that scrolls to where the offset now puts it. */
+    private void place() {
         int offset = this.bodyTop - this.scroll.offset();
         for (PlacedRow placed : this.rows) {
             LayerRow row = placed.row();
             row.setBounds(row.x(), offset + placed.contentY(), row.width(), row.height());
+            row.clipTo(this.x, this.bodyTop, this.width, this.bodyHeight);
             row.setDragging(this.dragged == row.layer());
+        }
+        for (Placed placed : this.scrolled) {
+            Element element = placed.element();
+            element.setBounds(element.x(), offset + placed.contentY(),
+                    element.width(), element.height());
+            element.clipTo(this.x, this.bodyTop, this.width, this.bodyHeight);
         }
     }
 
-    private boolean onScreen(LayerRow row) {
-        return row.y() + row.height() > this.bodyTop && row.y() < this.bodyTop + this.bodyHeight;
+    private boolean onScreen(Element element) {
+        return element.y() + element.height() > this.bodyTop
+                && element.y() < this.bodyTop + this.bodyHeight;
     }
 
     /** Everything clickable, rows scrolled out of the band excluded. */
@@ -410,10 +433,15 @@ public class LayersPanel extends Panel {
         if (folded()) {
             return targets;
         }
-        placeRows();
+        place();
         for (PlacedRow placed : this.rows) {
             if (onScreen(placed.row())) {
                 targets.add(placed.row());
+            }
+        }
+        for (Placed placed : this.scrolled) {
+            if (onScreen(placed.element())) {
+                targets.add(placed.element());
             }
         }
         return targets;
@@ -433,7 +461,7 @@ public class LayersPanel extends Panel {
             return false;
         }
         return this.scroll.barMouseDown(mouseX, mouseY,
-                this.x + this.width - Metrics.PAD_TIGHT, this.bodyTop, this.bodyHeight);
+                contentRight(), this.bodyTop, this.bodyHeight);
     }
 
     /**

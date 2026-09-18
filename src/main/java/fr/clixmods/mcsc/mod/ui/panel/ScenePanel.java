@@ -95,15 +95,10 @@ public class ScenePanel extends Element {
         return this.controls;
     }
 
-    /** True while the model has the scene to itself, which is when the bar floats. */
-    private boolean barFloats() {
-        return this.view == View.MODEL;
-    }
-
     public void layout(Canvas canvas) {
         this.controls.clear();
 
-        int barHeight = Metrics.TAB_HEIGHT + Metrics.PAD_TIGHT * 2;
+        int barHeight = Metrics.TAB_HEIGHT + Metrics.PAD_TIGHT;
         int cursorX = this.x + Metrics.PAD_TIGHT;
         int barY = this.y + Metrics.PAD_TIGHT;
 
@@ -146,7 +141,7 @@ public class ScenePanel extends Element {
             this.controls.add(chooser);
         }
 
-        int viewTop = barFloats() ? this.y : this.y + barHeight;
+        int viewTop = this.y + barHeight;
         int viewHeight = Math.max(0, this.height - (viewTop - this.y));
         this.viewport = new int[] {this.x, viewTop, this.width, viewHeight};
 
@@ -226,10 +221,11 @@ public class ScenePanel extends Element {
             }
         }
 
-        if (!barFloats()) {
-            Surface.panel(canvas, this.x, this.y - Metrics.PANEL_INSET, this.width,
-                    Metrics.TAB_HEIGHT + Metrics.PAD_TIGHT * 2 + Metrics.PANEL_INSET);
-        }
+        // The view chooser is a tab bar, so it sits on a rule rather than floating over
+        // the figure. Floating it was the site's idea and it cost more than it gave: a
+        // strip with nothing under it reads as three loose boxes, and it was over the
+        // one thing on this screen worth looking at.
+        Surface.rule(canvas, this.x, this.y + Metrics.TAB_HEIGHT + Metrics.PAD_TIGHT, this.width);
 
         // The two corner boxes are backdrops, so they go down before what sits on
         // them. Drawing them afterwards is what left the dock looking like an empty

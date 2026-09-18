@@ -21,11 +21,17 @@ import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * A settings slider: label on the left, carved rail, and the number on the right.
+ * A settings slider: what it is and what it reads on one line, the rail under it.
  *
- * <p>The number is right aligned in a fixed column so that the labels above and below
- * it line up and the value does not jump sideways as it changes — a value that moves
- * while you drag is a value you cannot read.
+ * <p>Two lines rather than one, because one does not fit. A side column is some 120
+ * pixels wide; taking a third of that for the label and a fixed column for the value
+ * left a rail of forty pixels between two words that were themselves cut short —
+ * "Satur…" beside a number half under the panel's frame. Stacked, the label is whole,
+ * the value is whole, and the rail is as long as the panel is wide.
+ *
+ * <p>The number is still right aligned, so the values of four settings line up and
+ * none of them jumps sideways as it changes: a value that moves while you drag is a
+ * value you cannot read.
  *
  * <p>The effect is applied continuously as the handle moves, and the whole drag is
  * one entry in the history: the gesture is the edit, not each pixel of it.
@@ -54,7 +60,12 @@ public class Slider extends Element {
         this.format = format;
         this.beginGesture = beginGesture;
         this.endGesture = endGesture;
-        this.height = Metrics.SLIDER_ROW;
+        this.height = Metrics.SLIDER_RAIL;
+    }
+
+    /** How tall a slider is: its line of text, and the rail under it. */
+    public static int heightFor(Canvas canvas) {
+        return canvas.lineHeight() + Metrics.PAD_TIGHT + Metrics.SLIDER_RAIL;
     }
 
     @Override
@@ -66,35 +77,32 @@ public class Slider extends Element {
         boolean hot = paint.hot(this);
         int value = this.read.getAsInt();
 
-        int railX = railX();
-        int railWidth = railWidth();
-
+        Component shown = this.format.apply(value);
+        int valueWidth = canvas.textWidth(shown);
+        int room = Math.max(0, this.width - valueWidth - Metrics.PAD_TIGHT);
         canvas.text(Component.literal(fr.clixmods.mcsc.mod.ui.Marquee.cut(
-                        canvas, this.label.getString(), this.width / 3 - Metrics.PAD_TIGHT)),
-                this.x, this.y + (this.height - canvas.lineHeight()) / 2,
+                        canvas, this.label.getString(), room)),
+                this.x, this.y,
                 hot ? Palette.INK_HOVERED : Palette.INK_MUTED);
+        canvas.text(shown, this.x + this.width - valueWidth, this.y, Palette.INK);
 
-        Surface.sliderRail(canvas, railX, this.y, railWidth, this.height, hot);
+        int railY = railY(canvas);
+        int railWidth = railWidth();
+        Surface.sliderRail(canvas, this.x, railY, railWidth, Metrics.SLIDER_RAIL, hot);
 
         int travel = railWidth - Sprites.SLIDER_HANDLE_WIDTH;
-        int handleX = railX + Math.round(travel * fraction(value));
-        Surface.sliderHandle(canvas, handleX, this.y, this.height, hot);
-
-        Component shown = this.format.apply(value);
-        canvas.text(shown,
-                this.x + this.width - canvas.textWidth(shown),
-                this.y + (this.height - canvas.lineHeight()) / 2,
-                Palette.INK);
+        int handleX = this.x + Math.round(travel * fraction(value));
+        Surface.sliderHandle(canvas, handleX, railY, Metrics.SLIDER_RAIL, hot);
     }
 
     // Drawing and hit testing have to agree on where the rail is, to the pixel, so
-    // both ask these two rather than each working it out for itself.
-    private int railX() {
-        return this.x + this.width / 3;
+    // both ask these rather than each working it out for itself.
+    private int railY(Canvas canvas) {
+        return this.y + this.height - Metrics.SLIDER_RAIL;
     }
 
     private int railWidth() {
-        return this.width - this.width / 3 - Metrics.SLIDER_VALUE_WIDTH - Metrics.PAD_TIGHT;
+        return this.width;
     }
 
     private float fraction(int value) {
@@ -146,7 +154,7 @@ public class Slider extends Element {
 
     private void apply(double mouseX) {
         int travel = Math.max(1, railWidth() - Sprites.SLIDER_HANDLE_WIDTH);
-        double along = (mouseX - railX() - Sprites.SLIDER_HANDLE_WIDTH / 2.0) / travel;
+        double along = (mouseX - this.x - Sprites.SLIDER_HANDLE_WIDTH / 2.0) / travel;
         this.write.accept(clamp(this.minimum + (int) Math.round(along * (this.maximum - this.minimum))));
     }
 

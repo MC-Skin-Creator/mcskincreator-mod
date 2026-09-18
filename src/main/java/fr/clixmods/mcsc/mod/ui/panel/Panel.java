@@ -74,6 +74,28 @@ public abstract class Panel extends Element {
         return canvas.lineHeight() + Metrics.PANEL_INSET + Metrics.PAD_TIGHT;
     }
 
+    /**
+     * The left edge of everything the panel puts inside itself.
+     *
+     * <p>Named once, here, because the panel sprite carries a six pixel border and
+     * anything laid out closer than that to the panel's own edge is drawn <em>under</em>
+     * its frame. That is not a subtle mistake — it is what was clipping the last letter
+     * off every value in the inspector — but it is an invisible one until something
+     * long enough reaches the edge.
+     */
+    protected int contentLeft() {
+        return this.x + Metrics.PANEL_INSET;
+    }
+
+    /** The right edge of the same box: the frame, and not a pixel past it. */
+    protected int contentRight() {
+        return this.x + this.width - Metrics.PANEL_INSET;
+    }
+
+    protected int contentWidth() {
+        return Math.max(0, contentRight() - contentLeft());
+    }
+
     /** The children the screen walks for focus and hit testing, in that order. */
     public List<Element> children() {
         return this.children;
@@ -102,9 +124,8 @@ public abstract class Panel extends Element {
         // A heading and a rule under it, which is how the game titles its own lists.
         int header = headerHeight(canvas);
         String title = Component.translatable(this.titleKey).getString().toUpperCase(Locale.ROOT);
-        canvas.textTracked(title, this.x + Metrics.PANEL_INSET,
-                this.y + Metrics.PANEL_INSET, Palette.INK_MUTED, Metrics.TITLE_TRACKING);
-        Surface.rule(canvas, this.x + Metrics.PANEL_INSET, this.y + header - Metrics.PAD_TIGHT,
-                this.width - Metrics.PANEL_INSET * 2);
+        canvas.textTracked(title, contentLeft(),
+                this.y + Metrics.PANEL_INSET, Palette.INK, Metrics.TITLE_TRACKING);
+        Surface.rule(canvas, contentLeft(), this.y + header - Metrics.PAD_TIGHT, contentWidth());
     }
 }

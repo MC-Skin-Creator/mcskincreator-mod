@@ -160,8 +160,13 @@ public class TopBar extends Element {
     @Override
     public void draw(Paint paint) {
         Canvas canvas = paint.canvas();
-        Surface.panel(canvas, this.x, this.y - Metrics.PANEL_INSET,
-                this.width, this.height + Metrics.PANEL_INSET);
+        // A band rather than a pop-up. The panel sprite is a plate with a six pixel
+        // frame: at the height of this bar it is frame all the way through, which is
+        // why the strip came out as one light slab with the controls sunk into it.
+        // What sits across the top of a screen in this game is a dimmed ground with a
+        // rule under it, and that is what the columns below then hang from.
+        canvas.fill(this.x, this.y, this.width, this.height, Palette.BACKDROP);
+        Surface.rule(canvas, this.x, this.y + this.height - 1, this.width);
 
         Element brand = this.children.get(0);
         int badgeHeight = canvas.lineHeight() + Metrics.SLOT_INSET * 2;

@@ -42,8 +42,14 @@ public final class Metrics {
     public static final int BUTTON_HEIGHT = 20;
     /** The same sprite in a crowded strip: its border plus a line of the game's font. */
     public static final int BUTTON_HEIGHT_COMPACT = 16;
-    /** A row of tabs, which carry no border of their own to clear. */
-    public static final int TAB_HEIGHT = 14;
+    /**
+     * A tab, which is the compact control height and not a third one.
+     *
+     * <p>The interface has exactly two control heights: this and {@link #BUTTON_HEIGHT}.
+     * It used to have three, and a row holding a 14 px tab beside a 16 px button beside
+     * a 20 px one is the whole of why nothing lined up.
+     */
+    public static final int TAB_HEIGHT = BUTTON_HEIGHT_COMPACT;
     public static final int BUTTON_PAD_X = ui(10);
 
     // Panels.
@@ -86,10 +92,13 @@ public final class Metrics {
     public static final int SEGMENT_GAP = ui(3);
 
     /**
-     * A layer row holds a name and a subtitle under it, plus its frame — which is what
-     * the site's 26 px row holds too, at its own font size.
+     * A layer row holds a name and a subtitle under it, plus the slot's own frame.
+     *
+     * <p>Two lines of the game's font is 18 px, and the slot sprite's border is 4 px at
+     * each end. At 22 the subtitle's last pixel row was under the frame, which is not a
+     * clipped letter so much as a row that looks cut in half.
      */
-    public static final int LAYER_ROW = 22;
+    public static final int LAYER_ROW = 26;
     /** The layer's own thumbnail, the size of an inventory icon. */
     public static final int LAYER_PREVIEW = 16;
 
@@ -110,13 +119,11 @@ public final class Metrics {
     public static final int CHECKER = 4;
 
     /**
-     * A settings row. The game's handle is 20 px tall natively but nine-sliced, so it
-     * scales to this without smearing — and four sliders at 20 would take a third of
-     * the panel.
+     * The rail of a settings slider. The game's handle is 20 px tall natively but
+     * nine-sliced, so it scales to this without smearing — and four rails at 20 would
+     * take a third of the panel.
      */
-    public static final int SLIDER_ROW = 16;
-    /** Slider values are right aligned in a fixed 38 site px column. */
-    public static final int SLIDER_VALUE_WIDTH = ui(38);
+    public static final int SLIDER_RAIL = 10;
 
     /** The narrowest a thumbnail may be before the grid drops a column. */
     public static final int MIN_TILE_WIDTH = 44;

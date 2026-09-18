@@ -31,6 +31,7 @@ import fr.clixmods.mcsc.mod.ui.Element;
 import fr.clixmods.mcsc.mod.ui.Paint;
 import fr.clixmods.mcsc.mod.ui.ScrollPane;
 import fr.clixmods.mcsc.mod.ui.widget.CategoryTab;
+import fr.clixmods.mcsc.mod.ui.widget.Dropdown;
 import fr.clixmods.mcsc.mod.ui.widget.ItemTile;
 import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
 import fr.clixmods.mcsc.mod.ui.widget.TextInput;
@@ -90,7 +91,10 @@ public class LibraryPanel extends Panel {
     private List<SearchResults.Hit> hits = List.of();
 
     private String region;
+    private Dropdown<String> regionChooser;
     private CatalogCategory category;
+    /** Where the rule under the region tabs goes: they are a tab bar, so they have one. */
+    private int regionsBottom;
     private int bodyTop;
     private int bodyHeight;
     /** What to say while the body has nothing in it, which is not always the same thing. */
@@ -197,6 +201,7 @@ public class LibraryPanel extends Panel {
     public void layout(Canvas canvas) {
         clearChildren();
         this.regionTabs.clear();
+        this.regionChooser = null;
         this.categoryTabs.clear();
         this.tiles.clear();
         this.headers.clear();
@@ -220,13 +225,13 @@ public class LibraryPanel extends Panel {
         }
 
         this.foldButton.setBounds(
-                this.x + this.width - Metrics.PAD_TIGHT - this.foldButton.width(),
+                contentRight() - this.foldButton.width(),
                 this.y + (header - Metrics.TAB_HEIGHT) / 2,
                 this.foldButton.width(), Metrics.TAB_HEIGHT);
         addChild(this.foldButton);
 
-        int left = this.x + Metrics.PAD_TIGHT;
-        int right = this.x + this.width - Metrics.PAD_TIGHT;
+        int left = contentLeft();
+        int right = contentRight();
         int cursorY = this.y + header + Metrics.PAD_TIGHT;
 
         cursorY = layoutRegions(canvas, left, right, cursorY);
@@ -245,25 +250,57 @@ public class LibraryPanel extends Panel {
         layoutFooter(canvas, left, right, footerTop);
     }
 
+    /**
+     * The region chooser: a row of tabs while they fit on one row, a dropdown below
+     * that.
+     *
+     * <p>Wrapping was the third option and it is the one that had to go. Five regions
+     * in a column a hundred pixels wide wrapped onto three rows, which cost a third of
+     * the panel and stopped reading as a tab bar at all — a tab bar is a row, and two
+     * rows of tabs are a grid of boxes. The scene's view chooser already collapses the
+     * same way when its strip runs out of room, so this is not a second idea.
+     */
     private int layoutRegions(Canvas canvas, int left, int right, int top) {
-        int cursorX = left;
-        int cursorY = top;
-        for (String candidate : this.catalog.regions()) {
+        List<String> regions = this.catalog.regions();
+        if (regions.isEmpty()) {
+            this.regionsBottom = top;
+            return top;
+        }
+
+        List<PixelButton> tabs = new ArrayList<>();
+        int total = 0;
+        for (String candidate : regions) {
             PixelButton tab = new PixelButton(regionLabel(candidate), PixelButton.Style.TAB,
                     () -> pickRegion(candidate));
             tab.fit(canvas);
             // The tab goes unselected while a search is showing: it would otherwise
             // claim a category the body is not displaying.
             tab.setActive(!searching() && candidate.equals(this.region));
-            if (cursorX + tab.width() > right && cursorX > left) {
-                cursorX = left;
-                cursorY += Metrics.TAB_HEIGHT + Metrics.SEGMENT_GAP;
-            }
-            tab.setBounds(cursorX, cursorY, tab.width(), Metrics.TAB_HEIGHT);
-            this.regionTabs.add(addChild(tab));
-            cursorX += tab.width() + Metrics.SEGMENT_GAP;
+            tabs.add(tab);
+            total += tab.width() + Metrics.SEGMENT_GAP;
         }
-        return cursorY + Metrics.TAB_HEIGHT + Metrics.PAD_TIGHT;
+
+        if (total - Metrics.SEGMENT_GAP <= right - left) {
+            int cursorX = left;
+            for (PixelButton tab : tabs) {
+                tab.setBounds(cursorX, top, tab.width(), Metrics.TAB_HEIGHT);
+                this.regionTabs.add(addChild(tab));
+                cursorX += tab.width() + Metrics.SEGMENT_GAP;
+            }
+            // The game's tab sprite has no bottom edge: it is drawn to sit on the thing
+            // it opens. Floating one in the middle of a column is what made these read
+            // as brackets rather than tabs, so the row ends flush and a rule closes it.
+            this.regionsBottom = top + Metrics.TAB_HEIGHT;
+            return this.regionsBottom + Metrics.PAD_TIGHT;
+        }
+
+        Dropdown<String> chooser = new Dropdown<>(regions, LibraryPanel::regionLabel,
+                () -> this.region, this::pickRegion, candidate -> true);
+        chooser.setBounds(left, top, right - left, Metrics.TAB_HEIGHT);
+        chooser.inScreen(this.y + this.height);
+        this.regionChooser = addChild(chooser);
+        this.regionsBottom = top + Metrics.TAB_HEIGHT;
+        return this.regionsBottom + Metrics.PAD_TIGHT;
     }
 
     private int layoutCategories(int left, int right, int top) {
@@ -434,13 +471,21 @@ public class LibraryPanel extends Panel {
         for (PixelButton tab : this.regionTabs) {
             tab.draw(paint);
         }
+        if (this.regionChooser != null) {
+            this.regionChooser.draw(paint);
+        } else {
+            // The rule the tabs stand on, which is what tells a row of tabs from a row
+            // of dark boxes. Drawn after them so the selected one's open foot lands on
+            // it.
+            Surface.rule(canvas, contentLeft(), this.regionsBottom, contentWidth());
+        }
         for (CategoryTab tab : this.categoryTabs) {
             tab.draw(paint);
         }
         this.search.draw(paint);
 
-        int left = this.x + Metrics.PAD_TIGHT;
-        int right = this.x + this.width - Metrics.PAD_TIGHT;
+        int left = contentLeft();
+        int right = contentRight();
 
         if (this.tiles.isEmpty()) {
             // Never a blank area: an empty state always says what to do about it, and
@@ -451,7 +496,7 @@ public class LibraryPanel extends Panel {
             int room = Math.max(1, right - left);
             canvas.textWrapped(message, left,
                     this.bodyTop + (this.bodyHeight - canvas.wrappedHeight(message, room)) / 2,
-                    room, Palette.INK_FAINT);
+                    room, Palette.INK_MUTED);
         } else {
             placeTiles();
             canvas.pushScissor(left, this.bodyTop, right - left, this.bodyHeight);
@@ -479,6 +524,7 @@ public class LibraryPanel extends Panel {
         for (PlacedTile placed : this.tiles) {
             ItemTile tile = placed.tile();
             tile.setBounds(tile.x(), offset + placed.contentY(), tile.width(), tile.height());
+            tile.clipTo(this.x, this.bodyTop, this.width, this.bodyHeight);
         }
     }
 
@@ -498,12 +544,12 @@ public class LibraryPanel extends Panel {
         int countWidth = canvas.textWidth(count);
         int nameWidth = canvas.textWidth(header.label());
         int ruleX = left + nameWidth + Metrics.PAD_TIGHT;
-        int right = this.x + this.width - Metrics.PAD_TIGHT - ScrollPane.BAR_WIDTH;
+        int right = contentRight() - ScrollPane.BAR_WIDTH;
         int ruleWidth = right - countWidth - Metrics.PAD_TIGHT - ruleX;
         if (ruleWidth > 0) {
             Surface.rule(canvas, ruleX, y + canvas.lineHeight() / 2, ruleWidth);
         }
-        canvas.textFlat(Component.literal(count), right - countWidth, y, Palette.INK_FAINT);
+        canvas.textFlat(Component.literal(count), right - countWidth, y, Palette.INK_MUTED);
     }
 
     /**
@@ -519,6 +565,9 @@ public class LibraryPanel extends Panel {
             return targets;
         }
         targets.addAll(this.regionTabs);
+        if (this.regionChooser != null) {
+            targets.add(this.regionChooser);
+        }
         targets.addAll(this.categoryTabs);
         targets.add(this.search);
         targets.addAll(this.footerLinks);
@@ -545,7 +594,7 @@ public class LibraryPanel extends Panel {
             return false;
         }
         return this.scroll.barMouseDown(mouseX, mouseY,
-                this.x + this.width - Metrics.PAD_TIGHT, this.bodyTop, this.bodyHeight);
+                contentRight(), this.bodyTop, this.bodyHeight);
     }
 
     @Override
