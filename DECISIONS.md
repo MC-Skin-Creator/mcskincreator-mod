@@ -229,12 +229,12 @@ one is not decoration — hovering exists with a mouse and not with a controller
 the site reveals real functionality on hover, so whatever holds the focus draws as
 whatever is hovered.
 
-**The interface owns almost no pixels of its own.** The model is vanilla's
-`PlayerSkinWidget`, the thumbnails are folded out of the category atlases the API
-already serves, and the stack being edited is composed by the server. One texture is
-drawn from nothing: the stone grain under the panels, from deterministic noise, because
-a tile generated from a function cannot go out of step with the palette it is tinted by
-and a PNG of the same thing can.
+**The interface owns almost no pixels of its own.** The figure is drawn by the game
+from a render state the mod fills in, the thumbnails are folded out of the category
+atlases the API already serves, and the stack being edited is composed by the server. One
+texture is drawn from nothing: the stone grain under the panels, from deterministic
+noise, because a tile generated from a function cannot go out of step with the palette
+it is tinted by and a PNG of the same thing can.
 
 The one exception is the pictures of the ready-made stacks — the starter models and
 the outfits — which the mod stacks and folds itself (`Composite`, `ReadyMadeSkins`).
@@ -249,6 +249,59 @@ The layer stack is the mod's, and it follows the server's format rather than
 inventing a second one: the project validator is the authority on what a project is,
 and two representations of the same thing would drift. `ProjectJson` writes it in one
 method for that reason.
+
+### The figure goes through the entity route, not the skin route
+
+The game offers two ways to put a player in a GUI, and only one of them is the same
+call on both targets. Checked with `javap` against both jars:
+
+| | 1.21.11 | 26.2 |
+|---|---|---|
+| entity | `GuiGraphics#submitEntityRenderState(EntityRenderState, float, Vector3f, Quaternionf, Quaternionf, int, int, int, int)` | `GuiGraphicsExtractor#entity(…, Vector3fc, Quaternionfc, Quaternionfc, …)` |
+| skin | `submitSkinRenderState(PlayerModel, …)` | `skin(Model.Simple, …)` |
+
+The skin route changes the *type* of its first parameter — a `PlayerModel` is not a
+`Model.Simple` — which is a real incompatibility rather than a rename. The entity
+route differs only in the method name, so it costs one versioned comment in `Canvas`
+and nothing anywhere else. It is also the more capable of the two: the scale is the
+zoom, the translation is the pan, the quaternions are the tilt, and the animation
+comes off the render state instead of having to be applied to a model by hand.
+
+Two facts read out of the game rather than assumed, both of which the design rests on:
+
+- **an `AvatarRenderState` is dispatched on its skin**, not on an entity type
+  (`EntityRenderDispatcher#getRenderer`), and the skin's model type is what picks the
+  classic or the slim renderer. So the figure can be drawn with no entity at all,
+  which is what the title screen has;
+- **a plain `new AvatarRenderState()` is already usable**: full-bright light, scale
+  one, standing pose, empty hands, every overlay shown. That is why a fresh one is
+  built each frame instead of one being kept and reset — a kept state is a list of
+  fields to remember to clear, and the one forgotten leaves the last pose's crouch on
+  the next pose.
+
+The camera numbers themselves are vanilla's, from
+`InventoryScreen#renderEntityInInventoryFollowsMouse`, down to the signs: the figure's
+turn is `bodyRot` in degrees, the tilt is a quaternion multiplied into the base flip,
+and the translation is applied *before* the rotation and so is unaffected by it —
+positive y is down on screen. Every one of those is a chance to send the figure off
+the side of the panel, and none of them can be checked in a screenshot.
+
+### Wearing the edit in the world, and why that is not level 1
+
+The two in-game cameras are only worth having if the character is wearing what is
+being drawn, and nothing else can put it there: the profile the client joined with
+still describes the old skin. So `AppliedSkin` carries a second override beside the
+one that follows an upload — the editor's own preview, on the local player, on this
+client, for as long as the editor is open, through the same door and so through the
+existing mixin.
+
+It is a slice of level 1 above, which this file says is not built, and the warning
+there still stands: a local override looks exactly like a real skin change. What
+disarms it here is the scope, and the scope is the whole design — it lasts the window,
+it is dropped in the screen's teardown so the game closing the editor ends it too,
+nothing is sent anywhere, and nobody else sees it. It must not grow: a fitting room
+that outlives its window is issue #11 and wants the interface work issue #11
+describes.
 
 ## 8. Everything the mod asks of the site goes through `/api/v1`
 

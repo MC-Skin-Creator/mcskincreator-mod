@@ -45,6 +45,10 @@ src/main/java/fr/clixmods/mcsc/mod/
 ├── skin/                      pixels: front sprites, category and model sheets, the previewed
 │                               skin, the blend behind a model's picture, textures
 ├── project/                   what is being edited: the layer stack and its history
+├── scene/                     how the character is looked at: the workshop camera, the
+│                               animations in the game's own terms, the render state the
+│                               game draws from, and the game camera the two in-game
+│                               views borrow
 ├── account/                   the Mojang upload, and the only code that holds the session token
 ├── mixin/                     the one mixin: the applied skin, worn before Mojang propagates it
 ├── style/                     the design system: palette, metrics, the four materials, the grain
@@ -193,9 +197,17 @@ and `}` are load-bearing: breaking them silently changes what a target compiles.
 | Draw a string | `drawString` / `drawCenteredString` | `text` / `centeredText` | `Canvas` |
 | Draw a widget | `Renderable#render` | `Renderable#extractRenderState` | `Canvas` |
 | Centered text | `drawCenteredString` | `centeredText` | `SkinCreatorScreen` |
+| Draw an entity | `GuiGraphics#submitEntityRenderState` | `GuiGraphicsExtractor#entity` | `Canvas` |
+| Entity type constants | `EntityType.MARKER` | `EntityTypes.MARKER` | `scene/GameCamera` |
 
 26.x replaced immediate-mode GUI drawing with a render-state extraction pass, so
 any new drawing code will need the same treatment.
+
+Not every 3D route across the two is a rename. The GUI's **skin** route changed the
+type of its first parameter (`PlayerModel` on 1.21.11, `Model.Simple` on 26.2), which
+is a real incompatibility; the **entity** route differs only in the method name, which
+is why the scene goes through that one. See `DECISIONS.md`, "The figure goes through
+the entity route".
 
 ## Before changing Minecraft-facing code
 

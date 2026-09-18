@@ -67,24 +67,25 @@ public final class PreviewSkin implements AutoCloseable {
     /** Reads either shape the API answers with: a PNG, or a raw RGBA buffer. */
     public static NativeImage decode(byte[] payload) throws IOException {
         if (payload.length == FrontSprite.SKIN_SIZE * FrontSprite.SKIN_SIZE * 4) {
-            return fromRgba(payload);
+            return ManagedTexture.fromRgba(payload, FrontSprite.SKIN_SIZE, FrontSprite.SKIN_SIZE);
         }
         return NativeImage.read(payload);
     }
 
-    private static NativeImage fromRgba(byte[] rgba) {
-        NativeImage image = new NativeImage(FrontSprite.SKIN_SIZE, FrontSprite.SKIN_SIZE, false);
-        for (int y = 0; y < FrontSprite.SKIN_SIZE; y++) {
-            for (int x = 0; x < FrontSprite.SKIN_SIZE; x++) {
-                int offset = (y * FrontSprite.SKIN_SIZE + x) * 4;
-                int argb = (rgba[offset + 3] & 0xFF) << 24
-                        | (rgba[offset] & 0xFF) << 16
-                        | (rgba[offset + 1] & 0xFF) << 8
-                        | rgba[offset + 2] & 0xFF;
-                image.setPixel(x, y, argb);
-            }
-        }
-        return image;
+
+    /**
+     * Replaces the previewed pixels in place, for a picture that changes every frame.
+     *
+     * <p>The layer highlight pulses, so the sheet on the model is rebuilt on every
+     * frame it is up. Going through {@link #show} would register and free a texture each
+     * time; this writes into the one already there.
+     *
+     * <p>Must run on the client thread: it touches a texture.
+     *
+     * @param rgba a whole 64 by 64 straight-alpha RGBA sheet
+     */
+    public void refresh(byte[] rgba) {
+        this.texture.refresh(rgba, FrontSprite.SKIN_SIZE, FrontSprite.SKIN_SIZE);
     }
 
     /** Back to the default skin: what starting over leaves on the model. */

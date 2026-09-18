@@ -12,6 +12,7 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 import com.mojang.blaze3d.platform.NativeImage;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.PlayerModelType;
 import net.minecraft.world.entity.player.PlayerSkin;
 
@@ -48,6 +49,26 @@ public final class AppliedSkin {
     /** Whose skin this is. Null until something is applied, and the switch for the lot. */
     private static volatile UUID profileId;
     private static volatile PlayerModelType model = PlayerModelType.WIDE;
+
+    /**
+     * The other override: what is being edited right now, on the person editing it.
+     *
+     * <p>It exists for the editor's two in-game cameras. Looking at your own character
+     * in the world is only worth doing if the character is wearing the thing you are
+     * drawing, and nothing else can put it there — the profile the client joined with
+     * still describes the old skin.
+     *
+     * <p>It is deliberately the <em>narrowest</em> override that answers that: one
+     * player, this client only, and only while the editor is open. It is not the fitting
+     * room of issue #11 and must not grow into it by accident. Nothing is sent anywhere,
+     * nobody else sees it, and {@link #stopPreviewing()} takes it off — which the editor
+     * calls from its own teardown, so closing the window ends it even if the editor was
+     * closed by the game rather than by the player.
+     */
+    private static final ManagedTexture PREVIEW = new ManagedTexture("editing");
+
+    private static volatile UUID previewId;
+    private static volatile PlayerModelType previewModel = PlayerModelType.WIDE;
 
     private AppliedSkin() {
     }
@@ -96,6 +117,36 @@ public final class AppliedSkin {
     }
 
     /**
+     * Shows {@code sheet} on {@code profileId} for as long as the editor is open.
+     *
+     * <p>Takes precedence over an applied skin, because an edit in progress is newer
+     * than the last upload and is the thing the player is looking at.
+     *
+     * <p>Must run on the client thread: it uploads a texture.
+     */
+    public static void preview(UUID profileId, byte[] sheet, PlayerModelType model)
+            throws IOException {
+        NativeImage image = PreviewSkin.decode(sheet);
+        try {
+            PREVIEW.upload(image);
+        } catch (RuntimeException | Error failure) {
+            image.close();
+            throw failure;
+        }
+        AppliedSkin.previewModel = model;
+        AppliedSkin.previewId = profileId;
+    }
+
+    /** Takes the edit back off. Idempotent, and cheap when nothing was being previewed. */
+    public static void stopPreviewing() {
+        if (AppliedSkin.previewId == null) {
+            return;
+        }
+        AppliedSkin.previewId = null;
+        PREVIEW.close();
+    }
+
+    /**
      * The skin to draw {@code id} with, or null to leave the game's own answer alone.
      *
      * <p>Called for every player on every frame, so the miss — which is every player on
@@ -106,11 +157,21 @@ public final class AppliedSkin {
      * an override that dropped them would take a player's cape off to show them a skin.
      */
     public static PlayerSkin worn(UUID id, PlayerSkin resolved) {
+        UUID editor = previewId;
+        if (editor != null && editor.equals(id) && PREVIEW.isUploaded()) {
+            return bodyOver(resolved, PREVIEW.id(), previewModel);
+        }
         UUID wearer = profileId;
         if (wearer == null || !wearer.equals(id) || !TEXTURE.isUploaded()) {
             return null;
         }
-        return new PlayerSkin(new RuntimeTexture(TEXTURE.id()),
+        return bodyOver(resolved, TEXTURE.id(), model);
+    }
+
+    /** The game's answer with its body swapped, and its cape and elytra kept. */
+    private static PlayerSkin bodyOver(PlayerSkin resolved, Identifier body,
+                                       PlayerModelType model) {
+        return new PlayerSkin(new RuntimeTexture(body),
                 resolved == null ? null : resolved.cape(),
                 resolved == null ? null : resolved.elytra(),
                 model,

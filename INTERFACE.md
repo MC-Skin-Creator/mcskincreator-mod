@@ -200,10 +200,32 @@ out of sight.
 
 ## Where the pictures come from
 
-Nothing here renders a player. The model in the scene is the game's own
-`PlayerSkinWidget` — it already draws a player, already turns under the mouse, and
-already follows the classic or slim model of the skin it is handed. The mod only
-supplies the skin.
+Nothing here renders a player. The figure in the scene is drawn by the game, through
+the same picture-in-picture path the inventory portrait goes through: the mod fills in
+an `AvatarRenderState` — a skin and a situation — and hands it over
+(`Canvas.entity`, `scene/PosedPlayer`). What comes back is the game's own player
+rendering, with its overlay layer, its animation and its classic or slim proportions.
+
+That path is what gives the scene a camera and an animation chooser, and it replaced
+vanilla's `PlayerSkinWidget`, which turns under the mouse and does nothing else. The
+widget is still what the panel on the vanilla menus uses (`SkinPanel`), where turning
+is all that is wanted.
+
+**The animations are named in the game's terms, not the site's.** The site had to
+write its ten out by hand — limb angles, cycle lengths, a coordinate change and a
+test measuring which arm ends up inside the skull. Here walking is a walk speed and
+crouching is a boolean, and the game animates it: `scene/ScenePose` sets fields the
+player model already reads. Which is also why the list is shorter. The site's wave
+and T-pose are not in the game's player model, and reaching them would mean driving
+the model's parts directly — the one route that is not the same call on both
+Minecraft targets — so they are absent rather than dead, like everything else whose
+target is empty.
+
+**Two of the three cameras draw nothing at all.** The in-game and first-person views
+let the game draw in the world that is already behind the editor; the panel's whole
+job is then to keep out of the way — the screen leaves off its backdrop, and the
+gestures go to `scene/GameCamera`, which borrows the game's camera through public
+API and gives it back. No second mixin.
 
 The scene does not build it, though: it is handed a [`Figure`](src/main/java/fr/clixmods/mcsc/mod/ui/Figure.java)
 and works out how much room it may have. `PlayerFigure` is the game's one; the preview
@@ -248,6 +270,10 @@ body.
 - Don't say the same thing twice in two empty states. With no layers there is nothing
   to select either, and both sentences landed in the same place.
 - Don't put the preview behind anything.
+- Don't show a layer by hiding the others. Pointing at a layer row makes that layer
+  **pulse over the composed stack** (`skin/Highlight`); it used to put the layer on the
+  model on its own, which showed what the layer was and hid where it was — and turned a
+  covered or switched-off layer into the figure disappearing.
 - Don't fill an empty category — an empty category is not shown at all, and a control
   whose target is empty disappears instead of opening onto nothing.
 - Don't make anything clickable that is not visible. Layer actions and scrolled-away

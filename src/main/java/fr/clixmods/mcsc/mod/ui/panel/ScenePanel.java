@@ -11,6 +11,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
+import fr.clixmods.mcsc.mod.scene.CameraMode;
+import fr.clixmods.mcsc.mod.scene.GameCamera;
+import fr.clixmods.mcsc.mod.scene.SceneBackdrop;
+import fr.clixmods.mcsc.mod.scene.SceneCamera;
+import fr.clixmods.mcsc.mod.scene.SceneShot;
+import fr.clixmods.mcsc.mod.scene.ScenePose;
+import fr.clixmods.mcsc.mod.scene.WorldPose;
 import fr.clixmods.mcsc.mod.skin.FrontSprite;
 import fr.clixmods.mcsc.mod.skin.PreviewSkin;
 import fr.clixmods.mcsc.mod.style.Metrics;
@@ -22,6 +29,8 @@ import fr.clixmods.mcsc.mod.ui.Figure;
 import fr.clixmods.mcsc.mod.ui.Paint;
 import fr.clixmods.mcsc.mod.ui.widget.Dropdown;
 import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 
 /**
@@ -32,16 +41,16 @@ import net.minecraft.network.chat.Component;
  * swapping them through a single slot made the model vanish the moment the library
  * opened. Whatever the width, the scene shrinks and stays.
  *
- * <p>The figure itself is not this panel's: it is handed one, and only works out how
- * much room it may have. In the game that is the vanilla player widget, drawn from
- * here rather than added to the screen so that it lands in the middle of this
- * interface's own paint order — under the tool strips that float over it, and beside
- * rather than beneath the two panels.
+ * <p>The figure itself is not this panel's: it is handed one, and only works out how much
+ * room it may have and what it should be doing. What <em>is</em> this panel's is the
+ * camera — the turn, the tilt, the zoom and the pan — because two of the three cameras do
+ * not draw a figure at all. They let the game draw the real character, in the real world,
+ * and the panel's whole job under those is to keep out of the way.
  *
- * <p>The settings bar floats over the view when the model has the scene to itself,
- * lets the pointer through everywhere but its own controls, and rings its labels in
- * black instead of merely shadowing them: a shadow is enough over a flat panel and not
- * enough over a figure.
+ * <p>The settings bar sits on a rule at the top rather than floating over the figure, and
+ * the dock sits in the top right corner under it. Both were tried the other way: a
+ * floating strip reads as three loose boxes, and a dock at the foot of the view lands
+ * exactly where the game draws the first-person hand.
  */
 public class ScenePanel extends Element {
     /** How the middle column is showing the skin. */
@@ -71,18 +80,34 @@ public class ScenePanel extends Element {
 
     private final PreviewSkin preview;
     private final Figure figure;
+    private final GameCamera gameCamera;
+    private final SceneCamera camera = new SceneCamera();
     private final Runnable relayout;
     private final Supplier<Component> hoveredLabel;
     private final List<Element> controls = new ArrayList<>();
 
     private View view = View.MODEL;
+    private CameraMode cameraMode = CameraMode.WORKSHOP;
+    private SceneBackdrop backdrop = SceneBackdrop.PANEL;
+    private ScenePose pose = ScenePose.IDLE;
+    private boolean playing;
+
+    /** The animation clock: only what has been played counts, so stopping holds it. */
+    private long playedMillis;
+    private long playingSince;
+
+    /** The gesture in progress: whether it is a pan rather than a turn. */
+    private boolean dragging;
+    private boolean panning;
+
     private int[] dock = {0, 0, 0, 0};
     private int[] viewport = {0, 0, 0, 0};
 
-    public ScenePanel(PreviewSkin preview, Figure figure, Runnable relayout,
-                      Supplier<Component> hoveredLabel) {
+    public ScenePanel(PreviewSkin preview, Figure figure, GameCamera gameCamera,
+                      Runnable relayout, Supplier<Component> hoveredLabel) {
         this.preview = preview;
         this.figure = figure;
+        this.gameCamera = gameCamera;
         this.relayout = relayout;
         this.hoveredLabel = hoveredLabel;
     }
@@ -93,6 +118,52 @@ public class ScenePanel extends Element {
 
     public List<Element> controls() {
         return this.controls;
+    }
+
+    /**
+     * Whether nothing may paint over the world.
+     *
+     * <p>True under a camera that shows it, and true for a game backdrop behind the
+     * workshop figure. The screen asks before it lays down its own backdrop.
+     */
+    public boolean showsWorld() {
+        return this.cameraMode.overlaysGame()
+                || this.backdrop.needsWorld() && this.gameCamera.available();
+    }
+
+    /**
+     * Whether the game is drawing the character itself, and so needs the window.
+     *
+     * <p>Narrower than {@link #showsWorld()} on purpose: a game <em>backdrop</em> behind
+     * the workshop figure is a change of scenery, and folding the library away for it
+     * would take the catalogue off the screen in the middle of picking from it.
+     */
+    public boolean overlaysGame() {
+        return this.cameraMode.overlaysGame();
+    }
+
+    /**
+     * Keeps the camera honest between ticks.
+     *
+     * <p>The world can disappear from under a camera that needs one — a disconnect with
+     * the editor open — and a camera showing a world that is gone shows nothing at all.
+     */
+    public void tick() {
+        if (this.cameraMode.needsWorld() && !this.gameCamera.available()) {
+            chooseCamera(CameraMode.WORKSHOP);
+            return;
+        }
+        if (this.backdrop.needsWorld() && !this.gameCamera.available()) {
+            this.backdrop = SceneBackdrop.PANEL;
+            this.gameCamera.take(this.cameraMode, false);
+            this.relayout.run();
+        }
+    }
+
+    /** Gives the game its camera back, and the character their own movements. */
+    public void release() {
+        this.gameCamera.release();
+        WorldPose.clear();
     }
 
     public void layout(Canvas canvas) {
@@ -172,33 +243,203 @@ public class ScenePanel extends Element {
     }
 
     /**
-     * The animation dock, bottom right.
+     * The dock, top right: the camera, the backdrop, the animation, and putting the view
+     * back.
      *
-     * <p>It carries the one control that has something behind it: putting the figure
-     * back where it started. The site also puts a play button and an animation chooser
-     * here; there is nothing to play until the model can be posed, and a control whose
-     * target is empty disappears rather than opening onto nothing.
+     * <p>Laid out right to left and wrapped onto as many rows as it takes, because the
+     * scene is the column that gives up its width first — on a phone in portrait it is
+     * the whole screen and on a desktop with both panels open it is a third of it, and
+     * the same row of controls has to sit in both.
      */
     private void layoutDock(Canvas canvas) {
+        List<Element> docked = new ArrayList<>();
+
+        List<CameraMode> cameras = availableCameras();
+        if (cameras.size() > 1) {
+            docked.add(chooser(cameras, mode -> Component.translatable(mode.labelKey()),
+                    () -> this.cameraMode, this::chooseCamera));
+        }
+
+        if (this.cameraMode == CameraMode.WORKSHOP && this.gameCamera.available()) {
+            // Only where there is a world to put behind the figure. On the title screen
+            // the choice has one answer, and a chooser with one answer is a dead control.
+            docked.add(chooser(List.of(SceneBackdrop.values()),
+                    candidate -> Component.translatable(candidate.labelKey()),
+                    () -> this.backdrop, this::chooseBackdrop));
+        }
+
+        // Both figures animate: the workshop one because the mod builds it, the one in
+        // the world because the mixin poses it on its way to being drawn.
+        if (this.cameraMode != CameraMode.FIRST_PERSON) {
+            PixelButton play = new PixelButton(
+                    Component.translatable(this.playing
+                            ? "gui.mcskincreator.stop"
+                            : "gui.mcskincreator.play"),
+                    PixelButton.Style.NORMAL, this::togglePlaying);
+            play.fit(canvas).setActive(this.playing);
+            play.withTooltip(Component.translatable(this.playing
+                    ? "gui.mcskincreator.stop.tooltip"
+                    : "gui.mcskincreator.play.tooltip"));
+            docked.add(play);
+
+            docked.add(chooser(List.of(ScenePose.values()),
+                    candidate -> Component.translatable(candidate.labelKey()),
+                    () -> this.pose, this::choosePose));
+        }
+
+        if (this.cameraMode == CameraMode.FIRST_PERSON) {
+            PixelButton swing = new PixelButton(Component.translatable("gui.mcskincreator.swing"),
+                    PixelButton.Style.NORMAL, this.gameCamera::swing);
+            swing.fit(canvas);
+            swing.withTooltip(Component.translatable("gui.mcskincreator.swing.tooltip"));
+            docked.add(swing);
+        }
+
         PixelButton recentre = new PixelButton(
                 Component.translatable("gui.mcskincreator.recentre"),
                 PixelButton.Style.GHOST, this::recentre);
         recentre.fit(canvas);
         recentre.withTooltip(Component.translatable("gui.mcskincreator.recentre.tooltip"));
+        docked.add(recentre);
 
-        int dockWidth = recentre.width() + Metrics.PANEL_INSET * 2;
-        int dockHeight = Metrics.TAB_HEIGHT + Metrics.PANEL_INSET * 2;
-        int dockX = this.x + this.width - Metrics.PAD_TIGHT - dockWidth;
-        int dockY = this.y + this.height - Metrics.PAD_TIGHT - dockHeight;
-
-        recentre.setBounds(dockX + Metrics.PANEL_INSET, dockY + Metrics.PANEL_INSET,
-                recentre.width(), Metrics.TAB_HEIGHT);
-        this.controls.add(recentre);
-        this.dock = new int[] {dockX, dockY, dockWidth, dockHeight};
+        placeDock(docked);
     }
 
+    private <T> Dropdown<T> chooser(List<T> options, java.util.function.Function<T, Component> naming,
+                                    Supplier<T> read, java.util.function.Consumer<T> write) {
+        Dropdown<T> dropdown = new Dropdown<>(options, naming, read, write, candidate -> true);
+        dropdown.setBounds(0, 0, Metrics.ui(96), Metrics.TAB_HEIGHT);
+        dropdown.inScreen(this.y + this.height);
+        return dropdown;
+    }
+
+    /** Which cameras have something to show, so which ones are worth offering. */
+    private List<CameraMode> availableCameras() {
+        List<CameraMode> cameras = new ArrayList<>();
+        for (CameraMode mode : CameraMode.values()) {
+            if (!mode.needsWorld() || this.gameCamera.available()) {
+                cameras.add(mode);
+            }
+        }
+        return cameras;
+    }
+
+    /**
+     * Fills the dock from the top right, wrapping downwards.
+     *
+     * <p>The rows are filled last control first, so the one that matters least is the
+     * one that gets pushed onto a row of its own.
+     */
+    private void placeDock(List<Element> docked) {
+        int gap = Metrics.SEGMENT_GAP;
+        int rowHeight = Metrics.TAB_HEIGHT;
+        int usable = Math.max(rowHeight,
+                this.width - Metrics.PAD_TIGHT * 2 - Metrics.PANEL_INSET * 2);
+
+        List<List<Element>> rows = new ArrayList<>();
+        List<Element> row = new ArrayList<>();
+        int rowWidth = 0;
+        for (int index = docked.size() - 1; index >= 0; index--) {
+            Element control = docked.get(index);
+            int wanted = Math.min(control.width(), usable);
+            control.setBounds(0, 0, wanted, rowHeight);
+            int added = row.isEmpty() ? wanted : wanted + gap;
+            if (!row.isEmpty() && rowWidth + added > usable) {
+                rows.add(row);
+                row = new ArrayList<>();
+                rowWidth = 0;
+                added = wanted;
+            }
+            row.add(control);
+            rowWidth += added;
+        }
+        if (!row.isEmpty()) {
+            rows.add(row);
+        }
+
+        int widest = 0;
+        for (List<Element> line : rows) {
+            int lineWidth = -gap;
+            for (Element control : line) {
+                lineWidth += control.width() + gap;
+            }
+            widest = Math.max(widest, lineWidth);
+        }
+
+        int dockWidth = widest + Metrics.PANEL_INSET * 2;
+        int dockHeight = rows.size() * rowHeight + (rows.size() - 1) * gap
+                + Metrics.PANEL_INSET * 2;
+        int dockX = this.x + this.width - Metrics.PAD_TIGHT - dockWidth;
+        int dockY = this.viewport[1] + Metrics.PAD_TIGHT;
+        this.dock = new int[] {dockX, dockY, dockWidth, dockHeight};
+
+        // Rows were gathered last-first and each row right-to-left, so both loops walk
+        // back out again to put the first control top-left of the dock.
+        int rowY = dockY + dockHeight - Metrics.PANEL_INSET - rowHeight;
+        for (List<Element> line : rows) {
+            int controlX = dockX + dockWidth - Metrics.PANEL_INSET;
+            for (Element control : line) {
+                controlX -= control.width();
+                control.setBounds(controlX, rowY, control.width(), rowHeight);
+                this.controls.add(control);
+                controlX -= gap;
+            }
+            rowY -= rowHeight + gap;
+        }
+    }
+
+    private void chooseBackdrop(SceneBackdrop backdrop) {
+        if (this.backdrop == backdrop) {
+            return;
+        }
+        this.backdrop = backdrop;
+        // The world backdrop needs the game's camera too: first person so the level
+        // renderer leaves the real character out, and no HUD — which takes the hand with
+        // it. What should be behind the figure is the world and nothing else.
+        this.gameCamera.take(this.cameraMode, backdrop.needsWorld());
+        this.relayout.run();
+    }
+
+    private void chooseCamera(CameraMode mode) {
+        if (this.cameraMode == mode) {
+            return;
+        }
+        this.cameraMode = mode;
+        this.gameCamera.take(mode, this.backdrop.needsWorld());
+        this.relayout.run();
+    }
+
+    private void choosePose(ScenePose pose) {
+        if (this.pose == pose) {
+            return;
+        }
+        this.pose = pose;
+        // A new animation starts at its beginning: picking "walk" halfway through a
+        // swim cycle would land the figure mid-stride for no reason anybody could see.
+        this.playedMillis = 0;
+        this.playingSince = 0;
+        this.relayout.run();
+    }
+
+    /**
+     * Starts or stops the animation.
+     *
+     * <p>Stops rather than pauses, like the site: the figure goes back to standing
+     * instead of freezing mid-step, because a frozen half-stride reads as a bug.
+     */
+    private void togglePlaying() {
+        this.playing = !this.playing;
+        if (!this.playing) {
+            this.playedMillis = 0;
+            this.playingSince = 0;
+        }
+        this.relayout.run();
+    }
+
+    /** Puts the view back where it started, whichever camera is looking. */
     private void recentre() {
-        this.figure.reset();
+        this.camera.recentre();
+        this.gameCamera.recentre();
         this.relayout.run();
     }
 
@@ -209,12 +450,14 @@ public class ScenePanel extends Element {
 
     public void draw(Paint paint, float delta) {
         Canvas canvas = paint.canvas();
+        syncWorldPose(paint.time());
+        SceneShot shot = shot(paint.time());
 
         switch (this.view) {
-            case MODEL -> drawModel(canvas, paint, delta);
+            case MODEL -> this.figure.draw(canvas, shot, paint.mouseX(), paint.mouseY(), delta);
             case TEXTURE -> drawTexture(canvas, this.x, this.viewport[1], this.width, this.viewport[3]);
             case BOTH -> {
-                drawModel(canvas, paint, delta);
+                this.figure.draw(canvas, shot, paint.mouseX(), paint.mouseY(), delta);
                 int half = this.width / 2;
                 canvas.fill(this.x + half, this.viewport[1], 1, this.viewport[3], Palette.RULE);
                 drawTexture(canvas, this.x + half, this.viewport[1], this.width - half, this.viewport[3]);
@@ -238,8 +481,39 @@ public class ScenePanel extends Element {
         }
     }
 
-    private void drawModel(Canvas canvas, Paint paint, float delta) {
-        this.figure.draw(canvas, paint.mouseX(), paint.mouseY(), delta);
+    private SceneShot shot(long now) {
+        return new SceneShot(this.cameraMode, this.pose, this.playing, animationSeconds(now),
+                this.camera);
+    }
+
+    /**
+     * Tells the world renderer what the real character should be doing.
+     *
+     * <p>Pushed every frame rather than on every change, because the animation clock
+     * moves every frame anyway. The world is drawn before this screen is, so what the
+     * renderer reads is one frame old — sixteen milliseconds of a walk cycle, which is
+     * not a thing anybody can see.
+     */
+    private void syncWorldPose(long now) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (this.cameraMode != CameraMode.IN_GAME || player == null) {
+            WorldPose.clear();
+            return;
+        }
+        WorldPose.show(player.getUUID(), this.pose, this.playing, animationSeconds(now),
+                this.gameCamera.bodyYaw());
+    }
+
+    /** How far into the animation we are: time spent playing, and none spent stopped. */
+    private float animationSeconds(long now) {
+        long played = this.playedMillis;
+        if (this.playing) {
+            if (this.playingSince == 0) {
+                this.playingSince = now;
+            }
+            played += now - this.playingSince;
+        }
+        return played / 1000.0F;
     }
 
     /** The 64x64 sheet itself, on a transparency checker, at a whole scale. */
@@ -253,8 +527,6 @@ public class ScenePanel extends Element {
         int drawnX = left + (width - size * scale) / 2;
         int drawnY = top + (height - size * scale) / 2;
         Surface.checker(canvas, drawnX, drawnY, size * scale, size * scale);
-        canvas.blit(this.preview.texture(), drawnX, drawnY, size * scale, size * scale,
-                0, 0, size, size, size, size);
         Surface.slot(canvas, drawnX - Metrics.SLOT_INSET, drawnY - Metrics.SLOT_INSET,
                 size * scale + Metrics.SLOT_INSET * 2, size * scale + Metrics.SLOT_INSET * 2);
         canvas.blit(this.preview.texture(), drawnX, drawnY, size * scale, size * scale,
@@ -277,7 +549,9 @@ public class ScenePanel extends Element {
         if (hovered != null) {
             lines.add(hovered);
         }
-        lines.add(Component.translatable("gesture.mcskincreator.turn"));
+        for (String key : gestureKeys()) {
+            lines.add(Component.translatable(key));
+        }
 
         int lineHeight = canvas.lineHeight() + 1;
         int boxHeight = lines.size() * lineHeight + Metrics.PANEL_INSET * 2 - 1;
@@ -299,20 +573,69 @@ public class ScenePanel extends Element {
         }
     }
 
+    /**
+     * What the gestures are, for the camera that is looking.
+     *
+     * <p>The first-person view has none, and says so by listing none: the arm is fixed
+     * to the camera, so turning the view would move the landscape behind it and not the
+     * arm — the one thing being looked at.
+     */
+    private List<String> gestureKeys() {
+        return switch (this.cameraMode) {
+            case WORKSHOP -> List.of("gesture.mcskincreator.turn", "gesture.mcskincreator.pan",
+                    "gesture.mcskincreator.zoom");
+            case IN_GAME -> List.of("gesture.mcskincreator.orbit");
+            case FIRST_PERSON -> List.of("gesture.mcskincreator.first_person");
+        };
+    }
+
     @Override
     public boolean mouseDown(double mouseX, double mouseY, int button) {
-        // The floating bar lets the pointer through everywhere but its own controls,
-        // so a drag that starts on the scene behind it still reaches the figure.
-        return contains(mouseX, mouseY) && this.figure.press(mouseX, mouseY, button);
+        if (!contains(mouseX, mouseY) || this.cameraMode == CameraMode.FIRST_PERSON) {
+            return false;
+        }
+        if (button != 0 && button != 1) {
+            return false;
+        }
+        this.dragging = true;
+        // The right button pans, and so does shift with the left: the site offers both
+        // because a trackpad has no comfortable right-drag.
+        this.panning = button == 1 || Minecraft.getInstance().hasShiftDown();
+        return true;
     }
 
     @Override
     public void mouseDrag(double mouseX, double mouseY, double dragX, double dragY, int button) {
-        this.figure.drag(mouseX, mouseY, dragX, dragY, button);
+        if (!this.dragging) {
+            return;
+        }
+        // The figure turns by how far the mouse moved, so the deltas are what matter
+        // here rather than where the pointer ended up.
+        if (this.cameraMode == CameraMode.IN_GAME) {
+            // Turning the character, not a camera: see GameCamera for why that is the
+            // only way round them.
+            this.gameCamera.turn(this.cameraMode, dragX, dragY);
+        } else if (this.panning) {
+            this.camera.pan(dragX, dragY);
+        } else {
+            this.camera.turn(dragX, dragY);
+        }
     }
 
     @Override
     public void mouseUp(double mouseX, double mouseY, int button) {
-        this.figure.release(mouseX, mouseY, button);
+        this.dragging = false;
+        this.panning = false;
+    }
+
+    @Override
+    public boolean scroll(double mouseX, double mouseY, double amount) {
+        // The game fixes its own third-person distance, so there is nothing to zoom
+        // under either camera that lets the game draw.
+        if (!contains(mouseX, mouseY) || this.cameraMode.overlaysGame()) {
+            return false;
+        }
+        this.camera.zoom(amount);
+        return true;
     }
 }

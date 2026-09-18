@@ -7,6 +7,7 @@
  */
 package fr.clixmods.mcsc.mod.preview;
 
+import fr.clixmods.mcsc.mod.scene.SceneShot;
 import fr.clixmods.mcsc.mod.style.Palette;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Figure;
@@ -34,13 +35,9 @@ public final class PreviewFigure implements Figure {
         this.height = height;
     }
 
-    @Override
-    public void reset() {
-    }
-
     /** The box the player stands in: a hatch, a frame, and how big it came out. */
     @Override
-    public void draw(Canvas canvas, int mouseX, int mouseY, float delta) {
+    public void draw(Canvas canvas, SceneShot shot, int mouseX, int mouseY, float delta) {
         if (this.width <= 0 || this.height <= 0) {
             return;
         }
@@ -54,18 +51,5 @@ public final class PreviewFigure implements Figure {
         canvas.textCentered(net.minecraft.network.chat.Component.literal(
                         this.width + "x" + this.height),
                 this.x + this.width / 2, this.y + this.height / 2 - 4, Palette.INK_MUTED);
-    }
-
-    @Override
-    public boolean press(double mouseX, double mouseY, int button) {
-        return false;
-    }
-
-    @Override
-    public void drag(double mouseX, double mouseY, double dragX, double dragY, int button) {
-    }
-
-    @Override
-    public void release(double mouseX, double mouseY, int button) {
     }
 }
