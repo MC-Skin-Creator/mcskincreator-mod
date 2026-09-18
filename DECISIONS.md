@@ -106,3 +106,42 @@ produces a release, pushing to `develop` produces a pre-release, and the workflo
 creates the tag itself. This differs from the original wording of issue #15, which
 assumed a tag as the trigger; the outcome it asked for — one artifact set per
 release, no superfluous secret — is unchanged.
+
+## 7. The interface
+
+The mod reproduces the site's editor rather than designing a new one. The site
+already imitates Minecraft, so there is nothing to "adapt to the Minecraft style" —
+the work runs the other way. The rules are in [`INTERFACE.md`](INTERFACE.md); what
+belongs here is the three decisions that shaped the code.
+
+**Drawing goes through one object.** 26.x replaced immediate-mode GUI drawing with a
+render-state extraction pass: the graphics object changed name and so did its text
+calls. Everything else the mod draws with turned out to be the same call on both
+targets — `fill`, `blit`, the scissor stack, tooltips, `NativeImage`,
+`DynamicTexture`, `TextureManager`, `Identifier`, `RenderPipelines`, and every input
+event, all checked with `javap` against both jars. So `Canvas` wraps that one object
+and is the only file in the interface that names a Minecraft version. Some forty
+other files draw without a single conditional.
+
+**The widgets are the mod's own, not dressed-up vanilla ones.** The site's look is a
+material and a bevel rather than a skin over a button, and half of these controls —
+a category tab, an element thumbnail, a layer row — have no vanilla equivalent to
+dress. What stays the game's is what the game is right about: its font, its GUI
+scale, the player model, and a focus ring a keyboard can walk. That last one is not
+decoration. Hovering exists with a mouse and not with a controller, and the site
+reveals real functionality on hover — an element's provenance, a layer's delete
+button — so anything revealed that way has to be reachable by focus too. Whatever
+holds the focus draws as whatever is hovered, and that is decided in one place.
+
+**The interface owns no pixels of its own.** The model is vanilla's
+`PlayerSkinWidget`, the thumbnails are folded out of the category atlases the API
+already serves, and the stack is composed by the server. The mod generates exactly
+two textures: the stone grain under the panels and the icon atlas, both from
+deterministic noise and pixel drawings written out as rows of characters — because a
+drawing that can be read in a diff can be corrected in one, and a PNG of the same
+thing cannot.
+
+The layer stack is the mod's, and it follows the server's format rather than
+inventing a second one: the project validator is the authority on what a project is,
+and two representations of the same thing would drift. `ProjectJson` writes it in one
+method for that reason.

@@ -9,6 +9,11 @@ mod.version = "0.1.0"
 
 deps.fabric_loader = "0.19.3"
 
+# One JUnit line serves every target: the 5.14 line runs on Java 21 and on Java 25
+# alike, so neither table below has to carry its own. The version pins the engine,
+# the parameterised runner and the launcher together, through the JUnit BOM.
+deps.junit = "5.14.4"
+
 # Loom variant version used by loom-back-compat. The 1.17 line serves both the
 # obfuscated (pre-26) and unobfuscated (26+) variants; the 1.18 line refuses to run
 # below a Java 25 JVM, which would force Java 25 on every target including 1.21.11.

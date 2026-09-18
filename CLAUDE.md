@@ -39,15 +39,35 @@ why the whole project is on Mojang mappings.
 ```
 src/main/java/fr/clixmods/mcsc/mod/
 ├── MCSkinCreatorClient.java   ClientModInitializer: logs on load, registers the menu buttons
+├── remote/                    the HTTP side of the site's /api/v1 contract
+├── catalog/                   what the catalogue says: regions, categories, elements, crops
+├── skin/                      pixels: front sprites, category sheets, the previewed skin, textures
+├── project/                   what is being edited: the layer stack and its history
+├── style/                     the design system: palette, metrics, the four materials, the grain
 └── ui/
-    ├── MenuButtons.java       hooks TitleScreen and PauseScreen via ScreenEvents.AFTER_INIT
-    ├── SkinPanel.java         the right-hand panel: player name, player model, button
-    ├── SkinCreatorScreen.java the editor screen (placeholder content for now)
-    └── ScreenCompat.java      the only home for cross-version call renames
+    ├── Canvas.java            the drawing surface, and the only file the interface versions
+    ├── ScreenCompat.java      the two call renames outside drawing
+    ├── Element.java, Paint.java   the widget base and the per-frame context
+    ├── SkinCreatorScreen.java the editor: layout, focus, shortcuts, requests, window routing
+    ├── MenuButtons.java, SkinPanel.java   the entry on the vanilla menus
+    ├── widget/                button, tabs, tile, field, slider, checkbox, dropdown, layer row
+    ├── panel/                 top bar, library, scene, layers
+    └── window/                the modal base and the windows built on it
 ```
 
 One shared source tree serves every Minecraft version. There is no `src-1.21.11/`
 and there never should be.
+
+`src/test/java/` holds the tests, and is shared the same way: every target compiles
+and runs all of them. They cover the pure logic — the layer stack and its history,
+the project body sent to the server, the catalogue reader and its fallbacks — and
+need no game, though they do resolve against the target's Minecraft jar for
+`Component` and `PlayerModelType`. Nothing that draws is tested: that is what
+running the game is for.
+
+The interface has its own rules — the four materials, the palette, the scale
+conversion, what is deliberately not built — in [`INTERFACE.md`](INTERFACE.md). Read
+it before changing anything that draws.
 
 ## Stonecutter architecture
 
@@ -78,12 +98,18 @@ target on its own.
 All of these were run and verified in this repository.
 
 ```sh
-./gradlew build                        # builds EVERY target
-./gradlew :1.21.11:build               # builds one target
+./gradlew build                        # builds and tests EVERY target
+./gradlew :1.21.11:build               # builds and tests one target
 ./gradlew :26.2.x:build
+./gradlew test                         # every target's tests, nothing else
+./gradlew :26.2.x:test                 # one target's tests
 ./gradlew buildAndCollect              # all targets, jars collected in build/libs/0.1.0/
 ./gradlew tasks                        # lists the generated Stonecutter tasks
 ```
+
+`buildAndCollect` copies the jar and nothing more: it does not run the tests, which
+is why CI asks for `build` as well as `buildAndCollect`. A test report lands in
+`versions/<target>/build/reports/tests/test/`.
 
 Switching the active version (note the spaces — the task name is a sentence):
 
@@ -142,6 +168,9 @@ and `}` are load-bearing: breaking them silently changes what a target compiles.
 | Open a screen | `Minecraft#setScreen` | `setScreenAndShow` | `ScreenCompat` |
 | Screen widget list | `Screens#getButtons` | `Screens#getWidgets` (Fabric screen API v5) | `ScreenCompat` |
 | Screen draw hook | `render(GuiGraphics, …)` | `extractRenderState(GuiGraphicsExtractor, …)` | `SkinCreatorScreen` |
+| Drawing object | `GuiGraphics` | `GuiGraphicsExtractor` | `Canvas` |
+| Draw a string | `drawString` / `drawCenteredString` | `text` / `centeredText` | `Canvas` |
+| Draw a widget | `Renderable#render` | `Renderable#extractRenderState` | `Canvas` |
 | Centered text | `drawCenteredString` | `centeredText` | `SkinCreatorScreen` |
 
 26.x replaced immediate-mode GUI drawing with a render-state extraction pass, so
@@ -169,6 +198,11 @@ The Fabric API is pulled per module (`fapi("fabric-screen-api-v1")` in
 `build.gradle.kts`) rather than whole, so each target only fetches what the mod
 uses. Add modules there as they become necessary.
 
+JUnit 5 is one line — `deps.junit` at the top of the TOML rather than in a per-target
+table — because the same version runs on Java 21 and on Java 25 alike. It is pulled
+through the JUnit BOM, so the engine, the parameterised runner and the launcher all
+follow that one number.
+
 ## Adding a Minecraft version
 
 1. Add the node in `settings.gradle.kts` (`versions(…)` or `version(alias, value)`).
@@ -185,9 +219,10 @@ uses. Add modules there as they become necessary.
 
 `.github/workflows/build.yml` runs **one job per Stonecutter target** on every pull
 request and on pushes to `feature/**` and `fix/**`, with `fail-fast: false` so one
-broken version does not mask another. It is primarily a compile check, and each job
-also uploads its jar as a **workflow artifact** (`retention-days: 7`) so a PR can be
-test-installed before it merges — this is not a release: no tag, no GitHub release,
+broken version does not mask another. Each job compiles that target and runs its
+tests, uploads the test report when something failed, and uploads its jar as a
+**workflow artifact** (`retention-days: 7`) so a PR can be test-installed before it
+merges — this is not a release: no tag, no GitHub release,
 `mod.version` unchanged. It deliberately does not run on `main` or `develop`, where
 `release.yml` compiles the same commit anyway. No secret is declared.
 
