@@ -11,8 +11,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import fr.clixmods.mcsc.mod.catalog.Catalog;
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
 import fr.clixmods.mcsc.mod.catalog.CatalogItem;
+import fr.clixmods.mcsc.mod.catalog.CatalogModel;
 import net.minecraft.world.entity.player.PlayerModelType;
 
 /**
@@ -117,6 +119,50 @@ public final class SkinProject {
         this.selected = layer;
         touch();
         return layer;
+    }
+
+    /**
+     * Applies one of the catalogue's ready-made stacks.
+     *
+     * <p>The two kinds do deliberately different things, as they do on the site. A
+     * <strong>model</strong> is a finished character: it replaces the stack and brings
+     * its own player model with it, because it was drawn for one of the two and its
+     * arms are that width. An <strong>outfit</strong> is clothes: it stacks on the
+     * body already there, leaving the skin, the hair and the face alone — which is why
+     * the catalogue gives no outfit a {@code single} category.
+     *
+     * <p>Either way this is <em>one</em> change: the caller records a single history
+     * entry around it, so a model that stacked eleven elements is taken back off by
+     * one undo rather than eleven.
+     *
+     * @param catalog the catalogue the pieces are named in; a piece naming an element
+     *                it no longer has is skipped rather than refused, the way the
+     *                site's own reader skips it
+     * @return how many pieces actually made it onto the stack
+     */
+    public int apply(CatalogModel model, Catalog catalog, String languageCode) {
+        if (model.kind() == CatalogModel.Kind.MODEL) {
+            this.layers.clear();
+            this.selected = null;
+            this.model = model.slim() ? PlayerModelType.SLIM : PlayerModelType.WIDE;
+        }
+
+        int stacked = 0;
+        for (CatalogModel.Piece piece : model.pieces()) {
+            CatalogCategory category = catalog.category(piece.categoryId()).orElse(null);
+            if (category == null) {
+                continue;
+            }
+            CatalogItem item = category.items().stream()
+                    .filter(candidate -> candidate.id().equals(piece.itemId()))
+                    .findFirst()
+                    .orElse(null);
+            if (item != null && add(category, item, languageCode) != null) {
+                stacked++;
+            }
+        }
+        touch();
+        return stacked;
     }
 
     public void remove(Layer layer) {

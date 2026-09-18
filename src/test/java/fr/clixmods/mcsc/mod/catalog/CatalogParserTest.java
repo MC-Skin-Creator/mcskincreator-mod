@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -460,6 +461,130 @@ class CatalogParserTest {
         void aCatalogueWithNoCategoriesIsEmptyRatherThanRefused() {
             assertTrue(parse("{\"categories\": []}").isEmpty());
             assertEquals(List.of(), parse("{\"categories\": []}").regions());
+        }
+    }
+
+    /**
+     * The ready-made stacks: the site's {@code projects}, which it calls models, and
+     * its {@code outfits}. Their pieces name elements the way a serialised project
+     * does — {@code cat} and {@code preset} — and not the way a catalogue entry does.
+     */
+    @Nested
+    class ReadyMadeStacks {
+        private static final String READY_MADE = """
+                {
+                  "categories": [
+                    {
+                      "id": "skin", "region": "body", "label": "Peau",
+                      "atlas": {"url": "/atlas/skin.png"},
+                      "items": [{"id": "steve", "name": "Steve"}]
+                    }
+                  ],
+                  "projects": [
+                    {
+                      "id": "sorceress", "name": "Sorcière", "en": "Sorceress", "es": "Hechicera",
+                      "credit": "some-work", "ajout": "2026-01-01", "base": "assets/",
+                      "layers": [
+                        {"cat": "skin", "preset": "skin-sorceress"},
+                        {"cat": "top", "preset": "top-sorceress", "colors": {"cloth": "#4d1212"}}
+                      ]
+                    },
+                    {"id": "fine", "name": "Fine", "slim": 1,
+                     "layers": [{"cat": "skin", "preset": "skin-fine"}]},
+                    {"id": "no-layers", "name": "Empty", "layers": []},
+                    {"name": "No id", "layers": [{"cat": "skin", "preset": "skin-x"}]}
+                  ],
+                  "outfits": [
+                    {
+                      "id": "armour", "name": "Dame en armure", "en": "Lady in armour",
+                      "layers": [
+                        {"cat": "shoe", "preset": "shoe-armour"},
+                        {"cat": "top", "preset": "top-armour"}
+                      ]
+                    }
+                  ]
+                }
+                """;
+
+        private static CatalogModel model(String id) {
+            Catalog catalog = parse(READY_MADE);
+            return Stream.concat(catalog.models().stream(), catalog.outfits().stream())
+                    .filter(entry -> entry.id().equals(id))
+                    .findFirst()
+                    .orElseThrow();
+        }
+
+        @Test
+        void projectsAreReadAsModelsAndOutfitsAsOutfits() {
+            Catalog catalog = parse(READY_MADE);
+
+            assertEquals(List.of("sorceress", "fine"),
+                    catalog.models().stream().map(CatalogModel::id).toList());
+            assertEquals(List.of("armour"),
+                    catalog.outfits().stream().map(CatalogModel::id).toList());
+            assertEquals(CatalogModel.Kind.MODEL, model("sorceress").kind());
+            assertEquals(CatalogModel.Kind.OUTFIT, model("armour").kind());
+        }
+
+        @Test
+        void aPieceNamesItsElementWithCatAndPreset() {
+            assertEquals(List.of(
+                            new CatalogModel.Piece("skin", "skin-sorceress"),
+                            new CatalogModel.Piece("top", "top-sorceress")),
+                    model("sorceress").pieces());
+        }
+
+        @Test
+        void aModelCarriesThePlayerModelItWasDrawnFor() {
+            assertTrue(model("fine").slim());
+            assertFalse(model("sorceress").slim());
+        }
+
+        @Test
+        void anOutfitIsNeverSlim() {
+            assertFalse(model("armour").slim(),
+                    "an outfit is worn by whichever body is already there");
+        }
+
+        @Test
+        void theThreeLabelsAreKept() {
+            CatalogText name = model("sorceress").name();
+
+            assertEquals("Sorcière", name.forLanguage("fr_fr"));
+            assertEquals("Sorceress", name.forLanguage("en_us"));
+            assertEquals("Hechicera", name.forLanguage("es_es"));
+        }
+
+        @Test
+        void anEntryWithNoIdOrNoPieceIsDropped() {
+            assertEquals(List.of("sorceress", "fine"),
+                    parse(READY_MADE).models().stream().map(CatalogModel::id).toList());
+        }
+
+        @Test
+        void theCategoriesAPieceNeedsAreOnlyTheOnesTheCatalogueStillHas() {
+            Catalog catalog = parse(READY_MADE);
+
+            assertEquals(List.of("skin"),
+                    catalog.categoriesOf(model("sorceress")).stream()
+                            .map(CatalogCategory::id).toList());
+        }
+
+        @Test
+        void aCatalogueCarryingNeitherListIsStillACatalogue() {
+            Catalog catalog = parse(PAYLOAD);
+
+            assertEquals(List.of(), catalog.models());
+            assertEquals(List.of(), catalog.outfits());
+            assertFalse(catalog.isEmpty());
+        }
+
+        @Test
+        void aListThatIsNotAListIsIgnoredRatherThanRefused() {
+            Catalog catalog = parse("{\"categories\": [], \"projects\": 7, \"outfits\": \"no\"}");
+
+            assertEquals(List.of(), catalog.models());
+            assertEquals(List.of(), catalog.outfits());
         }
     }
 }

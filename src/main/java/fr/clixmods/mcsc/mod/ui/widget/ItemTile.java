@@ -33,6 +33,9 @@ import net.minecraft.network.chat.Component;
  * left, and only while the tile is pointed at or focused — and it swallows its own
  * click, because asking where something came from must not also add it to the stack.
  * Stacking two marks in one corner hides one of them, which the site did once.
+ *
+ * <p>A tile with no {@code onInfo} draws no "i" at all: the catalogue credits elements,
+ * one work each, and there is nothing to open for a set of them.
  */
 public class ItemTile extends Element {
     /** The green "already used" mark, 7 site pixels square. */
@@ -126,7 +129,7 @@ public class ItemTile extends Element {
             canvas.fill(markX, markY, USED_MARK, USED_MARK, Palette.GREEN_LIGHT);
         }
 
-        if (hot) {
+        if (hot && this.onInfo != null) {
             int[] mark = infoBounds();
             canvas.fill(mark[0], mark[1], mark[2], mark[3], Palette.OUTLINE);
             canvas.fill(mark[0] + 1, mark[1] + 1, mark[2] - 2, mark[3] - 2, Palette.PANEL_SUB);
@@ -147,7 +150,8 @@ public class ItemTile extends Element {
             return false;
         }
         int[] mark = infoBounds();
-        if (mouseX >= mark[0] && mouseX < mark[0] + mark[2]
+        if (this.onInfo != null
+                && mouseX >= mark[0] && mouseX < mark[0] + mark[2]
                 && mouseY >= mark[1] && mouseY < mark[1] + mark[3]) {
             // The provenance mark stops the click. Without this, asking where an
             // element came from would also stack it.

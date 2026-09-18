@@ -132,20 +132,42 @@ immediately from the atlas buffer already in memory, and the composition replace
 when it lands, so a server that cannot compose costs a notification rather than the
 preview.
 
+The ready-made stacks — the starter models and the outfits — are the one place that
+composes locally, because there are two hundred of them on screen at once and a
+request each is not a thing to ask for. Their pictures are what choosing one will put
+on the model, which is not always what the site shows for the same entry: the
+catalogue gives some pieces a colour override, and a layer here cannot hold one yet.
+
+An outfit is clothes and nothing else, so its picture is stood on a body taken from
+the catalogue's own skin category. The site names one outright and the catalogue no
+longer carries it, which is exactly what a hardcoded id gets you — a silently empty
+body.
+
 ## What is not built yet
 
 The interface is complete; several of the things it is an interface *to* are not.
 These are deliberate gaps, and each one follows the rule above about empty targets —
 the control is absent rather than dead. That is why there is no animation chooser in
 the scene dock, no colour swatches in the inspector (the catalogue carries no colour
-keys yet), no random-outfit button, and no starter templates.
+keys yet), and no random-outfit button. The starter models the site offers are
+there — that is what the **Models** button in the top bar opens — and the button
+itself disappears when the catalogue turns out to carry none.
+
+**Outfits are a region of the library, not a window.** The site gives them a shelf
+between the body and the head, and they are picked exactly the way an element is, so
+they are one more region here too. The catalogue does not carry that region — outfits
+are a list beside the categories rather than a category — so `LibraryPanel` adds the
+tab, and stands the outfits on a shelf that never leaves the panel. That shelf is a
+category in shape only: it lets an outfit be drawn and picked by the same `ItemTile`
+as everything else instead of a second widget to keep looking the same, and the
+project only ever sees a real `CatalogModel`.
 
 | Missing | Where it lands |
 |---|---|
 | The pixel drawing tools and their shortcuts | issues #7, #8 |
 | Per-element colours, and the swatch row that goes with them | issue #7 |
 | Composing locally instead of over the network | issue #8 |
-| Importing a texture, and the starter templates | issues #8, #10 |
+| Importing a texture | issue #8 |
 | The fitting room: the skin on your own client only | issue #11 |
 
 The saved-skin list is built: **My skins** in the top bar lists what the server
