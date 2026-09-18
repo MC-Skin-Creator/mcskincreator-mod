@@ -328,8 +328,11 @@ public class LayersPanel extends Panel {
         int offset = this.bodyTop - this.scroll.offset();
 
         if (this.rows.isEmpty()) {
+            // One sentence, not two. With no layers there is nothing to select either,
+            // so "choose a layer to adjust it" says the same thing a second time — and
+            // said it in the same place, one on top of the other.
             drawEmptyState(canvas, Component.translatable("empty.mcskincreator.layers"),
-                    left, railRight, this.bodyTop, this.settingsContentY);
+                    left, railRight, this.bodyTop, this.bodyHeight);
         } else {
             for (GroupTitle title : this.titles) {
                 drawGroupTitle(canvas, title, left, railRight, offset + title.contentY());
@@ -339,9 +342,8 @@ public class LayersPanel extends Panel {
                     placed.row().draw(paint);
                 }
             }
+            drawSettings(paint, left, railRight, offset + this.settingsContentY);
         }
-
-        drawSettings(paint, left, railRight, offset + this.settingsContentY);
         canvas.popScissor();
         this.scroll.drawBar(canvas, right, this.bodyTop, this.bodyHeight);
     }

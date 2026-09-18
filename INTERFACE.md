@@ -8,6 +8,33 @@ interface sprites.
 
 Nothing here is invented. That is the rule the rest of this file explains.
 
+## Looking at it
+
+**This screen can be rendered without the game**, and that is the single most useful
+thing in this file. `./gradlew :1.21.11:test` writes `build/ui-preview/` — the whole
+editor at the five sizes the game gives it, magnified to the size a player sees, plus
+a sheet of every sprite it is made of at every height it is used at.
+
+Nothing about it is a mock-up. The panels, the widgets and the arithmetic are the real
+ones; the font is read out of the Minecraft jar, with advances computed the way
+`BitmapProvider` computes them, so a label is exactly as wide as the game will draw
+it; the sprites are the game's, nine-sliced from their own metadata. Only what needs a
+running client is stood in for — the player figure, the thumbnail sheets, the mark.
+
+That is what [`Canvas`](src/main/java/fr/clixmods/mcsc/mod/ui/Canvas.java) is an
+interface for, and what [`EditorChrome`](src/main/java/fr/clixmods/mcsc/mod/ui/EditorChrome.java)
+is separate from the screen for. Keep it that way: a panel that reaches for
+`Minecraft.getInstance()` takes the whole screen out of the preview with it, and a
+screen nobody can see is a screen nobody checks. The three mistakes that did the most
+visible damage to this interface — content drawn under its own panel's frame, a strip
+of tabs with nothing to stand on, settings that wanted more room than the column had —
+were all found by looking at a picture, and none of them had been found by reading the
+code.
+
+`EditorGeometryTest` is the other half of it: it lays the editor out at every width
+from 200 to 900 and asserts that nothing lands outside the screen, outside its own
+panel, or with no size at all.
+
 ## Why the game's sprites and not the site's
 
 The site hand-draws its panels, slots and buttons out of bevels and outlines,
@@ -82,6 +109,22 @@ button is 20 px tall because that is what a Minecraft button is. The insets in
 `Metrics` are the borders of the sprites above, so a label sits clear of the frame the
 sprite draws.
 
+**There are two control heights and there is no third.** `BUTTON_HEIGHT` (20) and
+`BUTTON_HEIGHT_COMPACT` (16), which is also `TAB_HEIGHT`. A row holding a 14 px tab
+beside a 16 px button beside a 20 px one is the whole of why nothing lined up.
+
+**A panel's contents start at its frame, not at its edge.** `popup/background` carries
+a six pixel border, so anything laid out closer than that is drawn *under* the frame:
+the last letter of a value, the count beside a heading, the flank of a tab.
+`Panel.contentLeft()` and `contentRight()` name that box once, and nothing measures
+from `x` and `width` itself.
+
+**A tab is part of a tab bar.** The game's tab sprite has no bottom border, because it
+is drawn to sit on the thing it opens. One floating in the middle of a column reads as
+a bracket, and a row of them that wraps is not a tab bar at all — it is a grid of
+boxes. So a tab strip ends flush on a rule, and a strip that will not fit on one row
+becomes a dropdown instead of wrapping.
+
 Images are drawn at whole scales only, and the nine-sliced sprites are scaled by the
 game, which knows where their borders are — so the mod never stretches a corner.
 
@@ -95,12 +138,17 @@ and drops its click target with it.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│ TOP BAR   mark · beta · tools                                │
+│ TOP BAR   mark · beta · tools      dimmed band, ruled off     │
 ├────────────┬──────────────────────────────┬──────────────────┤
 │ LIBRARY    │ SCENE                        │ LAYERS           │
-│ 200 px     │ everything left over         │ 212 px           │
+│ ~1/5       │ everything left over         │ ~1/5             │
 └────────────┴──────────────────────────────┴──────────────────┘
 ```
+
+The top bar is a band rather than a panel. `popup/background` at twenty pixels tall is
+frame all the way through, and the strip came out as one light slab with the controls
+sunk into it; what sits across the top of a screen in this game is a dimmed ground
+with a rule under it.
 
 Three columns while the width allows it; below that the side columns become drawers
 driven by a tab bar at the bottom, and the drawer lands under the scene in portrait
@@ -125,6 +173,11 @@ Nothing here renders a player. The model in the scene is the game's own
 already follows the classic or slim model of the skin it is handed. The mod only
 supplies the skin.
 
+The scene does not build it, though: it is handed a [`Figure`](src/main/java/fr/clixmods/mcsc/mod/ui/Figure.java)
+and works out how much room it may have. `PlayerFigure` is the game's one; the preview
+stands a labelled box in its place, which is the only reason the scene's own layout
+can be looked at at all.
+
 Thumbnails are cheaper still: a category's atlas arrives as raw 64x64 skins, and
 `FrontSprite` folds each one into the 16x32 front view the site's slots show. One
 sheet per category rather than one texture per element, cropped per category to the
@@ -139,6 +192,14 @@ preview.
 
 ## Traps already paid for
 
+- Don't lay a panel's contents out from its edge; lay them out from its frame.
+- Don't float a tab. It is drawn to sit on what it opens, and it has no bottom edge.
+- Don't wrap a row of tabs onto a second row. Collapse it to a dropdown.
+- Don't pin a band whose height is fixed against one that has to fit in the rest: the
+  settings wanted 137 px of a column that has 163 on a 720p window, and the list was
+  left one row that drew over them. One scroll fits every screen the game has.
+- Don't say the same thing twice in two empty states. With no layers there is nothing
+  to select either, and both sentences landed in the same place.
 - Don't put the preview behind anything.
 - Don't fill an empty category — an empty category is not shown at all, and a control
   whose target is empty disappears instead of opening onto nothing.

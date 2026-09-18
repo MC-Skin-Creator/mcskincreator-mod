@@ -47,10 +47,13 @@ src/main/java/fr/clixmods/mcsc/mod/
 ├── mixin/                     the one mixin: the applied skin, worn before Mojang propagates it
 ├── style/                     the vanilla sprites the editor draws with, and the metrics
 └── ui/
-    ├── Canvas.java            the drawing surface, and the only file the interface versions
+    ├── Canvas.java            the drawing surface, as an interface: everything paints through it
+    ├── GameCanvas.java        the implementation that paints on the game, and the only file the interface versions
     ├── ScreenCompat.java      the two call renames outside drawing
     ├── Element.java, Paint.java   the widget base and the per-frame context
-    ├── SkinCreatorScreen.java the editor: layout, focus, shortcuts, requests, window routing
+    ├── EditorChrome.java      where the four zones go: columns, drawers, paint order, hit list
+    ├── SkinCreatorScreen.java the editor: project, catalogue, requests, windows, input
+    ├── Figure.java, PlayerFigure.java   the player in the scene, and the game's way of drawing one
     ├── MenuButtons.java, SkinPanel.java   the entry on the vanilla menus
     ├── widget/                button, tabs, tile, field, slider, checkbox, dropdown, layer row
     ├── panel/                 top bar, library, scene, layers
@@ -72,6 +75,15 @@ the scale conversion, what is deliberately not built — in
 [`INTERFACE.md`](INTERFACE.md). **Read it before changing anything that draws**: the
 short version is that every surface is a vanilla sprite named in `style/Sprites.java`,
 and adding a texture or an icon of the mod's own is the one thing not to do.
+
+**The editor can be rendered without the game.** `./gradlew :1.21.11:test` writes
+`build/ui-preview/`: the whole screen at the five sizes the game gives it, magnified to
+the size a player sees, drawn with the real font and the real sprites read out of the
+Minecraft jar on the test classpath. Look at it before and after changing anything that
+draws — it is the only way to see this screen in this repository, and it is faster than
+a client either way. `src/test/java/fr/clixmods/mcsc/mod/preview/` is how it works, and
+what keeps it working is that nothing in `ui/` reaches for `Minecraft.getInstance()`:
+the scene is handed a `Figure`, the top bar is handed its mark.
 
 ## Stonecutter architecture
 
