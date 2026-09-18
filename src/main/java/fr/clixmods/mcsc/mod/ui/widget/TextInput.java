@@ -95,7 +95,7 @@ public class TextInput extends Element {
             // make it look like content that happens to be grey.
             canvas.textFlat(this.placeholder, textX, textY, Palette.INK_FAINT);
         } else {
-            String shown = canvas.font().plainSubstrByWidth(this.value, room);
+            String shown = canvas.trimToWidth(this.value, room);
             canvas.text(Component.literal(shown), textX, textY, Palette.INK);
             if (this.focused && (paint.time() / 500L) % 2L == 0L) {
                 int caret = textX + canvas.textWidth(shown.substring(0, Math.min(this.cursor, shown.length())));

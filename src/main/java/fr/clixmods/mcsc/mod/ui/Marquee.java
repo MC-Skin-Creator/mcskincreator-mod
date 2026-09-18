@@ -87,6 +87,6 @@ public final class Marquee {
         if (room <= 0) {
             return ELLIPSIS;
         }
-        return canvas.font().plainSubstrByWidth(text, room) + ELLIPSIS;
+        return canvas.trimToWidth(text, room) + ELLIPSIS;
     }
 }

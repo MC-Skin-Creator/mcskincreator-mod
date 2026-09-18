@@ -254,7 +254,7 @@ public class SkinCreatorScreen extends Screen {
      * fail loudly rather than quietly, which is the right way round.
      */
     private void relayout() {
-        Canvas canvas = new Canvas(null, this.font);
+        Canvas canvas = new GameCanvas(null, this.font);
 
         this.topBar.setBounds(0, 0, this.width, Metrics.TOP_BAR_HEIGHT);
         this.topBar.layout(canvas);
@@ -1254,13 +1254,13 @@ public class SkinCreatorScreen extends Screen {
     /*@Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
         super.extractRenderState(graphics, mouseX, mouseY, delta);
-        paint(new Canvas(graphics, this.font), mouseX, mouseY, delta);
+        paint(new GameCanvas(graphics, this.font), mouseX, mouseY, delta);
     }
     *///?} else {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
         super.render(graphics, mouseX, mouseY, delta);
-        paint(new Canvas(graphics, this.font), mouseX, mouseY, delta);
+        paint(new GameCanvas(graphics, this.font), mouseX, mouseY, delta);
     }
     //?}
 
@@ -1361,7 +1361,7 @@ public class SkinCreatorScreen extends Screen {
                 continue;
             }
             if (element instanceof Dropdown<?> dropdown
-                    && dropdown.overlayMouseDown(mouseX, mouseY, new Canvas(null, this.font))) {
+                    && dropdown.overlayMouseDown(mouseX, mouseY, new GameCanvas(null, this.font))) {
                 relayout();
                 return true;
             }
