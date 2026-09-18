@@ -145,8 +145,15 @@ keys yet), no random-outfit button, and no starter templates.
 | The pixel drawing tools and their shortcuts | issues #7, #8 |
 | Per-element colours, and the swatch row that goes with them | issue #7 |
 | Composing locally instead of over the network | issue #8 |
-| Importing a texture, the starter templates, the saved-skins list | issues #8, #10 |
+| Importing a texture, and the starter templates | issues #8, #10 |
 | Applying the skin to the local render, and uploading it | issues #11, #12 |
 
-Export writes the composed sheet as a PNG into `<game>/mcskincreator/`. There is no
-language picker: in the game the language is the game's, and the mod follows it.
+The saved-skin list is built: **My skins** in the top bar lists what the server
+keeps for this installation, each row drawn from the picture the server composed
+when it stored that skin. Opening one replaces the stack, and there is no skin that
+follows the editing the way the site's open skin does — saving always makes a new
+entry, because silently replacing one is the single thing nobody could undo.
+
+Export writes into `<game>/mcskincreator/`: the composed sheet as a 64x64 PNG, or
+the character seen from the front, which the server draws. There is no language
+picker: in the game the language is the game's, and the mod follows it.

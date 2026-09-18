@@ -8,7 +8,9 @@
 package fr.clixmods.mcsc.mod.catalog;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -22,10 +24,9 @@ import com.google.gson.JsonPrimitive;
  *
  * <p>Deliberately reads the JSON as a tree rather than binding it to classes: the
  * catalogue serves the whole site, so it carries fields the mod has no use for
- * ({@code credits}, {@code projects}, {@code outfits}, {@code dir}, {@code credit},
- * {@code ajout}, {@code base}) and will grow more. A tree reader ignores what it does
- * not know and survives the next field the site adds, where a bound class breaks on
- * it.
+ * ({@code projects}, {@code outfits}, {@code dir}, {@code ajout}, {@code base}) and
+ * will grow more. A tree reader ignores what it does not know and survives the next
+ * field the site adds, where a bound class breaks on it.
  *
  * <p>Two details of the real schema are easy to get wrong and both are silent when
  * you do. A <strong>category</strong> names itself with {@code label}, while an
@@ -75,7 +76,29 @@ public final class CatalogParser {
                 }
             }
         }
-        return new Catalog(parsed);
+        return new Catalog(parsed, works(root.get("credits")));
+    }
+
+    /**
+     * The table of origins, by key.
+     *
+     * <p>Anything that is not a table of objects reads as no credits at all rather than
+     * as a broken catalogue: the library is worth showing without provenance, and the
+     * interface already has a sentence for an element that has none.
+     */
+    private static Map<String, CatalogWork> works(JsonElement credits) {
+        if (credits == null || !credits.isJsonObject()) {
+            return Map.of();
+        }
+
+        Map<String, CatalogWork> works = new LinkedHashMap<>();
+        for (Map.Entry<String, JsonElement> entry : credits.getAsJsonObject().entrySet()) {
+            CatalogWork work = CatalogWork.of(entry.getValue());
+            if (!work.isEmpty()) {
+                works.put(entry.getKey(), work);
+            }
+        }
+        return Map.copyOf(works);
     }
 
     /** @return the category, or {@code null} if it has no usable id or no element */
@@ -139,7 +162,7 @@ public final class CatalogParser {
             if (!id.isBlank()) {
                 String crop = string(json, "thumbCrop");
                 items.add(new CatalogItem(id, text(json, "name"), atlasIndex, slimIndex,
-                        crop.isBlank() ? null : ThumbCrop.of(crop)));
+                        crop.isBlank() ? null : ThumbCrop.of(crop), string(json, "credit")));
             }
         }
         return List.copyOf(items);

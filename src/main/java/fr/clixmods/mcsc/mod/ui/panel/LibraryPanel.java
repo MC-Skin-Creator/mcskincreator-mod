@@ -21,6 +21,7 @@ import fr.clixmods.mcsc.mod.catalog.Catalog;
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
 import fr.clixmods.mcsc.mod.catalog.CatalogItem;
 import fr.clixmods.mcsc.mod.catalog.CatalogText;
+import fr.clixmods.mcsc.mod.remote.SearchResults;
 import fr.clixmods.mcsc.mod.skin.CategorySprites;
 import fr.clixmods.mcsc.mod.style.Metrics;
 import fr.clixmods.mcsc.mod.style.Palette;
@@ -51,6 +52,11 @@ import net.minecraft.network.chat.Component;
  * search is showing, the green region tab goes out — it would otherwise be announcing
  * a category the panel is not displaying — and clicking any tab clears the search,
  * because a tab always shows its own category whatever came before.
+ *
+ * <p>The matching itself is the server's, which is the only way a name the player's
+ * language does not show can be matched: the catalogue carries three, and only one of
+ * them is on screen. Until the answer arrives — and if it never does — the panel
+ * filters the labels it holds, so the field always does something.
  *
  * <p>A Minecraft screen has no layout: there is no flexbox and no grid, so
  * {@link #layout} works every position out in pixels and the scrolling is counted by
@@ -83,6 +89,9 @@ public class LibraryPanel extends Panel {
     private Catalog catalog = Catalog.EMPTY;
     private TextInput search;
     private PixelButton foldButton;
+    /** The query the results below answer, which is not always the one being typed. */
+    private String answeredQuery = "";
+    private List<SearchResults.Hit> hits = List.of();
 
     private String region;
     private CatalogCategory category;
@@ -144,12 +153,26 @@ public class LibraryPanel extends Panel {
         return this.region == null ? List.of() : this.catalog.categoriesIn(this.region);
     }
 
-    public void createSearch() {
+    /** @param onQuery told what is being searched for, so the server can be asked */
+    public void createSearch(Consumer<String> onQuery) {
         this.search = new TextInput(Component.translatable("gui.mcskincreator.search"),
                 Metrics.MAX_NAME_CHARS, value -> {
                     this.scroll.reset();
+                    onQuery.accept(value);
                     this.relayout.run();
                 });
+    }
+
+    /**
+     * Hands the panel what the server matched.
+     *
+     * <p>Kept with the query it answers: a result set is shown only while it is the
+     * answer to what is in the field, so a slow reply cannot leave the panel showing
+     * the matches of a word that has since been rewritten.
+     */
+    public void setSearchResults(String query, List<SearchResults.Hit> hits) {
+        this.answeredQuery = query;
+        this.hits = List.copyOf(hits);
     }
 
     private CatalogCategory firstCategory(String region) {
@@ -327,14 +350,41 @@ public class LibraryPanel extends Panel {
             return batches;
         }
 
-        String needle = this.search.value().trim().toLowerCase(Locale.ROOT);
+        String needle = this.search.value().trim();
+        return needle.equals(this.answeredQuery) && !this.hits.isEmpty()
+                ? matched(batches)
+                : filtered(batches, needle.toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * What the server matched, grouped by category in the catalogue's order.
+     *
+     * <p>Outfits come back in the same answer and are left out: they are a list the mod
+     * does not have, and a match one cannot pick is a row that does nothing.
+     */
+    private Map<CatalogCategory, List<CatalogItem>> matched(Map<CatalogCategory, List<CatalogItem>> batches) {
+        for (SearchResults.Hit hit : this.hits) {
+            if (!hit.isPreset()) {
+                continue;
+            }
+            this.catalog.category(hit.category()).ifPresent(category -> category.items().stream()
+                    .filter(item -> item.id().equals(hit.id()))
+                    .findFirst()
+                    .ifPresent(item -> batches.computeIfAbsent(category, key -> new ArrayList<>()).add(item)));
+        }
+        return batches;
+    }
+
+    /** What the panel can match on its own: the labels of the player's language. */
+    private Map<CatalogCategory, List<CatalogItem>> filtered(
+            Map<CatalogCategory, List<CatalogItem>> batches, String needle) {
         for (CatalogCategory candidate : this.catalog.categories()) {
             List<CatalogItem> matches = candidate.items().stream()
                     .filter(item -> this.naming.apply(item.name()).getString()
                             .toLowerCase(Locale.ROOT).contains(needle))
                     .toList();
             if (!matches.isEmpty()) {
-                batches.put(candidate, matches);
+                batches.put(candidate, new ArrayList<>(matches));
             }
         }
         return batches;

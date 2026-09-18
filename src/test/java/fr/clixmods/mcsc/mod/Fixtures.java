@@ -28,7 +28,7 @@ public final class Fixtures {
 
     /** An element whose three labels are all its id, so any language shows the id. */
     public static CatalogItem item(String id) {
-        return new CatalogItem(id, new CatalogText(id, id, id), 0, CatalogItem.NONE, null);
+        return new CatalogItem(id, new CatalogText(id, id, id), 0, CatalogItem.NONE, null, "");
     }
 
     /** A category that stacks: every element added to it adds a layer. */

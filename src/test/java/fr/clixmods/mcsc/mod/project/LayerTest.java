@@ -36,7 +36,7 @@ class LayerTest {
     }
 
     private static CatalogItem item() {
-        return new CatalogItem("cap", LABELS, 4, 5, null);
+        return new CatalogItem("cap", LABELS, 4, 5, null, "");
     }
 
     private static Layer layer() {
@@ -158,7 +158,7 @@ class LayerTest {
 
     @Test
     void anElementWithoutASlimBufferKeepsTheClassicOne() {
-        Layer layer = new Layer(category(), new CatalogItem("cap", LABELS, 4, CatalogItem.NONE, null), "en_us");
+        Layer layer = new Layer(category(), new CatalogItem("cap", LABELS, 4, CatalogItem.NONE, null, ""), "en_us");
 
         assertEquals(4, layer.atlasIndex(false));
         assertEquals(4, layer.atlasIndex(true));

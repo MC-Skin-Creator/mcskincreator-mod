@@ -361,6 +361,78 @@ class CatalogParserTest {
     }
 
     @Nested
+    class WhereTheElementsComeFrom {
+        /** The table and the keys pointing at it, as the real catalogue publishes them. */
+        private static final String CREDITED = """
+                {
+                  "credits": {
+                    "aquarelliste": {
+                      "titre": "Aquarelliste",
+                      "auteur": "someone",
+                      "licence": "cc-by-4",
+                      "url": "https://example.invalid/aquarelliste"
+                    },
+                    "maison": {"titre": "MC Skin Creator", "auteur": "clixmods", "licence": "proprietaire"}
+                  },
+                  "categories": [
+                    {
+                      "id": "eyes",
+                      "region": "head",
+                      "label": "Yeux",
+                      "items": [
+                        {"id": "eye-classiques", "name": "Classiques", "credit": "maison"},
+                        {"id": "eye-verts", "name": "Verts", "credit": "aquarelliste"},
+                        {"id": "eye-orphelin", "name": "Orphelin"},
+                        {"id": "eye-perdu", "name": "Perdu", "credit": "disparu"}
+                      ]
+                    }
+                  ]
+                }
+                """;
+
+        private CatalogItem item(String id) {
+            return category(CREDITED, "eyes").items().stream()
+                    .filter(candidate -> candidate.id().equals(id))
+                    .findFirst()
+                    .orElseThrow();
+        }
+
+        @Test
+        void anElementPointsAtAWorkOfTheTable() {
+            CatalogWork work = parse(CREDITED).workOf(item("eye-verts"));
+
+            assertEquals("Aquarelliste", work.title());
+            assertEquals("someone", work.author());
+            assertEquals("cc-by-4", work.licence());
+            assertTrue(work.hasUrl());
+        }
+
+        @Test
+        void whatTheRepositoryDrewItselfIsAWorkLikeAnyOther() {
+            assertEquals(CatalogWork.IN_HOUSE, item("eye-classiques").credit());
+            assertEquals("MC Skin Creator", parse(CREDITED).workOf(item("eye-classiques")).title());
+        }
+
+        @Test
+        void anElementNamingNoWorkHasNone() {
+            assertTrue(parse(CREDITED).workOf(item("eye-orphelin")).isEmpty());
+        }
+
+        @Test
+        void anElementNamingAWorkTheTableDoesNotHoldHasNoneEither() {
+            assertEquals("disparu", item("eye-perdu").credit());
+            assertTrue(parse(CREDITED).workOf(item("eye-perdu")).isEmpty(),
+                    "a broken link reads as an undocumented provenance, not as a crash");
+        }
+
+        @Test
+        void aCreditsFieldThatIsNotATableCostsTheCreditsAndNotTheCatalogue() {
+            assertTrue(parse(PAYLOAD).works().isEmpty());
+            assertEquals(2, parse(PAYLOAD).categories().size());
+        }
+    }
+
+    @Nested
     class NotACatalogueAtAll {
         @Test
         void somethingThatIsNotAJsonObjectIsRefused() {
