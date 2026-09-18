@@ -12,7 +12,6 @@ import java.util.function.Consumer;
 
 import fr.clixmods.mcsc.mod.style.Metrics;
 import fr.clixmods.mcsc.mod.style.Palette;
-import fr.clixmods.mcsc.mod.style.Sprites;
 import fr.clixmods.mcsc.mod.style.Surface;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
@@ -36,8 +35,8 @@ import org.lwjgl.glfw.GLFW;
  * @param <T> what the options stand for
  */
 public class Dropdown<T> extends Element {
-    /** The game's own page arrow, at the size the game fixes for it. */
-    private static final int ARROW = Sprites.ARROW_WIDTH;
+    /** The caret that says this control opens onto a list. */
+    private static final int ARROW = Metrics.CARET_WIDTH;
 
     private final List<T> options;
     private final java.util.function.Function<T, Component> naming;
@@ -84,10 +83,10 @@ public class Dropdown<T> extends Element {
                 this.x + inset, this.y + (this.height - canvas.lineHeight()) / 2,
                 hot ? Palette.INK_HOVERED : Palette.INK);
 
-        canvas.sprite(hot ? Sprites.ARROW_RIGHT_HOVERED : Sprites.ARROW_RIGHT,
+        Surface.caret(canvas,
                 this.x + this.width - Metrics.BUTTON_INSET - Metrics.PAD_TIGHT - ARROW,
-                this.y + (this.height - Sprites.ARROW_HEIGHT) / 2,
-                ARROW, Sprites.ARROW_HEIGHT);
+                this.y + (this.height - Metrics.CARET_HEIGHT) / 2,
+                hot ? Palette.INK_HOVERED : Palette.INK);
     }
 
     @Override

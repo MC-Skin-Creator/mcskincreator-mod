@@ -93,7 +93,7 @@ public class TopBar extends Element {
         cursorX += betaWidth(canvas) + Metrics.PAD;
 
         PixelButton export = new PixelButton(Component.translatable("gui.mcskincreator.export"),
-                PixelButton.Style.NORMAL, this.onExport)
+                PixelButton.Style.PRIMARY, this.onExport)
                 .withTooltip(Component.translatable("gui.mcskincreator.export.tooltip"));
         PixelButton undo = new PixelButton(Component.translatable("gui.mcskincreator.undo"),
                 PixelButton.Style.NORMAL, () -> this.history.undo())
@@ -160,13 +160,11 @@ public class TopBar extends Element {
     @Override
     public void draw(Paint paint) {
         Canvas canvas = paint.canvas();
-        // A band rather than a pop-up. The panel sprite is a plate with a six pixel
-        // frame: at the height of this bar it is frame all the way through, which is
-        // why the strip came out as one light slab with the controls sunk into it.
-        // What sits across the top of a screen in this game is a dimmed ground with a
-        // rule under it, and that is what the columns below then hang from.
-        canvas.fill(this.x, this.y, this.width, this.height, Palette.BACKDROP);
-        Surface.rule(canvas, this.x, this.y + this.height - 1, this.width);
+        // The site's header strip: one flat dark band, ruled off from the columns that
+        // hang under it. Not the panel material — a panel's frame at this height is
+        // frame all the way through.
+        Surface.flat(canvas, this.x, this.y, this.width, this.height, Palette.PANEL_HEADER);
+        canvas.fill(this.x, this.y + this.height - 1, this.width, 1, Palette.OUTLINE);
 
         Element brand = this.children.get(0);
         int badgeHeight = canvas.lineHeight() + Metrics.SLOT_INSET * 2;

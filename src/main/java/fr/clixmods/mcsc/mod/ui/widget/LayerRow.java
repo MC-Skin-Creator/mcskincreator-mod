@@ -17,7 +17,6 @@ import fr.clixmods.mcsc.mod.project.Layer;
 import fr.clixmods.mcsc.mod.skin.CategorySprites;
 import fr.clixmods.mcsc.mod.style.Metrics;
 import fr.clixmods.mcsc.mod.style.Palette;
-import fr.clixmods.mcsc.mod.style.Sprites;
 import fr.clixmods.mcsc.mod.style.Surface;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
@@ -113,26 +112,29 @@ public class LayerRow extends Element {
                     Palette.SHADOW);
         }
 
+        // Selected is a tinted slot with a green band down its flank, not a green row:
+        // a whole row of the accent colour shouts down the four that are not selected,
+        // and the name on it stops being the thing you read first.
         if (selected) {
-            Surface.tab(canvas, this.x, this.y, this.width, this.height, true, hot);
+            Surface.slot(canvas, this.x, this.y, this.width, this.height, Palette.GREEN_FILL);
+            canvas.fill(this.x + Metrics.OUTLINE, this.y + Metrics.OUTLINE,
+                    Metrics.BAND, this.height - Metrics.OUTLINE * 2, Palette.GREEN);
         } else {
-            Surface.slot(canvas, this.x, this.y, this.width, this.height);
-            if (hot) {
-                Surface.slotHighlight(canvas, this.x, this.y, this.width, this.height);
-            }
+            Surface.slot(canvas, this.x, this.y, this.width, this.height,
+                    hot ? Palette.SLOT_HOVER : Palette.SLOT);
         }
         if (this.dragging) {
             canvas.fill(this.x + Metrics.SLOT_INSET / 2, this.y + Metrics.SLOT_INSET / 2,
                     BAND, this.height - Metrics.SLOT_INSET, Palette.INK_HOVERED);
         }
 
-        int cursorX = this.x + Metrics.SLOT_INSET;
+        int cursorX = checkboxX();
 
         // Visibility is a yes or a no, so it is the game's checkbox rather than an eye
         // the game has no sprite for.
-        Surface.checkbox(canvas, cursorX, this.y + (this.height - Sprites.CHECKBOX_SIZE) / 2,
-                this.layer.visible(), paint.over(cursorX, this.y, Sprites.CHECKBOX_SIZE, this.height));
-        cursorX += Sprites.CHECKBOX_SIZE + Metrics.PAD_TIGHT;
+        Surface.checkbox(canvas, cursorX, this.y + (this.height - Metrics.CHECKBOX) / 2,
+                this.layer.visible(), paint.over(cursorX, this.y, Metrics.CHECKBOX, this.height));
+        cursorX += Metrics.CHECKBOX + Metrics.PAD_TIGHT;
 
         boolean duplicate = showsDuplicate(contentX());
         int actionsWidth = !lit ? 0
@@ -160,7 +162,7 @@ public class LayerRow extends Element {
 
         if (lit) {
             int actionX = this.x + this.width - Metrics.SLOT_INSET - actionWidth();
-            drawCross(canvas, paint, actionX, this.y + (this.height - Sprites.CROSS_SIZE) / 2);
+            drawCross(canvas, paint, actionX, this.y + (this.height - Metrics.CROSS) / 2);
             if (duplicate) {
                 drawAction(canvas, paint, actionX - actionWidth() - Metrics.PAD_TIGHT, "+",
                         Palette.INK_MUTED);
@@ -185,7 +187,7 @@ public class LayerRow extends Element {
     }
 
     private static int actionWidth() {
-        return Sprites.CROSS_SIZE;
+        return Metrics.CROSS;
     }
 
     /**
@@ -201,16 +203,29 @@ public class LayerRow extends Element {
     }
 
     /** Where the row's own content starts, past the visibility box. */
+    /**
+     * Where the row's contents start: past the frame, and past the band when the row is
+     * the selected one — the band is drawn inside the frame, so everything shifts.
+     */
+    private int checkboxX() {
+        return this.x + Metrics.SLOT_INSET
+                + (this.selection.get() == this.layer ? Metrics.BAND : 0);
+    }
+
     private int contentX() {
-        return this.x + Metrics.SLOT_INSET + Sprites.CHECKBOX_SIZE + Metrics.PAD_TIGHT
+        return checkboxX() + Metrics.CHECKBOX + Metrics.PAD_TIGHT
                 + Metrics.LAYER_PREVIEW + Metrics.PAD_TIGHT;
     }
 
     /** Removing a layer is the game's close cross, which is what it means everywhere. */
     private void drawCross(Canvas canvas, Paint paint, int x, int y) {
-        boolean over = paint.over(x, y, Sprites.CROSS_SIZE, Sprites.CROSS_SIZE);
-        canvas.sprite(over ? Sprites.CROSS_HOVERED : Sprites.CROSS,
-                x, y, Sprites.CROSS_SIZE, Sprites.CROSS_SIZE);
+        boolean over = paint.over(x, y, Metrics.CROSS, Metrics.CROSS);
+        // Red only once the pointer is on it. A permanently red cross beside four
+        // quiet rows reads as an alarm rather than as a control.
+        Surface.button(canvas, x, y, Metrics.CROSS, Metrics.CROSS,
+                over ? Surface.Tone.RED : Surface.Tone.NEUTRAL, over, false);
+        canvas.textCentered(Component.literal("x"), x + Metrics.CROSS / 2,
+                y + (Metrics.CROSS - canvas.lineHeight()) / 2 + 1, Palette.INK);
     }
 
     private void drawAction(Canvas canvas, Paint paint, int x, String glyph, int ink) {
@@ -227,8 +242,7 @@ public class LayerRow extends Element {
         if (button != 0 || !contains(mouseX, mouseY)) {
             return false;
         }
-        int cursorX = this.x + Metrics.SLOT_INSET;
-        if (mouseX < cursorX + Sprites.CHECKBOX_SIZE) {
+        if (mouseX < checkboxX() + Metrics.CHECKBOX) {
             this.onToggleVisible.accept(this.layer);
             return true;
         }

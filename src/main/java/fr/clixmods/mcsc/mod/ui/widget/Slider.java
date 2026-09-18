@@ -12,7 +12,6 @@ import java.util.function.IntSupplier;
 
 import fr.clixmods.mcsc.mod.style.Metrics;
 import fr.clixmods.mcsc.mod.style.Palette;
-import fr.clixmods.mcsc.mod.style.Sprites;
 import fr.clixmods.mcsc.mod.style.Surface;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
@@ -90,7 +89,7 @@ public class Slider extends Element {
         int railWidth = railWidth();
         Surface.sliderRail(canvas, this.x, railY, railWidth, Metrics.SLIDER_RAIL, hot);
 
-        int travel = railWidth - Sprites.SLIDER_HANDLE_WIDTH;
+        int travel = railWidth - Metrics.SLIDER_HANDLE;
         int handleX = this.x + Math.round(travel * fraction(value));
         Surface.sliderHandle(canvas, handleX, railY, Metrics.SLIDER_RAIL, hot);
     }
@@ -153,8 +152,8 @@ public class Slider extends Element {
     }
 
     private void apply(double mouseX) {
-        int travel = Math.max(1, railWidth() - Sprites.SLIDER_HANDLE_WIDTH);
-        double along = (mouseX - this.x - Sprites.SLIDER_HANDLE_WIDTH / 2.0) / travel;
+        int travel = Math.max(1, railWidth() - Metrics.SLIDER_HANDLE);
+        double along = (mouseX - this.x - Metrics.SLIDER_HANDLE / 2.0) / travel;
         this.write.accept(clamp(this.minimum + (int) Math.round(along * (this.maximum - this.minimum))));
     }
 

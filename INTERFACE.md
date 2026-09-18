@@ -1,12 +1,20 @@
 # Interface
 
-The mod brings the [MC Skin Creator](https://mcskincreator.app/) editor into the
-game. What it takes from the site is the **arrangement** — three zones, a fixed row
-of category tabs, the stack grouped by region, the gestures. What it takes from
-Minecraft is the **paint**: every surface on this screen is one of the game's own
-interface sprites.
+The mod brings the [MC Skin Creator](https://mcskincreator.app/) editor into the game.
+What it takes from the site is both the **arrangement** — three zones, a fixed row of
+category tabs, the stack grouped by region, the gestures — and the **paint**: four
+materials, one accent colour, a black outline on everything.
 
-Nothing here is invented. That is the rule the rest of this file explains.
+What it takes from Minecraft is what Minecraft is right about: its font, its GUI scale,
+its widget mechanics, and the player model in the scene.
+
+Drawing the editor with the game's own interface sprites instead was tried, and is the
+one thing in here that was reverted rather than refined. A nine-sliced pop-up plate is
+built for a dialogue box; stretched down a full-height column it is a broad light frame
+around a dark well. The tab sprite has no bottom edge, because it is drawn to sit on
+whatever it opens. And with every control the same grey there was nothing on the screen
+to tell a chosen thing from an unchosen one. The site's own look is already a Minecraft
+look — it is where these materials come from — and it is built for a workbench.
 
 ## Looking at it
 
@@ -35,44 +43,47 @@ code.
 from 200 to 900 and asserts that nothing lands outside the screen, outside its own
 panel, or with no size at all.
 
-## Why the game's sprites and not the site's
+## The four materials
 
-The site hand-draws its panels, slots and buttons out of bevels and outlines,
-because a web page has nothing else to build them from. A mod does. Using the game's
-sprites buys three things a copy cannot:
+Every surface is one of four, and there is no fifth. An element that fits none of them
+is an element that was designed wrong, so
+[`Surface`](src/main/java/fr/clixmods/mcsc/mod/style/Surface.java) offers no escape
+hatch for one.
 
-- a player already knows what a Minecraft button, slot and tab mean;
-- a resource pack that restyles the game restyles this screen with it;
-- a sprite that changes in a future version changes here too, where an invented copy
-  would quietly stop matching the game around it.
+| Material | Used for | Fill | Bevel |
+|---|---|---|---|
+| Stone panel | columns, windows, notifications, dropdowns | `#2e2e34` + grain | light top-left |
+| Slot | thumbnails, layer rows, category tabs, rails | `#1b1b20` | inverted — carved in |
+| Button | every action | `#63636b` | light top-left |
+| Dark surface | the header strip, tool strips | `#26262b` / `#18181c` / `#101014` | none |
 
-So the editor names no material colours of its own, ships no GUI textures, and draws
-no icon the game does not already have.
+Green `#3c8527` is the active state and the primary action. Red `#a03b31` is failure
+and destruction. Gold `#fcfc54` is hover ink, on every material.
 
-## The surfaces
+Every one of those values is a custom property in the site's own stylesheet, transcribed
+into [`Palette`](src/main/java/fr/clixmods/mcsc/mod/style/Palette.java) and derived from
+nothing. Nothing else in the source tree names a colour.
 
-Every one of these is a vanilla sprite, listed in
-[`Sprites`](src/main/java/fr/clixmods/mcsc/mod/style/Sprites.java) and drawn through
-[`Surface`](src/main/java/fr/clixmods/mcsc/mod/style/Surface.java). They are all
-present and identical on every supported Minecraft version — checked against both
-jars, not assumed.
+### Drawing rules
 
-| What the site draws | What the mod draws | Sprite |
-|---|---|---|
-| Stone panel | the panel behind the game's own pop-ups | `popup/background` |
-| Inventory slot | a carved slot, at any size | `container/bundle/slot_background` |
-| Green "active" state | the game's selected tab | `widget/tab_selected` |
-| Gold hover | the game's hovered widget, and its hover ink | `*_highlighted`, `#FFFFA0` |
-| Button | the game's button | `widget/button` |
-| Text field | the game's field | `widget/text_field` |
-| Slider | the game's rail and handle | `widget/slider`, `widget/slider_handle` |
-| Checkbox | the game's checkbox | `widget/checkbox` |
-| Scrollbar | the game's scroller and track | `widget/scroller` |
-| Close cross | the game's close button | `widget/cross_button` |
-| Fold chevron, dropdown arrow | the game's page arrows | `widget/page_forward` |
-| Background | whatever the game puts behind a screen | drawn by vanilla |
+- Nothing is rounded, nothing is a gradient, nothing animates.
+- One pure black outline, 2 px, on every framed element.
+- The bevel is drawn **inside** that outline, over 2 px, never on the border.
+- Pressing inverts the bevel and drops the content one pixel. That is the whole of the
+  press feedback.
+- The grain is one 64 px greyscale tile, generated from seeded noise and multiplied by
+  the fill, so every material speckles without a second asset and without ever going
+  out of step with the palette.
+- State never travels by border. The border is black; colour goes in the fill, the
+  bevel, or a band down the left flank.
 
-The ones the game has no sprite for are drawn from the game's own parts instead:
+## What the game still supplies
+
+The font, the GUI scale, the player model, and the mechanics of focus and input. Not a
+surface.
+
+Where the game has an idiom worth borrowing, it is borrowed — as an idea rather than
+as a picture:
 
 - **the mark** is `assets/mcskincreator/icon.png`, the icon the mod already ships and
   the game's mod list already shows — there is one MC Skin Creator logo, and a second
@@ -82,13 +93,17 @@ The ones the game has no sprite for are drawn from the game's own parts instead:
   graphics card for the grid below;
 - **an element's provenance** is on the right mouse button, where the game puts a
   second action, rather than behind a badge that only appears on hover;
-- **a layer's visibility** is a checkbox, because that is what it is;
+- **a layer's visibility** is a tick box, because that is what it is: a slot with a
+  green core, since at the size a layer row can spare a drawn tick is four pixels of
+  noise and the colour is legible across the column;
+- **a caret** — the triangle on a dropdown — is drawn from the palette, because the
+  game's only arrow is a page-turn arrow, 23 by 13 pixels of near-white that swamps a
+  control this size and says "next" rather than "more";
 - **a notification's outcome** is a coloured band down its flank. This is the one
   colour of the mod's own left in the interface, and it exists because the game has
   nothing that says "this worked" in a panel.
 
-The only other colours named are ink — white, the game's hover yellow, its greys, its
-failure red — taken from where the game uses them.
+
 
 ## Scale
 

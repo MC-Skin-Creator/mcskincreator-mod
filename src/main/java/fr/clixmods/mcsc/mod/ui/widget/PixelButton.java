@@ -11,7 +11,6 @@ import java.util.List;
 
 import fr.clixmods.mcsc.mod.style.Metrics;
 import fr.clixmods.mcsc.mod.style.Palette;
-import fr.clixmods.mcsc.mod.style.Sprites;
 import fr.clixmods.mcsc.mod.style.Surface;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
@@ -21,25 +20,29 @@ import net.minecraft.network.chat.Component;
 /**
  * Every action in the editor is one of these, drawn with the game's button sprite.
  *
- * <p>The site distinguishes a primary action by painting it green and a destructive
- * one red. Neither colour means anything in a Minecraft menu, and inventing a green
- * button would be inventing a widget the game does not have — so the distinction is
- * carried where the game already carries it: the one choice of a group is a selected
- * tab, and everything else is a button.
+ * <p>Four of the five styles are the same material in a different tone: an ordinary
+ * action, the one action a bar or a footer is really about, the one that removes
+ * something, and the one of a group that is chosen. Green and red are the site's, and
+ * they are the whole of how this interface says "this one" — a screen where every
+ * control is the same grey says nothing at all.
  *
- * <p>A ghost button is the exception, and it is not a material: it is a label that
- * lights up, which is what the game does for the links on its own screens.
+ * <p>A ghost button is the exception and it is not a material: it is a label that
+ * lights up, for a control that displays rather than acts.
  */
 public class PixelButton extends Element {
     /** What the button is for, which is also how the game draws it. */
     public enum Style {
-        /** An ordinary action. The game's button. */
+        /** An ordinary action. */
         NORMAL,
-        /** One of a group, drawn as a tab so the chosen one reads as chosen. */
+        /** The one action a bar or a window's footer is really about. Green. */
+        PRIMARY,
+        /** Removes something. Red. */
+        DANGER,
+        /** One of a group: the chosen one is green. */
         TAB,
         /** Not an action but a display control. Ink only, no material. */
         GHOST,
-        /** The close cross of a window, at the size the game fixes for it. */
+        /** The close cross of a window. */
         CROSS
     }
 
@@ -55,7 +58,7 @@ public class PixelButton extends Element {
         this.label = label;
         this.style = style;
         this.action = action;
-        this.height = style == Style.CROSS ? Sprites.CROSS_SIZE : Metrics.BUTTON_HEIGHT;
+        this.height = style == Style.CROSS ? Metrics.CROSS : Metrics.BUTTON_HEIGHT;
         this.width = this.height;
     }
 
@@ -80,13 +83,12 @@ public class PixelButton extends Element {
         return this.label;
     }
 
-    /** The room the sprite's own frame and the label's air take from the width. */
+    /** The room the frame and the label's air take from the width. */
     private int padding() {
         return switch (this.style) {
             case GHOST -> Metrics.PAD_TIGHT * 2;
-            // The tab sprite's own border is 2 px, and a row of them has to fit a
-            // column barely a hundred pixels wide.
-            case TAB -> Metrics.PAD_TIGHT * 2 + 4;
+            // A row of tabs has to fit a column, so they take the frame and little else.
+            case TAB -> (Metrics.BUTTON_INSET + Metrics.PAD_TIGHT) * 2;
             default -> (Metrics.BUTTON_INSET + Metrics.BUTTON_PAD_X) * 2;
         };
     }
@@ -94,8 +96,8 @@ public class PixelButton extends Element {
     /** Measures against the real font, once the screen has one. */
     public PixelButton fit(Canvas canvas) {
         if (this.style == Style.CROSS) {
-            this.width = Sprites.CROSS_SIZE;
-            this.height = Sprites.CROSS_SIZE;
+            this.width = Metrics.CROSS;
+            this.height = Metrics.CROSS;
             return this;
         }
         this.width = canvas.textWidth(this.label) + padding();
@@ -117,28 +119,41 @@ public class PixelButton extends Element {
         Canvas canvas = paint.canvas();
         boolean hot = paint.hot(this);
 
+        boolean down = this.held && enabled();
         switch (this.style) {
             case CROSS -> {
-                canvas.sprite(hot ? Sprites.CROSS_HOVERED : Sprites.CROSS,
-                        this.x, this.y, Sprites.CROSS_SIZE, Sprites.CROSS_SIZE);
+                Surface.button(canvas, this.x, this.y, Metrics.CROSS, Metrics.CROSS,
+                        hot ? Surface.Tone.RED : Surface.Tone.NEUTRAL, hot, down);
+                canvas.textCentered(Component.literal("x"), this.x + Metrics.CROSS / 2,
+                        this.y + (Metrics.CROSS - canvas.lineHeight()) / 2 + 1, Palette.INK);
                 return;
             }
-            case TAB -> Surface.tab(canvas, this.x, this.y, this.width, this.height, this.active, hot);
-            case NORMAL -> Surface.button(canvas, this.x, this.y, this.width, this.height,
-                    !enabled() ? Surface.State.DISABLED
-                            : hot ? Surface.State.HOVERED : Surface.State.NORMAL);
+            case TAB -> Surface.tab(canvas, this.x, this.y, this.width, this.height,
+                    this.active, hot);
             case GHOST -> {
                 // Nothing: a ghost control has no material, only ink.
             }
+            default -> Surface.button(canvas, this.x, this.y, this.width, this.height,
+                    tone(), hot && enabled(), down);
         }
 
         // Cut to the button rather than drawn past it: a label that overflows its own
-        // sprite is the one thing a caller cannot see coming from the layout.
+        // frame is the one thing a caller cannot see coming from the layout.
         int room = this.width - padding();
+        // Pressing drops the content one pixel, which with the inverted bevel is the
+        // whole of the press feedback.
         canvas.textCentered(Component.literal(
                         fr.clixmods.mcsc.mod.ui.Marquee.cut(canvas, this.label.getString(), room)),
                 this.x + this.width / 2,
-                this.y + (this.height - canvas.lineHeight()) / 2, ink(hot));
+                this.y + (this.height - canvas.lineHeight()) / 2 + (down ? 1 : 0), ink(hot));
+    }
+
+    private Surface.Tone tone() {
+        return switch (this.style) {
+            case PRIMARY -> Surface.Tone.GREEN;
+            case DANGER -> Surface.Tone.RED;
+            default -> Surface.Tone.NEUTRAL;
+        };
     }
 
     private int ink(boolean hot) {
@@ -149,6 +164,11 @@ public class PixelButton extends Element {
             return hot ? Palette.INK_HOVERED : Palette.INK_MUTED;
         }
         return hot ? Palette.INK_HOVERED : Palette.INK;
+    }
+
+    /** True while the button is held down, so the caller can match the bevel. */
+    public boolean pressed() {
+        return this.held;
     }
 
     @Override

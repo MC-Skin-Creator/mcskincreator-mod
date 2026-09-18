@@ -43,6 +43,7 @@ import fr.clixmods.mcsc.mod.skin.CategorySprites;
 import fr.clixmods.mcsc.mod.skin.PreviewSkin;
 import fr.clixmods.mcsc.mod.skin.ProjectJson;
 import fr.clixmods.mcsc.mod.skin.SkinThumbnails;
+import fr.clixmods.mcsc.mod.style.Tiles;
 import fr.clixmods.mcsc.mod.ui.panel.LayersPanel;
 import fr.clixmods.mcsc.mod.ui.panel.LibraryPanel;
 import fr.clixmods.mcsc.mod.ui.panel.Panel;
@@ -208,6 +209,8 @@ public class SkinCreatorScreen extends Screen {
             this.width = this.minecraft.getWindow().getGuiScaledWidth();
             this.height = this.minecraft.getWindow().getGuiScaledHeight();
         }
+
+        Tiles.ensureRegistered(this.minecraft);
 
         if (this.library == null) {
             this.topBar = new TopBar(this.history,

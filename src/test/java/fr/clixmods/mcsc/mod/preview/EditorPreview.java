@@ -19,6 +19,7 @@ import fr.clixmods.mcsc.mod.catalog.ThumbCrop;
 import fr.clixmods.mcsc.mod.project.History;
 import fr.clixmods.mcsc.mod.project.SkinProject;
 import fr.clixmods.mcsc.mod.skin.PreviewSkin;
+import fr.clixmods.mcsc.mod.style.Tiles;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.EditorChrome;
 import fr.clixmods.mcsc.mod.ui.Element;
@@ -143,6 +144,7 @@ public final class EditorPreview {
     /** Lays the editor out at this size and paints it. */
     public BufferedImage render(int width, int height) {
         ImageCanvas canvas = new ImageCanvas(width, height);
+        canvas.supply(Tiles.texture(), grain());
         // The game's own ground is behind this screen; the preview needs something
         // there to tell a panel's edge from the end of the picture.
         canvas.fill(0, 0, width, height, 0xFF202225);
@@ -159,6 +161,24 @@ public final class EditorPreview {
         Paint paint = new Paint(canvas, -1, -1, 0L, null);
         this.chrome.draw(paint, 0.0F);
         return canvas.image();
+    }
+
+    /**
+     * The grain the materials are speckled with.
+     *
+     * <p>In the game it is a texture the client uploads on first use; here it is the
+     * same function evaluated into an image, so the preview shows the same speckle
+     * rather than four flat rectangles.
+     */
+    private static BufferedImage grain() {
+        BufferedImage image = new BufferedImage(Tiles.SIZE, Tiles.SIZE,
+                BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < Tiles.SIZE; y++) {
+            for (int x = 0; x < Tiles.SIZE; x++) {
+                image.setRGB(x, y, Tiles.grey(Tiles.shade(x, y)));
+            }
+        }
+        return image;
     }
 
     /** Everything the chrome laid out, so a test can check where it all landed. */

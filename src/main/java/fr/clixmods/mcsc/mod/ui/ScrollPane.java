@@ -8,7 +8,7 @@
 package fr.clixmods.mcsc.mod.ui;
 
 import fr.clixmods.mcsc.mod.style.Metrics;
-import fr.clixmods.mcsc.mod.style.Sprites;
+import fr.clixmods.mcsc.mod.style.Surface;
 
 /**
  * The scrolling of one band, done by hand.
@@ -18,7 +18,8 @@ import fr.clixmods.mcsc.mod.style.Sprites;
  * it to whatever the content turned out to be tall, and draws the rail — a carved
  * groove with a handle in button material, like every other track in the interface.
  *
- * <p>The rail is the game's own scroller and track, at the width the game gives them.
+ * <p>The rail is a carved groove with a handle in button material, like every other
+ * track in the interface.
  *
  * <p>It is not a widget. It has no bounds of its own and takes no focus: it belongs
  * to the band that scrolls, and that band decides where it sits.
@@ -29,7 +30,7 @@ public final class ScrollPane {
      * is anything to scroll — a gutter that appears with the rail would shuffle every
      * tile sideways the moment a category grew by one element.
      */
-    public static final int BAR_WIDTH = Sprites.SCROLLER_WIDTH;
+    public static final int BAR_WIDTH = Metrics.RAIL_WIDTH;
     private static final int STEP = Metrics.ui(24);
 
     private int offset;
@@ -81,8 +82,9 @@ public final class ScrollPane {
             return;
         }
         int x = right - BAR_WIDTH;
-        canvas.sprite(Sprites.SCROLLER_TRACK, x, top, BAR_WIDTH, height);
-        canvas.sprite(Sprites.SCROLLER, x, handleY(top, height), BAR_WIDTH, handleHeight(height));
+        Surface.slot(canvas, x, top, BAR_WIDTH, height);
+        Surface.button(canvas, x, handleY(top, height), BAR_WIDTH, handleHeight(height),
+                Surface.Tone.NEUTRAL, this.draggingBar, false);
     }
 
     /** @return true when the press landed on the rail and started a drag */
@@ -135,8 +137,8 @@ public final class ScrollPane {
      * The handle is as tall a share of the rail as the viewport is of the content, down
      * to a floor that stays big enough to aim at — and never taller than the rail.
      *
-     * <p>The game's track sprite carries no border of its own, so the handle travels the
-     * whole height of the rail rather than an inset part of it.
+     * <p>The handle travels the whole height of the rail, outline included: both are
+     * drawn with the same frame, so a handle at the top sits flush in the groove.
      */
     private int handleHeight(int height) {
         int share = height * this.viewportHeight / Math.max(1, this.contentHeight);

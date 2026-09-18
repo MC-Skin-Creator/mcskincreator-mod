@@ -8,49 +8,103 @@
 package fr.clixmods.mcsc.mod.style;
 
 /**
- * The few colours the editor names.
+ * The site's palette, transcribed from its stylesheet and derived from nothing.
  *
- * <p>Materials are not among them. Panels, slots, buttons, tabs, fields and sliders
- * are the game's own sprites, so their colours belong to the game and to whatever
- * resource pack the player is using — naming them here would mean an invented copy
- * that stops matching the moment either changes.
+ * <p>Every value here is one of the custom properties in the site's own CSS — the
+ * names in the comments are those properties — so the mod and the site cannot drift
+ * apart by taste. If a colour on the site changes, it changes here, and nowhere else
+ * in this source tree names a colour at all.
  *
- * <p>What is left is ink and the two states the game has no sprite for: the coloured
- * band on a notification, and the checker under a transparent thumbnail. The ink
- * values are vanilla's own, taken from where the game uses them rather than picked to
- * taste.
+ * <p>The palette is dark from end to end and it is the identity of the product. An
+ * attempt was made to replace all of it with Minecraft's own interface sprites, on the
+ * reasoning that a mod should look like the game it is in; what that produced was a
+ * light grey plate with a heavy bevel around every column, no accent colour anywhere,
+ * and nothing on the screen to tell a chosen thing from an unchosen one. The game's
+ * sprites are right for a menu of six buttons and wrong for a workbench.
  */
 public final class Palette {
     private Palette() {
     }
 
-    /** What the game writes a widget's label in. */
-    public static final int INK = 0xFFFFFFFF;
-    /** What the game writes a hovered widget's label in. */
-    public static final int INK_HOVERED = 0xFFFFFFA0;
-    /** Vanilla's grey for secondary text, as used by its own screens. */
-    public static final int INK_MUTED = 0xFFA0A0A0;
-    /** Fainter still, for a subtitle or an empty state. */
-    public static final int INK_FAINT = 0xFF808080;
-    /** The grey the game greys a disabled label out to. */
-    public static final int INK_DISABLED = 0xFFA0A0A0;
-    /** Vanilla's failure red, as used by its own error lines. */
-    public static final int INK_FAILURE = 0xFFFF5555;
+    /** Opaque black. The one and only border colour — state never travels by border. */
+    public static final int OUTLINE = 0xFF000000;
 
-    /** The rule the game draws under a heading. */
-    public static final int RULE = 0xFF5A5A5A;
-    /** Black at 74 %, the game's own dimming behind a pop-up. */
+    // Stone panel: windows, side panels, notifications, dropdowns. --gui
+    public static final int PANEL = 0xFF2E2E34;
+    public static final int PANEL_TOP = 0xFF53535E;
+    public static final int PANEL_BOTTOM = 0xFF131317;
+    public static final int PANEL_MID = 0xFF4A4A54;
+    /** --gui-head: the strip a panel's title sits on, and the top bar. */
+    public static final int PANEL_HEADER = 0xFF26262B;
+    /** --gui-sub: a band inside a panel that is neither stone nor slot. */
+    public static final int PANEL_SUB = 0xFF34343B;
+
+    // Inventory slot: thumbnails, layer rows, category tabs, framed areas. Carved in.
+    public static final int SLOT = 0xFF1B1B20;
+    public static final int SLOT_TOP = 0xFF4A4A54;
+    public static final int SLOT_BOTTOM = 0xFF0B0B0E;
+    public static final int SLOT_HOVER = 0xFF272730;
+
+    // Button: every action. --btn
+    public static final int BUTTON = 0xFF63636B;
+    public static final int BUTTON_TOP = 0xFF95959F;
+    public static final int BUTTON_BOTTOM = 0xFF33333A;
+    public static final int BUTTON_HOVER = 0xFF767688;
+    public static final int BUTTON_HOVER_TOP = 0xFFA9A9BD;
+    public static final int BUTTON_HOVER_BOTTOM = 0xFF3D3D4A;
+
+    /** Green marks the active state and the primary action. --green */
+    public static final int GREEN = 0xFF3C8527;
+    public static final int GREEN_TOP = 0xFF5AA838;
+    public static final int GREEN_BOTTOM = 0xFF23511A;
+    public static final int GREEN_HOVER = 0xFF4A9C30;
+    public static final int GREEN_HOVER_TOP = 0xFF6BBF47;
+    /** The green a selected row is tinted with: the fill, not a border. */
+    public static final int GREEN_FILL = 0xFF1F3320;
+
+    /** Red marks failure and destruction. --red */
+    public static final int RED = 0xFFA03B31;
+    public static final int RED_TOP = 0xFFC45A4D;
+    public static final int RED_BOTTOM = 0xFF5E1F19;
+    public static final int RED_HOVER = 0xFFB8473B;
+
+    // Dark surfaces: tool strips, scene background. --dark, --dark2, --void
+    public static final int DARK = 0xFF26262B;
+    public static final int DARKER = 0xFF18181C;
+    public static final int VOID = 0xFF101014;
+
+    // Inks. --txt and its three dim steps.
+    public static final int INK = 0xFFFFFFFF;
+    /** --gold: hover ink, everywhere, on every material. */
+    public static final int INK_HOVERED = 0xFFFCFC54;
+    public static final int INK_MUTED = 0xFFC9C9C9;
+    /** --txt-dim2: a subtitle, a count, a heading that is not the point of its row. */
+    public static final int INK_FAINT = 0xFF9A9A9A;
+    /** --txt-dim3: a placeholder, and what a disabled label greys out to. */
+    public static final int INK_DISABLED = 0xFF7C7C84;
+    /** Failure ink, readable on stone. */
+    public static final int INK_FAILURE = 0xFFFF9D8F;
+
+    // Text field: a light border is what tells a field apart from a carved slot.
+    public static final int FIELD = 0xFF0A0A0C;
+    public static final int FIELD_BORDER = 0xFF6A6A72;
+    public static final int FIELD_BORDER_FOCUSED = 0xFFA0A0A0;
+
+    /** The hairline drawn under a heading, and between two bands of a panel. */
+    public static final int RULE = 0xFF4A4A54;
+    /** Black at 74 %, behind a window. */
     public static final int BACKDROP = 0xBD000000;
     /** A hard drop shadow, for a menu that floats over the screen. */
     public static final int SHADOW = 0x8C000000;
 
-    // The transparency checker. Two greys, and nothing else in the interface uses them.
-    public static final int CHECKER_DARK = 0xFF2B2B2B;
-    public static final int CHECKER_LIGHT = 0xFF383838;
+    // The transparency checker, so an element with holes does not read as one with
+    // black in it.
+    public static final int CHECKER_DARK = DARKER;
+    public static final int CHECKER_LIGHT = VOID;
 
     /** The band down the flank of a notification: it went well, or it did not. */
-    public static final int BAND_SUCCESS = 0xFF3C8527;
-    public static final int BAND_FAILURE = 0xFFA03B31;
+    public static final int BAND_SUCCESS = GREEN;
+    public static final int BAND_FAILURE = RED;
 
     /** Applies an alpha in 0..255 to an opaque colour. */
     public static int withAlpha(int argb, int alpha) {

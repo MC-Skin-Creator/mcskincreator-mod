@@ -10,97 +10,225 @@ package fr.clixmods.mcsc.mod.style;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 
 /**
- * The surfaces the editor is made of, each one drawn with the game's own sprite.
+ * The four materials every surface of the interface is made of, and nothing else.
  *
- * <p>The site builds its panels, slots and buttons out of hand-drawn bevels because a
- * web page has nothing else to build them from. A mod does: the game ships every one
- * of these, the player already knows what they mean, and a resource pack that
- * restyles them restyles this screen along with the rest of the game. Nothing here
- * invents a material.
+ * <p>Stone panel, inventory slot, button, dark surface. There is no fifth: an element
+ * that fits none of them is an element that was designed wrong, so this class offers
+ * no escape hatch for one.
  *
- * <p>The arrangement is still the site's — three columns, a fixed row of category
- * tabs, the stack grouped by region — and so are the states: one choice of a group is
- * the selected tab, hovering lights a control, and a disabled control is dimmed. What
- * changed is the paint, not the plan.
+ * <p>Three rules hold for all four and are enforced here rather than left to each
+ * caller. Nothing is rounded. Every framed element carries exactly one pure black
+ * outline, two pixels thick. The bevel is drawn <em>inside</em> that outline, over two
+ * pixels, never on the border itself — light above and to the left, dark below and to
+ * the right, and the other way round for a slot, which is what makes a slot read as
+ * carved into the panel instead of sitting on it.
+ *
+ * <p>These are the site's materials and not the game's. Drawing the editor with
+ * Minecraft's own sprites was tried and abandoned: a nine-sliced pop-up plate is built
+ * for a panel the size of a dialogue box, and stretched down a column it is a broad
+ * light frame around a dark well, with no accent anywhere and nothing to tell a chosen
+ * thing from an unchosen one. What the game is right about — its font, its GUI scale,
+ * its widget mechanics — this interface still takes. Its paint it does not.
  */
 public final class Surface {
     private Surface() {
     }
 
-    /** How a control is being looked at, which decides which sprite it gets. */
+    /** How a control is being looked at, which decides how its material is painted. */
     public enum State {
         NORMAL, HOVERED, DISABLED
     }
 
-    /** The panel behind a column, a window or a strip of tools. */
-    public static void panel(Canvas canvas, int x, int y, int width, int height) {
-        canvas.sprite(Sprites.PANEL, x, y, width, height);
+    /** Which family of colours a button or an active state is painted in. */
+    public enum Tone {
+        /** The default button material. */
+        NEUTRAL,
+        /** Active state and primary action. One primary per bar, per window footer. */
+        GREEN,
+        /** Failure and destruction. */
+        RED;
+
+        int fill(boolean hovered) {
+            return switch (this) {
+                case NEUTRAL -> hovered ? Palette.BUTTON_HOVER : Palette.BUTTON;
+                case GREEN -> hovered ? Palette.GREEN_HOVER : Palette.GREEN;
+                case RED -> hovered ? Palette.RED_HOVER : Palette.RED;
+            };
+        }
+
+        int top(boolean hovered) {
+            return switch (this) {
+                case NEUTRAL -> hovered ? Palette.BUTTON_HOVER_TOP : Palette.BUTTON_TOP;
+                case GREEN -> hovered ? Palette.GREEN_HOVER_TOP : Palette.GREEN_TOP;
+                case RED -> Palette.RED_TOP;
+            };
+        }
+
+        int bottom(boolean hovered) {
+            return switch (this) {
+                case NEUTRAL -> hovered ? Palette.BUTTON_HOVER_BOTTOM : Palette.BUTTON_BOTTOM;
+                case GREEN -> Palette.GREEN_BOTTOM;
+                case RED -> Palette.RED_BOTTOM;
+            };
+        }
+    }
+
+    /** A pure black frame, two pixels thick, drawn on the outer edge of the element. */
+    public static void outline(Canvas canvas, int x, int y, int width, int height) {
+        int thickness = Metrics.OUTLINE;
+        canvas.fill(x, y, width, thickness, Palette.OUTLINE);
+        canvas.fill(x, y + height - thickness, width, thickness, Palette.OUTLINE);
+        canvas.fill(x, y + thickness, thickness, height - thickness * 2, Palette.OUTLINE);
+        canvas.fill(x + width - thickness, y + thickness, thickness, height - thickness * 2,
+                Palette.OUTLINE);
     }
 
     /**
-     * A window.
+     * The bevel, drawn just inside the outline.
      *
-     * <p>The same panel the game puts behind its own pop-ups. It is told from a column
-     * by the dimmed screen behind it rather than by a heavier border, which is how the
-     * game itself distinguishes one.
+     * <p>{@code light} goes on top and on the left, {@code dark} below and on the
+     * right; swapping the two is the whole difference between a raised button and a
+     * carved slot. The two opposite corners take {@code mid} so the light and dark
+     * bands do not meet in a hard notch.
+     */
+    public static void bevel(Canvas canvas, int x, int y, int width, int height,
+                             int light, int dark, int mid, int thickness) {
+        int inset = Metrics.OUTLINE;
+        int innerX = x + inset;
+        int innerY = y + inset;
+        int innerWidth = width - inset * 2;
+        int innerHeight = height - inset * 2;
+        if (innerWidth <= 0 || innerHeight <= 0) {
+            return;
+        }
+        canvas.fill(innerX, innerY + innerHeight - thickness, innerWidth, thickness, dark);
+        canvas.fill(innerX + innerWidth - thickness, innerY, thickness, innerHeight, dark);
+        canvas.fill(innerX, innerY, innerWidth, thickness, light);
+        canvas.fill(innerX, innerY, thickness, innerHeight, light);
+        canvas.fill(innerX + innerWidth - thickness, innerY, thickness, thickness, mid);
+        canvas.fill(innerX, innerY + innerHeight - thickness, thickness, thickness, mid);
+    }
+
+    /** Stone panel: side columns, notifications, dropdowns. */
+    public static void panel(Canvas canvas, int x, int y, int width, int height) {
+        framed(canvas, x, y, width, height, Palette.PANEL);
+        bevel(canvas, x, y, width, height,
+                Palette.PANEL_TOP, Palette.PANEL_BOTTOM, Palette.PANEL_MID, Metrics.BEVEL);
+    }
+
+    /**
+     * A window: the same stone, a three pixel bevel instead of two, and a black rim
+     * around the outside. Those two differences are what tell a window from a panel at
+     * a glance, without either one needing a colour of its own.
      */
     public static void window(Canvas canvas, int x, int y, int width, int height) {
-        canvas.sprite(Sprites.PANEL, x, y, width, height);
+        int rim = Metrics.WINDOW_RIM;
+        canvas.fill(x - rim, y - rim, width + rim * 2, height + rim * 2, Palette.OUTLINE);
+        framed(canvas, x, y, width, height, Palette.PANEL);
+        bevel(canvas, x, y, width, height,
+                Palette.PANEL_TOP, Palette.PANEL_BOTTOM, Palette.PANEL_MID, Metrics.WINDOW_BEVEL);
     }
 
-    /** A carved slot: thumbnails, layer rows, framed areas. */
+    /** Inventory slot: thumbnails, layer rows, category tabs, framed areas. */
+    public static void slot(Canvas canvas, int x, int y, int width, int height, int fill) {
+        framed(canvas, x, y, width, height, fill);
+        // Inverted: dark above and to the left, light below and to the right.
+        bevel(canvas, x, y, width, height,
+                Palette.SLOT_BOTTOM, Palette.SLOT_TOP, Palette.PANEL_MID, Metrics.BEVEL);
+    }
+
     public static void slot(Canvas canvas, int x, int y, int width, int height) {
-        canvas.sprite(Sprites.SLOT, x, y, width, height);
+        slot(canvas, x, y, width, height, Palette.SLOT);
     }
 
-    /** The frame the game lays over a slot the pointer is on. */
+    /** The same slot, lit: the pointer is on it, or it holds the focus. */
     public static void slotHighlight(Canvas canvas, int x, int y, int width, int height) {
-        canvas.sprite(Sprites.SLOT_HOVERED, x, y, width, height);
-    }
-
-    /** Button material. */
-    public static void button(Canvas canvas, int x, int y, int width, int height, State state) {
-        canvas.sprite(switch (state) {
-            case HOVERED -> Sprites.BUTTON_HOVERED;
-            case DISABLED -> Sprites.BUTTON_DISABLED;
-            case NORMAL -> Sprites.BUTTON;
-        }, x, y, width, height);
+        slot(canvas, x, y, width, height, Palette.SLOT_HOVER);
     }
 
     /**
-     * A tab, which is how the game shows the chosen one of a group.
+     * Button material.
      *
-     * <p>The site marks it with green. Green means nothing in a Minecraft menu, and a
-     * selected tab means exactly this, so the tab is the honest translation.
+     * <p>Pressing inverts the bevel; the caller shifts the content down by one pixel to
+     * match. That pair is the entire press feedback — there is no animation, on the site
+     * or here.
+     */
+    public static void button(Canvas canvas, int x, int y, int width, int height,
+                              Tone tone, boolean hovered, boolean pressed) {
+        framed(canvas, x, y, width, height, tone.fill(hovered));
+        int light = tone.top(hovered);
+        int dark = tone.bottom(hovered);
+        bevel(canvas, x, y, width, height,
+                pressed ? dark : light, pressed ? light : dark, Palette.PANEL_MID, Metrics.BEVEL);
+    }
+
+    public static void button(Canvas canvas, int x, int y, int width, int height, State state) {
+        button(canvas, x, y, width, height, Tone.NEUTRAL, state == State.HOVERED, false);
+    }
+
+    /**
+     * One of a group, where the chosen one is green.
+     *
+     * <p>Green is the site's active state and it is the one thing the vanilla pass had
+     * no answer for: with every control the same grey, a row of five regions said
+     * nothing about which of them was open.
      */
     public static void tab(Canvas canvas, int x, int y, int width, int height,
                            boolean selected, boolean hovered) {
-        canvas.sprite(selected
-                ? (hovered ? Sprites.TAB_SELECTED_HOVERED : Sprites.TAB_SELECTED)
-                : (hovered ? Sprites.TAB_HOVERED : Sprites.TAB),
-                x, y, width, height);
+        button(canvas, x, y, width, height, selected ? Tone.GREEN : Tone.NEUTRAL, hovered, false);
     }
 
-    /** A text field, lit when it holds the cursor. */
+    /** A text field: near-black, and a light border that brightens when it has the caret. */
     public static void field(Canvas canvas, int x, int y, int width, int height, boolean focused) {
-        canvas.sprite(focused ? Sprites.FIELD_FOCUSED : Sprites.FIELD, x, y, width, height);
+        canvas.fill(x, y, width, height, Palette.FIELD);
+        int border = focused ? Palette.FIELD_BORDER_FOCUSED : Palette.FIELD_BORDER;
+        canvas.fill(x, y, width, 1, border);
+        canvas.fill(x, y + height - 1, width, 1, border);
+        canvas.fill(x, y, 1, height, border);
+        canvas.fill(x + width - 1, y, 1, height, border);
     }
 
-    /** A slider rail and the handle that runs along it. */
-    public static void sliderRail(Canvas canvas, int x, int y, int width, int height, boolean hovered) {
-        canvas.sprite(hovered ? Sprites.SLIDER_HOVERED : Sprites.SLIDER, x, y, width, height);
+    /** A slider rail: a carved groove, like every other track in the interface. */
+    public static void sliderRail(Canvas canvas, int x, int y, int width, int height,
+                                  boolean hovered) {
+        slot(canvas, x, y, width, height, hovered ? Palette.SLOT_HOVER : Palette.SLOT);
     }
 
     public static void sliderHandle(Canvas canvas, int x, int y, int height, boolean hovered) {
-        canvas.sprite(hovered ? Sprites.SLIDER_HANDLE_HOVERED : Sprites.SLIDER_HANDLE,
-                x, y, Sprites.SLIDER_HANDLE_WIDTH, height);
+        button(canvas, x, y, Metrics.SLIDER_HANDLE, height, Tone.NEUTRAL, hovered, false);
     }
 
+    /**
+     * A tick box, which is a slot that goes green when it is on.
+     *
+     * <p>A core of green rather than a drawn tick: at the size a layer row can spare a
+     * tick is four pixels of noise, and the colour is legible across the column. The
+     * slot stays, so an unticked box is still a box rather than a hole.
+     */
     public static void checkbox(Canvas canvas, int x, int y, boolean ticked, boolean hovered) {
-        canvas.sprite(ticked
-                ? (hovered ? Sprites.CHECKBOX_TICKED_HOVERED : Sprites.CHECKBOX_TICKED)
-                : (hovered ? Sprites.CHECKBOX_HOVERED : Sprites.CHECKBOX),
-                x, y, Sprites.CHECKBOX_SIZE, Sprites.CHECKBOX_SIZE);
+        int size = Metrics.CHECKBOX;
+        slot(canvas, x, y, size, size, hovered ? Palette.SLOT_HOVER : Palette.SLOT);
+        if (ticked) {
+            int inset = Metrics.OUTLINE + Metrics.BEVEL;
+            canvas.fill(x + inset, y + inset, size - inset * 2, size - inset * 2,
+                    hovered ? Palette.GREEN_HOVER : Palette.GREEN);
+        }
+    }
+
+    /**
+     * A caret: the little triangle that says a control opens onto a list.
+     *
+     * <p>Drawn from the palette rather than blitted, because the game's only arrow is a
+     * page-turn arrow — 23 by 13 pixels of near-white, which swamps a control this size
+     * and says "next" rather than "more".
+     */
+    public static void caret(Canvas canvas, int x, int y, int ink) {
+        for (int row = 0; row < Metrics.CARET_HEIGHT; row++) {
+            int width = Metrics.CARET_WIDTH - row * 2;
+            if (width > 0) {
+                canvas.fill(x + row, y + row, width, 1, ink);
+            }
+        }
     }
 
     /**
@@ -119,8 +247,22 @@ public final class Surface {
         }
     }
 
-    /** A hairline rule, the one the game draws between a title and what follows it. */
+    /** A flat fill with no grain and no outline — headers, tool strips, the top bar. */
+    public static void flat(Canvas canvas, int x, int y, int width, int height, int fill) {
+        canvas.fill(x, y, width, height, fill);
+    }
+
+    /** A hairline rule, drawn under a heading and between two bands of a panel. */
     public static void rule(Canvas canvas, int x, int y, int width) {
         canvas.fill(x, y, width, 1, Palette.RULE);
+    }
+
+    private static void framed(Canvas canvas, int x, int y, int width, int height, int fill) {
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+        canvas.fill(x, y, width, height, fill);
+        Tiles.lay(canvas, x, y, width, height, fill);
+        outline(canvas, x, y, width, height);
     }
 }

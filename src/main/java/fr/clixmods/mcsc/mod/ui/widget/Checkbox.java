@@ -12,7 +12,6 @@ import java.util.function.Consumer;
 
 import fr.clixmods.mcsc.mod.style.Metrics;
 import fr.clixmods.mcsc.mod.style.Palette;
-import fr.clixmods.mcsc.mod.style.Sprites;
 import fr.clixmods.mcsc.mod.style.Surface;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
@@ -35,7 +34,7 @@ public class Checkbox extends Element {
         this.label = label;
         this.read = read;
         this.write = write;
-        this.height = Sprites.CHECKBOX_SIZE;
+        this.height = Metrics.CHECKBOX;
     }
 
     @Override
@@ -46,14 +45,14 @@ public class Checkbox extends Element {
         Canvas canvas = paint.canvas();
         boolean hot = paint.hot(this);
         Surface.checkbox(canvas, this.x, this.y, this.read.getAsBoolean(), hot);
-        canvas.text(this.label, this.x + Sprites.CHECKBOX_SIZE + Metrics.PAD_TIGHT,
-                this.y + (Sprites.CHECKBOX_SIZE - canvas.lineHeight()) / 2,
+        canvas.text(this.label, this.x + Metrics.CHECKBOX + Metrics.PAD_TIGHT,
+                this.y + (Metrics.CHECKBOX - canvas.lineHeight()) / 2,
                 hot ? Palette.INK_HOVERED : Palette.INK);
     }
 
     /** The label is part of the target, so the row is as wide as both together. */
     public Checkbox fit(Canvas canvas) {
-        this.width = Sprites.CHECKBOX_SIZE + Metrics.PAD_TIGHT + canvas.textWidth(this.label);
+        this.width = Metrics.CHECKBOX + Metrics.PAD_TIGHT + canvas.textWidth(this.label);
         return this;
     }
 

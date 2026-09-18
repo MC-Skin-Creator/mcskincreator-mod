@@ -34,15 +34,39 @@ public final class Metrics {
     public static final int PAD = 8;
     public static final int PAD_TIGHT = 4;
 
-    // The borders of the sprites in Sprites, so content is laid inside them.
-    /** {@code popup/background} carries a 6 px border. */
-    public static final int PANEL_INSET = 6;
-    /** {@code slot_background} carries a 4 px border. */
-    public static final int SLOT_INSET = 4;
-    /** {@code widget/button} carries a 3 px border. */
-    public static final int BUTTON_INSET = 3;
-    /** {@code widget/text_field} carries a 1 px border; a second pixel keeps the caret clear. */
+    /**
+     * The black frame around every material, and the bevel drawn just inside it.
+     *
+     * <p>Neither shrinks with the scale conversion below. They are the graphic identity
+     * itself and stop reading as anything at one pixel.
+     */
+    public static final int OUTLINE = 2;
+    public static final int BEVEL = 2;
+    /** A window is told from a panel by a deeper bevel and a black rim, not by a colour. */
+    public static final int WINDOW_BEVEL = 3;
+    public static final int WINDOW_RIM = 2;
+
+    // Where a material's content starts, so a label sits clear of the frame around it.
+    /** A panel's frame and bevel, and a pixel of air past them. */
+    public static final int PANEL_INSET = OUTLINE + BEVEL + 2;
+    /** A slot's frame and bevel. */
+    public static final int SLOT_INSET = OUTLINE + BEVEL;
+    /** A button's frame and bevel. */
+    public static final int BUTTON_INSET = OUTLINE + BEVEL;
+    /** A field's one pixel border, and a second pixel that keeps the caret clear. */
     public static final int FIELD_INSET = 2;
+
+    /** A tick box, at the size a layer row can spare. */
+    public static final int CHECKBOX = 14;
+    /** The handle that runs along a slider rail. */
+    public static final int SLIDER_HANDLE = 8;
+    /** The close cross of a window, and the one that removes a layer. */
+    public static final int CROSS = 14;
+    /** A scroll rail, narrow enough to be a gutter rather than a column. */
+    public static final int RAIL_WIDTH = 6;
+    /** The triangle that says a control opens onto a list. */
+    public static final int CARET_WIDTH = 7;
+    public static final int CARET_HEIGHT = 4;
 
     /** A Minecraft button is 20 px tall. The game wins on widget mechanics. */
     public static final int BUTTON_HEIGHT = 20;

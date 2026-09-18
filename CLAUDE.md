@@ -45,7 +45,7 @@ src/main/java/fr/clixmods/mcsc/mod/
 ├── project/                   what is being edited: the layer stack and its history
 ├── account/                   the Mojang upload, and the only code that holds the session token
 ├── mixin/                     the one mixin: the applied skin, worn before Mojang propagates it
-├── style/                     the vanilla sprites the editor draws with, and the metrics
+├── style/                     the design system: palette, metrics, the four materials, the grain
 └── ui/
     ├── Canvas.java            the drawing surface, as an interface: everything paints through it
     ├── GameCanvas.java        the implementation that paints on the game, and the only file the interface versions
@@ -71,11 +71,12 @@ need no game, though they do resolve against the target's Minecraft jar for
 `Component` and `PlayerModelType`. Nothing that draws is tested: that is what
 running the game is for.
 
-The interface has its own rules — draw with the game's sprites and invent nothing,
-the scale conversion, what is deliberately not built — in
-[`INTERFACE.md`](INTERFACE.md). **Read it before changing anything that draws**: the
-short version is that every surface is a vanilla sprite named in `style/Sprites.java`,
-and adding a texture or an icon of the mod's own is the one thing not to do.
+The interface has its own rules — the four materials, the palette, the scale it takes
+for itself, what is deliberately not built — in [`INTERFACE.md`](INTERFACE.md). **Read
+it before changing anything that draws**: the short version is that every surface is
+one of four materials in `style/Surface.java`, every colour is a line of the site's own
+stylesheet transcribed into `style/Palette.java`, and naming a colour anywhere else is
+the one thing not to do.
 
 **The editor can be rendered without the game.** `./gradlew :1.21.11:test` writes
 `build/ui-preview/`: the whole screen at the five sizes the game gives it, magnified to
