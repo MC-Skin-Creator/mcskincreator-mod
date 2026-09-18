@@ -44,9 +44,7 @@ import fr.clixmods.mcsc.mod.skin.PreviewSkin;
 import fr.clixmods.mcsc.mod.skin.ProjectJson;
 import fr.clixmods.mcsc.mod.skin.SkinThumbnails;
 import fr.clixmods.mcsc.mod.style.Metrics;
-import fr.clixmods.mcsc.mod.style.Palette;
 import fr.clixmods.mcsc.mod.style.Surface;
-import fr.clixmods.mcsc.mod.style.Tiles;
 import fr.clixmods.mcsc.mod.ui.panel.LayersPanel;
 import fr.clixmods.mcsc.mod.ui.panel.LibraryPanel;
 import fr.clixmods.mcsc.mod.ui.panel.ScenePanel;
@@ -99,9 +97,6 @@ import org.lwjgl.glfw.GLFW;
  * reply arriving after it has gone is dropped rather than uploaded.
  */
 public class SkinCreatorScreen extends Screen {
-    /** Below this width the side columns become drawers. */
-    private static final int COLUMNS_MINIMUM =
-            Metrics.LIBRARY_WIDTH + Metrics.LAYERS_WIDTH + Metrics.MIN_SCENE_WIDTH;
 
     /**
      * How long to wait before asking the server to compose.
@@ -215,9 +210,6 @@ public class SkinCreatorScreen extends Screen {
 
     @Override
     protected void init() {
-        Tiles.ensureRegistered(this.minecraft);
-        Icons.ensureRegistered(this.minecraft);
-
         if (this.library == null) {
             this.topBar = new TopBar(this.history, this::startOver, this::openExport,
                     this::openSkins, this::openAbout);
@@ -267,15 +259,16 @@ public class SkinCreatorScreen extends Screen {
         this.topBar.layout(canvas);
 
         int top = Metrics.TOP_BAR_HEIGHT;
-        if (this.width >= COLUMNS_MINIMUM) {
+        int column = Metrics.columnWidth(this.width);
+        if (this.width >= columnsMinimum()) {
             this.drawer = Drawer.NONE;
             this.libraryTab = null;
             this.layersTab = null;
             this.library.setVisible(true);
             this.layers.setVisible(true);
 
-            int libraryWidth = this.library.folded() ? Metrics.COLLAPSED_WIDTH : Metrics.LIBRARY_WIDTH;
-            int layersWidth = this.layers.folded() ? Metrics.COLLAPSED_WIDTH : Metrics.LAYERS_WIDTH;
+            int libraryWidth = this.library.folded() ? Metrics.COLLAPSED_WIDTH : column;
+            int layersWidth = this.layers.folded() ? Metrics.COLLAPSED_WIDTH : column;
             this.library.setBounds(0, top, libraryWidth, this.height - top);
             this.layers.setBounds(this.width - layersWidth, top, layersWidth, this.height - top);
             this.scene.setBounds(libraryWidth, top,
@@ -308,9 +301,9 @@ public class SkinCreatorScreen extends Screen {
         int usableBottom = this.height - tabHeight;
 
         this.libraryTab = new PixelButton(Component.translatable("panel.mcskincreator.library"),
-                PixelButton.Style.NORMAL, () -> toggleDrawer(Drawer.LIBRARY));
+                PixelButton.Style.TAB, () -> toggleDrawer(Drawer.LIBRARY));
         this.layersTab = new PixelButton(Component.translatable("panel.mcskincreator.layers"),
-                PixelButton.Style.NORMAL, () -> toggleDrawer(Drawer.LAYERS));
+                PixelButton.Style.TAB, () -> toggleDrawer(Drawer.LAYERS));
         this.libraryTab.fit(canvas).setActive(this.drawer == Drawer.LIBRARY);
         this.layersTab.fit(canvas).setActive(this.drawer == Drawer.LAYERS);
 
@@ -339,7 +332,7 @@ public class SkinCreatorScreen extends Screen {
             this.scene.setBounds(0, top, this.width, usableBottom - top - drawerHeight);
             open.setBounds(0, usableBottom - drawerHeight, this.width, drawerHeight);
         } else {
-            int drawerWidth = Math.min(Metrics.LIBRARY_WIDTH, this.width / 2);
+            int drawerWidth = Math.min(Metrics.columnWidth(this.width), this.width / 2);
             open.setBounds(0, top, drawerWidth, usableBottom - top);
             this.scene.setBounds(drawerWidth, top, this.width - drawerWidth, usableBottom - top);
         }
@@ -350,10 +343,15 @@ public class SkinCreatorScreen extends Screen {
         relayout();
     }
 
+    /** Below this width the two columns and the scene no longer fit side by side. */
+    private int columnsMinimum() {
+        return Metrics.columnWidth(this.width) * 2 + Metrics.MIN_SCENE_WIDTH;
+    }
+
     /** The "+" of the layers panel: bring the library forward. */
     private void revealLibrary() {
         this.library.setFolded(false);
-        if (this.width < COLUMNS_MINIMUM) {
+        if (this.width < columnsMinimum()) {
             this.drawer = Drawer.LIBRARY;
         }
         relayout();
@@ -1045,9 +1043,9 @@ public class SkinCreatorScreen extends Screen {
 
     private void openExport() {
         List<CardWindow.Card> cards = new ArrayList<>();
-        cards.add(new CardWindow.Card("save", "export.mcskincreator.file",
+        cards.add(new CardWindow.Card("export.mcskincreator.file",
                 "export.mcskincreator.file_detail", this::openExportName));
-        cards.add(new CardWindow.Card("skin", "export.mcskincreator.front",
+        cards.add(new CardWindow.Card("export.mcskincreator.front",
                 "export.mcskincreator.front_detail", this::openFrontViewName));
 
         // Last of the three, and the only one that leaves this machine. Without a
@@ -1056,7 +1054,7 @@ public class SkinCreatorScreen extends Screen {
         // silently disappears is one nobody can ask about.
         boolean canApply = AccountSkin.available(this.minecraft);
         if (canApply) {
-            cards.add(new CardWindow.Card("outfit", "export.mcskincreator.account",
+            cards.add(new CardWindow.Card("export.mcskincreator.account",
                     "export.mcskincreator.account_detail", this::openApply));
         }
         open(new CardWindow("window.mcskincreator.export", cards,
@@ -1268,7 +1266,9 @@ public class SkinCreatorScreen extends Screen {
     private void paint(Canvas canvas, int mouseX, int mouseY, float delta) {
         Paint paint = new Paint(canvas, mouseX, mouseY, System.currentTimeMillis(), this.focused);
 
-        canvas.fill(0, 0, this.width, this.height, Palette.DARKER);
+        // The ground is the game's own: the panorama behind a menu, the world behind a
+        // pause screen. Painting over it would be replacing something the player's
+        // resource pack may well have chosen.
         this.topBar.draw(paint);
         this.scene.draw(paint, delta);
         if (this.library.visible()) {
@@ -1301,7 +1301,7 @@ public class SkinCreatorScreen extends Screen {
         }
         Canvas canvas = paint.canvas();
         int barTop = this.libraryTab.y() - Metrics.PAD_TIGHT;
-        Surface.dark(canvas, 0, barTop, this.width, this.height - barTop, Palette.DARK);
+        Surface.panel(canvas, 0, barTop, this.width, this.height - barTop);
         this.libraryTab.draw(paint);
         this.layersTab.draw(paint);
     }

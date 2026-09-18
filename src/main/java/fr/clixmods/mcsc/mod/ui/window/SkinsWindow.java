@@ -40,7 +40,7 @@ import net.minecraft.resources.Identifier;
  */
 public class SkinsWindow extends ModalWindow {
     /** The height of a row: the front view at two pixels per texel, plus its padding. */
-    private static final int ROW = 32 * SkinThumbnails.SCALE + Metrics.PAD_TIGHT * 2 + Metrics.OUTLINE * 2;
+    private static final int ROW = 32 * SkinThumbnails.SCALE + Metrics.PAD_TIGHT * 2 + Metrics.SLOT_INSET * 2;
     private static final int PICTURE_WIDTH = 16 * SkinThumbnails.SCALE;
     private static final int PICTURE_HEIGHT = 32 * SkinThumbnails.SCALE;
 
@@ -121,13 +121,13 @@ public class SkinsWindow extends ModalWindow {
                         ? "skins.mcskincreator.loading"
                         : "skins.mcskincreator.empty");
         paint.canvas().textWrapped(message, left, top + Metrics.PAD, width,
-                state.failure().getString().isEmpty() ? Palette.INK_DIM : Palette.RED_INK);
+                state.failure().getString().isEmpty() ? Palette.INK_MUTED : Palette.INK_FAILURE);
     }
 
     @Override
     protected List<PixelButton> footer(Canvas canvas, Runnable close) {
         return List.of(new PixelButton(Component.translatable("skins.mcskincreator.save"),
-                PixelButton.Style.PRIMARY, this.onSave));
+                PixelButton.Style.NORMAL, this.onSave));
     }
 
     /** One entry: its picture, its name, the day it was saved. The row is the button. */
@@ -153,10 +153,12 @@ public class SkinsWindow extends ModalWindow {
         public void draw(Paint paint) {
             Canvas canvas = paint.canvas();
             boolean hot = paint.hot(this);
-            Surface.slot(canvas, this.x, this.y, this.width, this.height,
-                    hot ? Palette.SLOT_HOVER : Palette.SLOT);
+            Surface.slot(canvas, this.x, this.y, this.width, this.height);
+            if (hot) {
+                Surface.slotHighlight(canvas, this.x, this.y, this.width, this.height);
+            }
 
-            int inset = Metrics.OUTLINE + Metrics.PAD_TIGHT;
+            int inset = Metrics.SLOT_INSET + Metrics.PAD_TIGHT;
             int pictureX = this.x + inset;
             int pictureY = this.y + inset;
             Surface.checker(canvas, pictureX, pictureY, PICTURE_WIDTH, PICTURE_HEIGHT);
@@ -171,7 +173,7 @@ public class SkinsWindow extends ModalWindow {
             int textWidth = Math.max(0, this.x + this.width - textX - this.actionsWidth);
             int textY = this.y + (this.height - canvas.lineHeight() * 2 - Metrics.PAD_TIGHT) / 2;
             this.marquee.draw(paint, Component.literal(this.skin.name()), textX, textY, textWidth,
-                    hot ? Palette.GOLD : Palette.INK, hot);
+                    hot ? Palette.INK_HOVERED : Palette.INK, hot);
             canvas.textFlat(Component.literal(day(this.skin.at())), textX,
                     textY + canvas.lineHeight() + Metrics.PAD_TIGHT, Palette.INK_FAINT);
         }

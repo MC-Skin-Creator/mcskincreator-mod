@@ -43,7 +43,7 @@ public class ConfirmWindow extends TextWindow {
 
     @Override
     protected List<PixelButton> footer(Canvas canvas, Runnable close) {
-        PixelButton confirm = new PixelButton(this.confirmLabel.get(), PixelButton.Style.PRIMARY,
+        PixelButton confirm = new PixelButton(this.confirmLabel.get(), PixelButton.Style.NORMAL,
                 () -> {
                     this.onConfirm.run();
                     close.run();

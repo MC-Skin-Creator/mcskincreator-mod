@@ -12,6 +12,7 @@ import java.util.function.Consumer;
 
 import fr.clixmods.mcsc.mod.style.Metrics;
 import fr.clixmods.mcsc.mod.style.Palette;
+import fr.clixmods.mcsc.mod.style.Sprites;
 import fr.clixmods.mcsc.mod.style.Surface;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
@@ -19,18 +20,13 @@ import fr.clixmods.mcsc.mod.ui.Paint;
 import net.minecraft.network.chat.Component;
 
 /**
- * A carved square and its label, clickable as one piece.
+ * The game's checkbox and its label, clickable as one piece.
  *
- * <p>The box alone is a nine pixel target; together with its label it is the width of
- * the row. The label is part of the control, not a caption next to it, which is also
- * why the two light up together.
+ * <p>The box alone is a twenty pixel target; together with its label it is the width
+ * of the row. The label is part of the control, not a caption next to it, which is
+ * also why the two light up together.
  */
 public class Checkbox extends Element {
-    /** The tick, drawn pixel by pixel rather than borrowed from a font. */
-    private static final int[][] TICK = {
-        {0, 2}, {1, 3}, {2, 4}, {3, 3}, {4, 2}, {5, 1}, {6, 0},
-    };
-
     private final Component label;
     private final BooleanSupplier read;
     private final Consumer<Boolean> write;
@@ -39,7 +35,7 @@ public class Checkbox extends Element {
         this.label = label;
         this.read = read;
         this.write = write;
-        this.height = Metrics.CHECKBOX;
+        this.height = Sprites.CHECKBOX_SIZE;
     }
 
     @Override
@@ -49,26 +45,15 @@ public class Checkbox extends Element {
         }
         Canvas canvas = paint.canvas();
         boolean hot = paint.hot(this);
-        boolean checked = this.read.getAsBoolean();
-        int box = Metrics.CHECKBOX;
-
-        Surface.slot(canvas, this.x, this.y, box, box, checked ? Palette.GREEN : Palette.SLOT);
-        if (checked) {
-            int originX = this.x + Metrics.OUTLINE + 1;
-            int originY = this.y + Metrics.OUTLINE + 1;
-            for (int[] pixel : TICK) {
-                canvas.fill(originX + pixel[0], originY + pixel[1], 1, 1, Palette.INK);
-            }
-        }
-
-        canvas.text(this.label, this.x + box + Metrics.PAD_TIGHT,
-                this.y + (box - canvas.lineHeight()) / 2,
-                hot ? Palette.GOLD : Palette.INK_MUTED);
+        Surface.checkbox(canvas, this.x, this.y, this.read.getAsBoolean(), hot);
+        canvas.text(this.label, this.x + Sprites.CHECKBOX_SIZE + Metrics.PAD_TIGHT,
+                this.y + (Sprites.CHECKBOX_SIZE - canvas.lineHeight()) / 2,
+                hot ? Palette.INK_HOVERED : Palette.INK);
     }
 
     /** The label is part of the target, so the row is as wide as both together. */
     public Checkbox fit(Canvas canvas) {
-        this.width = Metrics.CHECKBOX + Metrics.PAD_TIGHT + canvas.textWidth(this.label);
+        this.width = Sprites.CHECKBOX_SIZE + Metrics.PAD_TIGHT + canvas.textWidth(this.label);
         return this;
     }
 

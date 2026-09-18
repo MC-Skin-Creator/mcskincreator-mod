@@ -52,10 +52,15 @@ public abstract class Panel extends Element {
         this.folded = !this.folded;
     }
 
-    /** The arrow the fold button shows: pointing the way the panel would go. */
+    /**
+     * The chevron the fold button shows, pointing the way the panel would go.
+     *
+     * <p>Drawn in the game's own font. Vanilla's page arrow is the only arrow it
+     * ships, and at 23 by 13 pixels of near-white it swamps a header this size — the
+     * font's chevron is the same typeface as everything else on the row.
+     */
     public Component foldLabel() {
-        boolean pointsLeft = this.folded != this.foldsLeft;
-        return Component.literal(pointsLeft ? "<" : ">");
+        return Component.literal(this.folded != this.foldsLeft ? "<" : ">");
     }
 
     public String foldTooltipKey() {
@@ -63,7 +68,7 @@ public abstract class Panel extends Element {
     }
 
     protected int headerHeight(Canvas canvas) {
-        return canvas.lineHeight() + Metrics.PAD * 2;
+        return canvas.lineHeight() + Metrics.PANEL_INSET + Metrics.PAD_TIGHT;
     }
 
     /** The children the screen walks for focus and hit testing, in that order. */
@@ -87,15 +92,16 @@ public abstract class Panel extends Element {
         Canvas canvas = paint.canvas();
         Surface.panel(canvas, this.x, this.y, this.width, this.height);
 
-        int header = headerHeight(canvas);
-        Surface.flat(canvas, this.x + Metrics.OUTLINE, this.y + Metrics.OUTLINE,
-                this.width - Metrics.OUTLINE * 2, header - Metrics.OUTLINE, Palette.PANEL_HEADER);
-
-        if (!this.folded) {
-            String title = Component.translatable(this.titleKey).getString().toUpperCase(Locale.ROOT);
-            canvas.textTracked(title, this.x + Metrics.PAD,
-                    this.y + (header - canvas.lineHeight()) / 2,
-                    Palette.INK_MUTED, Metrics.TITLE_TRACKING);
+        if (this.folded) {
+            return;
         }
+
+        // A heading and a rule under it, which is how the game titles its own lists.
+        int header = headerHeight(canvas);
+        String title = Component.translatable(this.titleKey).getString().toUpperCase(Locale.ROOT);
+        canvas.textTracked(title, this.x + Metrics.PANEL_INSET,
+                this.y + Metrics.PANEL_INSET, Palette.INK_MUTED, Metrics.TITLE_TRACKING);
+        Surface.rule(canvas, this.x + Metrics.PANEL_INSET, this.y + header - Metrics.PAD_TIGHT,
+                this.width - Metrics.PANEL_INSET * 2);
     }
 }

@@ -16,18 +16,19 @@ import fr.clixmods.mcsc.mod.style.Palette;
 import fr.clixmods.mcsc.mod.style.Surface;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
-import fr.clixmods.mcsc.mod.ui.Icons;
+import fr.clixmods.mcsc.mod.ui.Logo;
 import fr.clixmods.mcsc.mod.ui.Paint;
 import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 
 /**
  * The strip across the top: the mark, the beta badge, and the tools.
  *
- * <p>Export is the only green button up here, because it is the only thing this bar
- * is really for. When the window is too narrow for everything, the order changes
- * rather than the buttons wrapping: export, then undo and redo, go first — those are
- * the ones nobody should have to hunt for.
+ * <p>When the window is too narrow for everything, the order changes rather than the
+ * buttons wrapping: export, then undo and redo, go first — those are the ones nobody
+ * should have to hunt for.
  *
  * <p>Two of the site's controls are deliberately absent. The templates list and the
  * random outfit have nothing behind them yet, and a button whose target is empty
@@ -35,6 +36,9 @@ import net.minecraft.network.chat.Component;
  * different reason: in the game the language is the game's, and the mod follows it.
  */
 public class TopBar extends Element {
+    /** The mark, drawn from the icon the mod already ships. */
+    private static final int LOGO_SIZE = 16;
+
     private final History history;
     private final Runnable onNew;
     private final Runnable onExport;
@@ -65,15 +69,15 @@ public class TopBar extends Element {
         Brand brand = new Brand(this.onAbout);
         brand.fit(canvas);
         int buttonY = this.y + (this.height - Metrics.BUTTON_HEIGHT_COMPACT) / 2;
-        brand.setBounds(this.x + Metrics.PAD_TIGHT, this.y + (this.height - Icons.SIZE) / 2,
-                brand.width(), Icons.SIZE);
+        brand.setBounds(this.x + Metrics.PAD_TIGHT, this.y + (this.height - LOGO_SIZE) / 2,
+                brand.width(), LOGO_SIZE);
         this.children.add(brand);
 
         int cursorX = brand.x() + brand.width() + Metrics.PAD_TIGHT;
         cursorX += betaWidth(canvas) + Metrics.PAD;
 
         PixelButton export = new PixelButton(Component.translatable("gui.mcskincreator.export"),
-                PixelButton.Style.PRIMARY, this.onExport)
+                PixelButton.Style.NORMAL, this.onExport)
                 .withTooltip(Component.translatable("gui.mcskincreator.export.tooltip"));
         PixelButton undo = new PixelButton(Component.translatable("gui.mcskincreator.undo"),
                 PixelButton.Style.NORMAL, () -> this.history.undo())
@@ -133,29 +137,28 @@ public class TopBar extends Element {
     }
 
     private int betaWidth(Canvas canvas) {
-        return canvas.textWidth(Component.translatable("gui.mcskincreator.beta")) + Metrics.PAD;
+        return canvas.textWidth(Component.translatable("gui.mcskincreator.beta"))
+                + Metrics.SLOT_INSET * 2;
     }
 
     @Override
     public void draw(Paint paint) {
         Canvas canvas = paint.canvas();
-        Surface.dark(canvas, this.x, this.y, this.width, this.height, Palette.DARK);
+        Surface.panel(canvas, this.x, this.y - Metrics.PANEL_INSET,
+                this.width, this.height + Metrics.PANEL_INSET);
 
         Element brand = this.children.get(0);
+        int badgeHeight = canvas.lineHeight() + Metrics.SLOT_INSET * 2;
         int badgeX = brand.x() + brand.width() + Metrics.PAD_TIGHT;
-        int badgeY = this.y + (this.height - canvas.lineHeight() - Metrics.PAD_TIGHT) / 2;
-        Surface.slot(canvas, badgeX, badgeY, betaWidth(canvas),
-                canvas.lineHeight() + Metrics.PAD_TIGHT, Palette.SLOT);
+        int badgeY = this.y + (this.height - badgeHeight) / 2;
+        Surface.slot(canvas, badgeX, badgeY, betaWidth(canvas), badgeHeight);
         canvas.textFlat(Component.translatable("gui.mcskincreator.beta"),
-                badgeX + Metrics.PAD_TIGHT, badgeY + Metrics.PAD_TIGHT / 2, Palette.GOLD);
+                badgeX + Metrics.SLOT_INSET, badgeY + Metrics.SLOT_INSET, Palette.INK_MUTED);
 
-        // A separator is a black rule with a light reflection down its right side —
-        // the same two-tone trick the bevels use, at one pixel.
+        // A separator is the hairline the game rules its own headings with, stood on end.
         for (int separatorX : this.separators) {
-            canvas.fill(separatorX, this.y + Metrics.PAD_TIGHT, Metrics.OUTLINE,
-                    this.height - Metrics.PAD_TIGHT * 2, Palette.OUTLINE);
-            canvas.fill(separatorX + Metrics.OUTLINE, this.y + Metrics.PAD_TIGHT, 1,
-                    this.height - Metrics.PAD_TIGHT * 2, Palette.PANEL_MID);
+            canvas.fill(separatorX, this.y + Metrics.PAD_TIGHT, 1,
+                    this.height - Metrics.PAD_TIGHT * 2, Palette.RULE);
         }
 
         for (Element child : this.children) {
@@ -164,10 +167,12 @@ public class TopBar extends Element {
     }
 
     /**
-     * The mark: the logo and the product name, together one button that opens About.
+     * The mark: the mod's own icon and the product name, together one button that opens
+     * About.
      *
-     * <p>It carries no material and no bevel — it is not meant to look like a button —
-     * but it lights up gold like everything else you can press.
+     * <p>The icon is the one in {@code assets/mcskincreator/icon.png} — the same mark
+     * the game's mod list shows. There is no second logo drawn for this screen, because
+     * there is no second MC Skin Creator.
      */
     private static final class Brand extends Element {
         private final Runnable action;
@@ -177,7 +182,7 @@ public class TopBar extends Element {
         }
 
         void fit(Canvas canvas) {
-            this.width = Icons.SIZE + Metrics.PAD_TIGHT
+            this.width = LOGO_SIZE + Metrics.PAD_TIGHT
                     + canvas.textWidth(Component.translatable("gui.mcskincreator.brand"));
         }
 
@@ -185,11 +190,19 @@ public class TopBar extends Element {
         public void draw(Paint paint) {
             Canvas canvas = paint.canvas();
             boolean hot = paint.hot(this);
-            Icons.draw(canvas, "logo", this.x, this.y, 1);
+
+            Identifier logo = Logo.texture(Minecraft.getInstance());
+            if (logo != null) {
+                // The whole icon, scaled down to the mark: the file is 128 px and the
+                // mark is 16, so the source rectangle is the image, not a corner of it.
+                int source = Logo.size();
+                canvas.blit(logo, this.x, this.y, LOGO_SIZE, LOGO_SIZE,
+                        0.0F, 0.0F, source, source, source, source);
+            }
             canvas.text(Component.translatable("gui.mcskincreator.brand"),
-                    this.x + Icons.SIZE + Metrics.PAD_TIGHT,
-                    this.y + (Icons.SIZE - canvas.lineHeight()) / 2,
-                    hot ? Palette.GOLD : Palette.INK);
+                    this.x + LOGO_SIZE + Metrics.PAD_TIGHT,
+                    this.y + (LOGO_SIZE - canvas.lineHeight()) / 2,
+                    hot ? Palette.INK_HOVERED : Palette.INK);
         }
 
         @Override

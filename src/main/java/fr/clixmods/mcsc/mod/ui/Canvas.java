@@ -163,6 +163,26 @@ public final class Canvas {
                 width, height, sourceWidth, sourceHeight, textureWidth, textureHeight);
     }
 
+    /**
+     * Draws one of the game's own interface sprites at the size asked for.
+     *
+     * <p>The game knows which sprites are nine-sliced and which tile, and scales their
+     * borders itself, so this never stretches a corner — which is the whole reason the
+     * editor draws with vanilla sprites rather than with rectangles of its own.
+     */
+    public void sprite(Identifier sprite, int x, int y, int width, int height) {
+        if (width > 0 && height > 0) {
+            this.graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, width, height);
+        }
+    }
+
+    /** The same, tinted — which is how a sprite is dimmed when its control is off. */
+    public void spriteTinted(Identifier sprite, int x, int y, int width, int height, int tint) {
+        if (width > 0 && height > 0) {
+            this.graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, width, height, tint);
+        }
+    }
+
     /** The same, tinted — which is also how an icon is dimmed when it is disabled. */
     public void blitTinted(Identifier texture, int x, int y, int width, int height,
                            float u, float v, int sourceWidth, int sourceHeight,

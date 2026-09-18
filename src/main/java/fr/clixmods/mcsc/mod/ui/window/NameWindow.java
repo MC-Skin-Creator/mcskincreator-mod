@@ -20,11 +20,10 @@ import net.minecraft.network.chat.Component;
 /**
  * Asking for a name.
  *
- * <p>There is no such thing as a native dialog here, and there would not be one even
- * if the game offered it: a prompt drawn by anything else arrives with its own font
- * and its own corners in the middle of a screen that has spent every pixel agreeing
- * on both. The field takes the focus as the window opens, Enter accepts, and Cancel
- * gives back whichever window asked.
+ * <p>The field takes the focus as the window opens, Enter accepts, and Cancel gives
+ * back whichever window asked. The accepting action is the last button rather than a
+ * coloured one, because that is where the game puts "Done" and a Minecraft menu has no
+ * primary button to borrow.
  */
 public class NameWindow extends ModalWindow {
     private final TextInput field;
@@ -81,7 +80,7 @@ public class NameWindow extends ModalWindow {
                             close.run();
                         }),
                 new PixelButton(Component.translatable("gui.mcskincreator.confirm"),
-                        PixelButton.Style.PRIMARY, () -> {
+                        PixelButton.Style.NORMAL, () -> {
                             if (accept()) {
                                 close.run();
                             }

@@ -28,7 +28,6 @@ import fr.clixmods.mcsc.mod.style.Palette;
 import fr.clixmods.mcsc.mod.style.Surface;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
-import fr.clixmods.mcsc.mod.ui.Icons;
 import fr.clixmods.mcsc.mod.ui.Paint;
 import fr.clixmods.mcsc.mod.ui.ScrollPane;
 import fr.clixmods.mcsc.mod.ui.widget.CategoryTab;
@@ -65,9 +64,6 @@ import net.minecraft.network.chat.Component;
  * scales, and that is easier to see when the sizes are in one place.
  */
 public class LibraryPanel extends Panel {
-    /** A thumbnail is never taller than twice the site's render area. */
-    private static final int MAX_RENDER = Metrics.THUMB_RENDER * 2;
-
     private final Runnable relayout;
     private final Function<CatalogText, Component> naming;
     private final Function<String, CategorySprites> sprites;
@@ -210,22 +206,23 @@ public class LibraryPanel extends Panel {
         this.foldButton = new PixelButton(foldLabel(), PixelButton.Style.GHOST, () -> {
             toggleFolded();
             this.relayout.run();
-        }).withTooltip(Component.translatable(foldTooltipKey()));
+        });
+        this.foldButton.withTooltip(Component.translatable(foldTooltipKey()));
         this.foldButton.fit(canvas);
 
         if (folded()) {
             // Folded, the header carries the unfold button and nothing else.
             this.foldButton.setBounds(this.x + (this.width - this.foldButton.width()) / 2,
-                    this.y + (header - Metrics.BUTTON_HEIGHT) / 2,
-                    this.foldButton.width(), Metrics.BUTTON_HEIGHT);
+                    this.y + (header - Metrics.TAB_HEIGHT) / 2,
+                    this.foldButton.width(), Metrics.TAB_HEIGHT);
             addChild(this.foldButton);
             return;
         }
 
         this.foldButton.setBounds(
                 this.x + this.width - Metrics.PAD_TIGHT - this.foldButton.width(),
-                this.y + (header - Metrics.BUTTON_HEIGHT) / 2,
-                this.foldButton.width(), Metrics.BUTTON_HEIGHT);
+                this.y + (header - Metrics.TAB_HEIGHT) / 2,
+                this.foldButton.width(), Metrics.TAB_HEIGHT);
         addChild(this.foldButton);
 
         int left = this.x + Metrics.PAD_TIGHT;
@@ -240,32 +237,33 @@ public class LibraryPanel extends Panel {
         cursorY += Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD_TIGHT;
 
         int footerHeight = canvas.lineHeight() + Metrics.PAD_TIGHT * 2;
+        int footerTop = this.y + this.height - Metrics.PANEL_INSET - footerHeight;
         this.bodyTop = cursorY;
-        this.bodyHeight = Math.max(0, this.y + this.height - footerHeight - cursorY - Metrics.PAD_TIGHT);
+        this.bodyHeight = Math.max(0, footerTop - cursorY - Metrics.PAD_TIGHT);
 
         layoutBody(canvas, left, right);
-        layoutFooter(canvas, left, right, this.y + this.height - footerHeight);
+        layoutFooter(canvas, left, right, footerTop);
     }
 
     private int layoutRegions(Canvas canvas, int left, int right, int top) {
         int cursorX = left;
         int cursorY = top;
         for (String candidate : this.catalog.regions()) {
-            PixelButton tab = new PixelButton(regionLabel(candidate), PixelButton.Style.NORMAL,
+            PixelButton tab = new PixelButton(regionLabel(candidate), PixelButton.Style.TAB,
                     () -> pickRegion(candidate));
             tab.fit(canvas);
-            // The green tab goes out while a search is showing: it would otherwise
+            // The tab goes unselected while a search is showing: it would otherwise
             // claim a category the body is not displaying.
             tab.setActive(!searching() && candidate.equals(this.region));
             if (cursorX + tab.width() > right && cursorX > left) {
                 cursorX = left;
-                cursorY += Metrics.BUTTON_HEIGHT_COMPACT + Metrics.SEGMENT_GAP;
+                cursorY += Metrics.TAB_HEIGHT + Metrics.SEGMENT_GAP;
             }
-            tab.setBounds(cursorX, cursorY, tab.width(), Metrics.BUTTON_HEIGHT_COMPACT);
+            tab.setBounds(cursorX, cursorY, tab.width(), Metrics.TAB_HEIGHT);
             this.regionTabs.add(addChild(tab));
             cursorX += tab.width() + Metrics.SEGMENT_GAP;
         }
-        return cursorY + Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD_TIGHT;
+        return cursorY + Metrics.TAB_HEIGHT + Metrics.PAD_TIGHT;
     }
 
     private int layoutCategories(int left, int right, int top) {
@@ -297,25 +295,26 @@ public class LibraryPanel extends Panel {
 
         int gutter = ScrollPane.BAR_WIDTH + Metrics.PAD_TIGHT;
         int usable = right - left - gutter;
-        int columns = Metrics.GRID_COLUMNS;
+        // Three columns is what the site shows, and what this shows when the panel is
+        // wide enough for three readable ones. Below that it drops to two rather than
+        // splitting the width into thumbnails too small to tell apart.
+        int columns = Math.max(2, Math.min(Metrics.GRID_COLUMNS,
+                (usable + Metrics.GRID_GAP) / (Metrics.MIN_TILE_WIDTH + Metrics.GRID_GAP)));
         int tileWidth = Math.max(Metrics.CATEGORY_TAB,
                 (usable - Metrics.GRID_GAP * (columns - 1)) / columns);
-        int headerHeight = Math.max(Icons.SIZE, canvas.lineHeight()) + Metrics.PAD_TIGHT;
+        int headerHeight = canvas.lineHeight() + Metrics.PAD_TIGHT * 2;
 
         int cursorY = 0;
-        boolean grouped = batches.size() > 1;
         for (Map.Entry<CatalogCategory, List<CatalogItem>> batch : batches.entrySet()) {
             CatalogCategory batchCategory = batch.getKey();
             Component label = this.naming.apply(batchCategory.name());
-            if (grouped) {
-                this.headers.add(new GroupHeader(batchCategory, label, batch.getValue().size(), cursorY));
-                cursorY += headerHeight;
-            }
+            this.headers.add(new GroupHeader(batchCategory, label, batch.getValue().size(), cursorY));
+            cursorY += headerHeight;
 
             // The render area follows the crop this category asks for, so a row of
             // hairstyles is a row of hairstyles rather than six empty bodies.
-            int boxWidth = tileWidth - (Metrics.OUTLINE + Metrics.PAD_TIGHT) * 2;
-            int renderHeight = Math.min(MAX_RENDER,
+            int boxWidth = tileWidth - Metrics.SLOT_INSET * 2;
+            int renderHeight = Math.min(Metrics.MAX_THUMB_RENDER,
                     Thumbnail.heightFor(boxWidth, batchCategory.thumbCrop()));
             int tileHeight = ItemTile.heightFor(canvas, renderHeight);
 
@@ -449,9 +448,10 @@ public class LibraryPanel extends Panel {
             Component message = searching()
                     ? Component.translatable("empty.mcskincreator.search")
                     : this.emptyMessage.get();
+            int room = Math.max(1, right - left);
             canvas.textWrapped(message, left,
-                    this.bodyTop + this.bodyHeight / 2 - canvas.wrappedHeight(message, right - left) / 2,
-                    right - left, Palette.INK_FAINT);
+                    this.bodyTop + (this.bodyHeight - canvas.wrappedHeight(message, room)) / 2,
+                    room, Palette.INK_FAINT);
         } else {
             placeTiles();
             canvas.pushScissor(left, this.bodyTop, right - left, this.bodyHeight);
@@ -487,20 +487,23 @@ public class LibraryPanel extends Panel {
         return tile.y() + tile.height() > this.bodyTop && tile.y() < this.bodyTop + this.bodyHeight;
     }
 
+    /**
+     * A batch title: the category's name, how many it holds, and a rule across the
+     * rest of the row — the shape the game gives its own section headings.
+     */
     private void drawGroupHeader(Canvas canvas, GroupHeader header, int left, int y) {
-        int textX = left;
-        if (Icons.has(header.category().id())) {
-            Icons.draw(canvas, header.category().id(), left, y, 1);
-            textX += Icons.SIZE + Metrics.PAD_TIGHT;
-        }
-        canvas.text(header.label(), textX, y + (Icons.SIZE - canvas.lineHeight()) / 2, Palette.INK);
+        canvas.text(header.label(), left, y, Palette.INK);
 
         String count = Integer.toString(header.count());
-        int boxWidth = canvas.textWidth(count) + Metrics.PAD_TIGHT * 2;
-        int boxX = textX + canvas.textWidth(header.label()) + Metrics.PAD_TIGHT;
-        Surface.slot(canvas, boxX, y, boxWidth, Icons.SIZE, Palette.EMPTY);
-        canvas.textCentered(Component.literal(count), boxX + boxWidth / 2,
-                y + (Icons.SIZE - canvas.lineHeight()) / 2, Palette.INK_DIM);
+        int countWidth = canvas.textWidth(count);
+        int nameWidth = canvas.textWidth(header.label());
+        int ruleX = left + nameWidth + Metrics.PAD_TIGHT;
+        int right = this.x + this.width - Metrics.PAD_TIGHT - ScrollPane.BAR_WIDTH;
+        int ruleWidth = right - countWidth - Metrics.PAD_TIGHT - ruleX;
+        if (ruleWidth > 0) {
+            Surface.rule(canvas, ruleX, y + canvas.lineHeight() / 2, ruleWidth);
+        }
+        canvas.textFlat(Component.literal(count), right - countWidth, y, Palette.INK_FAINT);
     }
 
     /**

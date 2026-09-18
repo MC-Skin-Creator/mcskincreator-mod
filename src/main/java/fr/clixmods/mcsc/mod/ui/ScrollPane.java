@@ -8,8 +8,7 @@
 package fr.clixmods.mcsc.mod.ui;
 
 import fr.clixmods.mcsc.mod.style.Metrics;
-import fr.clixmods.mcsc.mod.style.Palette;
-import fr.clixmods.mcsc.mod.style.Surface;
+import fr.clixmods.mcsc.mod.style.Sprites;
 
 /**
  * The scrolling of one band, done by hand.
@@ -18,6 +17,8 @@ import fr.clixmods.mcsc.mod.style.Surface;
  * out in {@code init()} and everything else is drawn. So this holds an offset, clamps
  * it to whatever the content turned out to be tall, and draws the rail — a carved
  * groove with a handle in button material, like every other track in the interface.
+ *
+ * <p>The rail is the game's own scroller and track, at the width the game gives them.
  *
  * <p>It is not a widget. It has no bounds of its own and takes no focus: it belongs
  * to the band that scrolls, and that band decides where it sits.
@@ -28,7 +29,7 @@ public final class ScrollPane {
      * is anything to scroll — a gutter that appears with the rail would shuffle every
      * tile sideways the moment a category grew by one element.
      */
-    public static final int BAR_WIDTH = Metrics.ui(9);
+    public static final int BAR_WIDTH = Sprites.SCROLLER_WIDTH;
     private static final int STEP = Metrics.ui(24);
 
     private int offset;
@@ -75,13 +76,12 @@ public final class ScrollPane {
             return;
         }
         int x = right - BAR_WIDTH;
-        Surface.slot(canvas, x, top, BAR_WIDTH, height, Palette.FIELD);
+        canvas.sprite(Sprites.SCROLLER_TRACK, x, top, BAR_WIDTH, height);
 
-        int inner = height - Metrics.OUTLINE * 2;
-        int handle = Math.max(Metrics.ui(18), inner * this.viewportHeight / Math.max(1, this.contentHeight));
-        int travel = inner - handle;
-        int handleY = top + Metrics.OUTLINE + (travel * this.offset / Math.max(1, maxOffset()));
-        Surface.button(canvas, x, handleY, BAR_WIDTH, handle, Surface.Tone.NEUTRAL, false, false);
+        int handle = handleHeight();
+        int travel = height - handle;
+        int handleY = top + (travel * this.offset / Math.max(1, maxOffset()));
+        canvas.sprite(Sprites.SCROLLER, x, handleY, BAR_WIDTH, handle);
     }
 
     /** @return true when the press landed on the rail and started a drag */
@@ -108,11 +108,15 @@ public final class ScrollPane {
         this.draggingBar = false;
     }
 
+    /** The handle is as tall a share of the rail as the view is of the content. */
+    private int handleHeight() {
+        return Math.max(Metrics.ui(18),
+                this.viewportHeight * this.viewportHeight / Math.max(1, this.contentHeight));
+    }
+
     private void dragTo(double mouseY, int top, int height) {
-        int inner = height - Metrics.OUTLINE * 2;
-        int handle = Math.max(Metrics.ui(18), inner * this.viewportHeight / Math.max(1, this.contentHeight));
-        int travel = Math.max(1, inner - handle);
-        double along = (mouseY - top - Metrics.OUTLINE - handle / 2.0) / travel;
+        int travel = Math.max(1, height - handleHeight());
+        double along = (mouseY - top - handleHeight() / 2.0) / travel;
         this.offset = Math.max(0, Math.min(maxOffset(), (int) Math.round(along * maxOffset())));
     }
 }

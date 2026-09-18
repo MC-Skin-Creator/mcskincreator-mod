@@ -45,7 +45,7 @@ src/main/java/fr/clixmods/mcsc/mod/
 ├── project/                   what is being edited: the layer stack and its history
 ├── account/                   the Mojang upload, and the only code that holds the session token
 ├── mixin/                     the one mixin: the applied skin, worn before Mojang propagates it
-├── style/                     the design system: palette, metrics, the four materials, the grain
+├── style/                     the vanilla sprites the editor draws with, and the metrics
 └── ui/
     ├── Canvas.java            the drawing surface, and the only file the interface versions
     ├── ScreenCompat.java      the two call renames outside drawing
@@ -67,9 +67,11 @@ need no game, though they do resolve against the target's Minecraft jar for
 `Component` and `PlayerModelType`. Nothing that draws is tested: that is what
 running the game is for.
 
-The interface has its own rules — the four materials, the palette, the scale
-conversion, what is deliberately not built — in [`INTERFACE.md`](INTERFACE.md). Read
-it before changing anything that draws.
+The interface has its own rules — draw with the game's sprites and invent nothing,
+the scale conversion, what is deliberately not built — in
+[`INTERFACE.md`](INTERFACE.md). **Read it before changing anything that draws**: the
+short version is that every surface is a vanilla sprite named in `style/Sprites.java`,
+and adding a texture or an icon of the mod's own is the one thing not to do.
 
 ## Stonecutter architecture
 
