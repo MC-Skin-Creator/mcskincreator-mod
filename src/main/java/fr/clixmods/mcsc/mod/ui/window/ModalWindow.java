@@ -253,4 +253,29 @@ public abstract class ModalWindow {
     public boolean scroll(double amount) {
         return this.scroll.scroll(amount);
     }
+
+    /** @return true when the press took hold of the rail down the window's edge */
+    public boolean barMouseDown(double mouseX, double mouseY) {
+        return this.scroll.barMouseDown(mouseX, mouseY,
+                this.x + this.width - Metrics.PANEL_INSET, this.bodyTop, this.bodyHeight);
+    }
+
+    /**
+     * @return true when the drag moved the body, and the window therefore has to be
+     *     laid out again — its children are placed at the offset they were laid out at
+     */
+    public boolean barMouseDrag(double mouseY) {
+        int before = this.scroll.offset();
+        this.scroll.barMouseDrag(mouseY, this.bodyTop, this.bodyHeight);
+        return this.scroll.offset() != before;
+    }
+
+    public void barMouseUp() {
+        this.scroll.barMouseUp();
+    }
+
+    /** True while the rail is held, so the window keeps the drag wherever it goes. */
+    public boolean draggingBar() {
+        return this.scroll.draggingBar();
+    }
 }

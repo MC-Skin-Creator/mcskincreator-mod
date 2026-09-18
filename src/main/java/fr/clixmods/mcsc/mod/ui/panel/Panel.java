@@ -38,6 +38,9 @@ public abstract class Panel extends Element {
     protected Panel(String titleKey, boolean foldsLeft) {
         this.titleKey = titleKey;
         this.foldsLeft = foldsLeft;
+        // A band is clicked — its rail is dragged — but it is never a stop on the focus
+        // ring: Tab walks the controls inside it, not the column they sit in.
+        setFocusable(false);
     }
 
     public boolean folded() {
