@@ -18,13 +18,10 @@ import fr.clixmods.mcsc.mod.style.Palette;
 import fr.clixmods.mcsc.mod.style.Surface;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
+import fr.clixmods.mcsc.mod.ui.Figure;
 import fr.clixmods.mcsc.mod.ui.Paint;
 import fr.clixmods.mcsc.mod.ui.widget.Dropdown;
 import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.PlayerSkinWidget;
-import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.network.chat.Component;
 
 /**
@@ -35,12 +32,11 @@ import net.minecraft.network.chat.Component;
  * swapping them through a single slot made the model vanish the moment the library
  * opened. Whatever the width, the scene shrinks and stays.
  *
- * <p>The model is the game's own {@link PlayerSkinWidget}: it already renders a
- * player, already turns under the mouse, and already follows the classic or slim
- * model of the skin it is handed. It is drawn from here rather than added to the
- * screen as a widget, so that it lands in the middle of this interface's own paint
- * order — under the tool strips that float over it, and beside rather than beneath the
- * two panels.
+ * <p>The figure itself is not this panel's: it is handed one, and only works out how
+ * much room it may have. In the game that is the vanilla player widget, drawn from
+ * here rather than added to the screen so that it lands in the middle of this
+ * interface's own paint order — under the tool strips that float over it, and beside
+ * rather than beneath the two panels.
  *
  * <p>The settings bar floats over the view when the model has the scene to itself,
  * lets the pointer through everywhere but its own controls, and rings its labels in
@@ -74,19 +70,19 @@ public class ScenePanel extends Element {
     private static final int PORTRAIT_HEIGHT = 120;
 
     private final PreviewSkin preview;
+    private final Figure figure;
     private final Runnable relayout;
     private final Supplier<Component> hoveredLabel;
     private final List<Element> controls = new ArrayList<>();
 
     private View view = View.MODEL;
-    private PlayerSkinWidget model;
-    /** The bounds the current widget was built for, so it is only rebuilt when they move. */
-    private int[] modelBounds = {0, 0, 0, 0};
     private int[] dock = {0, 0, 0, 0};
     private int[] viewport = {0, 0, 0, 0};
 
-    public ScenePanel(PreviewSkin preview, Runnable relayout, Supplier<Component> hoveredLabel) {
+    public ScenePanel(PreviewSkin preview, Figure figure, Runnable relayout,
+                      Supplier<Component> hoveredLabel) {
         this.preview = preview;
+        this.figure = figure;
         this.relayout = relayout;
         this.hoveredLabel = hoveredLabel;
     }
@@ -173,25 +169,11 @@ public class ScenePanel extends Element {
         int height = Math.min(usableHeight, usableWidth * PORTRAIT_HEIGHT / Math.max(1, PORTRAIT_WIDTH));
         int width = height * PORTRAIT_WIDTH / PORTRAIT_HEIGHT;
         if (width <= 0 || height <= 0) {
-            this.model = null;
+            this.figure.place(this.x, viewTop, 0, 0);
             return;
         }
-
-        int left = this.x + (space - width) / 2;
-        int top = viewTop + (viewHeight - height) / 2;
-        int[] wanted = {left, top, width, height};
-
-        // The widget carries the figure's rotation, and layout runs on every pick. Only
-        // a change of size or position builds a new one, so stacking an element does
-        // not quietly spin the player back to facing forward.
-        if (this.model == null || !java.util.Arrays.equals(this.modelBounds, wanted)) {
-            Minecraft client = Minecraft.getInstance();
-            this.model = new PlayerSkinWidget(width, height,
-                    client.getEntityModels(), this.preview::playerSkin);
-            this.modelBounds = wanted;
-        }
-        this.model.setX(left);
-        this.model.setY(top);
+        this.figure.place(this.x + (space - width) / 2, viewTop + (viewHeight - height) / 2,
+                width, height);
     }
 
     /**
@@ -220,9 +202,8 @@ public class ScenePanel extends Element {
         this.dock = new int[] {dockX, dockY, dockWidth, dockHeight};
     }
 
-    /** Throws the widget away, which is what puts the figure back facing forward. */
     private void recentre() {
-        this.model = null;
+        this.figure.reset();
         this.relayout.run();
     }
 
@@ -262,9 +243,7 @@ public class ScenePanel extends Element {
     }
 
     private void drawModel(Canvas canvas, Paint paint, float delta) {
-        if (this.model != null) {
-            canvas.widget(this.model, paint.mouseX(), paint.mouseY(), delta);
-        }
+        this.figure.draw(canvas, paint.mouseX(), paint.mouseY(), delta);
     }
 
     /** The 64x64 sheet itself, on a transparency checker, at a whole scale. */
@@ -328,27 +307,16 @@ public class ScenePanel extends Element {
     public boolean mouseDown(double mouseX, double mouseY, int button) {
         // The floating bar lets the pointer through everywhere but its own controls,
         // so a drag that starts on the scene behind it still reaches the figure.
-        return this.model != null && button == 0 && contains(mouseX, mouseY)
-                && this.model.mouseClicked(mouseEvent(mouseX, mouseY, button), false);
+        return contains(mouseX, mouseY) && this.figure.press(mouseX, mouseY, button);
     }
 
     @Override
     public void mouseDrag(double mouseX, double mouseY, double dragX, double dragY, int button) {
-        if (this.model != null) {
-            // The figure turns by how far the mouse moved, so the deltas are what
-            // matter here rather than where the pointer ended up.
-            this.model.mouseDragged(mouseEvent(mouseX, mouseY, button), dragX, dragY);
-        }
+        this.figure.drag(mouseX, mouseY, dragX, dragY, button);
     }
 
     @Override
     public void mouseUp(double mouseX, double mouseY, int button) {
-        if (this.model != null) {
-            this.model.mouseReleased(mouseEvent(mouseX, mouseY, button));
-        }
-    }
-
-    private static MouseButtonEvent mouseEvent(double mouseX, double mouseY, int button) {
-        return new MouseButtonEvent(mouseX, mouseY, new MouseButtonInfo(button, 0));
+        this.figure.release(mouseX, mouseY, button);
     }
 }

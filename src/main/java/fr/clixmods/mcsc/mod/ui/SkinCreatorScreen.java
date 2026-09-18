@@ -43,8 +43,6 @@ import fr.clixmods.mcsc.mod.skin.CategorySprites;
 import fr.clixmods.mcsc.mod.skin.PreviewSkin;
 import fr.clixmods.mcsc.mod.skin.ProjectJson;
 import fr.clixmods.mcsc.mod.skin.SkinThumbnails;
-import fr.clixmods.mcsc.mod.style.Metrics;
-import fr.clixmods.mcsc.mod.style.Surface;
 import fr.clixmods.mcsc.mod.ui.panel.LayersPanel;
 import fr.clixmods.mcsc.mod.ui.panel.LibraryPanel;
 import fr.clixmods.mcsc.mod.ui.panel.Panel;
@@ -52,7 +50,6 @@ import fr.clixmods.mcsc.mod.ui.panel.ScenePanel;
 import fr.clixmods.mcsc.mod.ui.panel.TopBar;
 import fr.clixmods.mcsc.mod.ui.widget.Dropdown;
 import fr.clixmods.mcsc.mod.ui.widget.ItemTile;
-import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
 import fr.clixmods.mcsc.mod.ui.window.CardWindow;
 import fr.clixmods.mcsc.mod.ui.window.ConfirmWindow;
 import fr.clixmods.mcsc.mod.ui.window.ModalWindow;
@@ -77,19 +74,16 @@ import org.lwjgl.glfw.GLFW;
 /**
  * The editor.
  *
- * <p>Three zones — library, scene, layers — laid out as three columns while the width
- * allows it and as drawers below that, with the scene always on screen. That last part
- * is the rule that does not bend: choosing an element while the model is hidden is
- * choosing blind, and the site tried two arrangements that did exactly that before
- * settling on this one.
+ * <p>What the editor <em>is</em>: the project being edited, its history, the catalogue
+ * it draws from, the requests that compose and save it, the windows it opens, and the
+ * keyboard and mouse that drive all of it. Where its four zones go is
+ * {@link EditorChrome}'s, and nothing here works a pixel out.
  *
- * <p>A Minecraft screen has no layout engine, so everything here is arithmetic done in
- * {@link #relayout()} and redone whenever the window, the fold state or the contents
- * change. The widgets are the mod's own rather than the game's, because the site's
- * look is a material and a bevel rather than a skin over a button — but the mechanics
- * the game is right about are the game's: its font, its GUI scale, the player model,
- * and a focus ring a keyboard can walk, which is also how everything the site reveals
- * on hover stays reachable without a mouse.
+ * <p>The widgets are the mod's own rather than the game's, because half of them — a
+ * category tab, an element thumbnail, a layer row — have no vanilla equivalent to
+ * dress. The mechanics the game is right about stay the game's: its font, its GUI
+ * scale, the player model, and a focus ring a keyboard can walk, which is also how
+ * everything the site reveals on hover stays reachable without a mouse.
  *
  * <p>Nothing on screen waits on the network. Stacking an element shows it straight
  * away from the atlas buffer already in memory, and the server's composition replaces
@@ -147,13 +141,12 @@ public class SkinCreatorScreen extends Screen {
     private LibraryPanel library;
     private ScenePanel scene;
     private LayersPanel layers;
+    /** Where the four zones go. The screen owns what is in them, not where they are. */
+    private EditorChrome chrome;
 
     private ModalWindow window;
     private Element focused;
     private Element pressed;
-    private Drawer drawer = Drawer.NONE;
-    private PixelButton libraryTab;
-    private PixelButton layersTab;
 
     private Component hoveredLabel;
     private Component failure = Component.empty();
@@ -198,11 +191,6 @@ public class SkinCreatorScreen extends Screen {
      */
     private long shownLockSeconds;
 
-    /** Which side column is open, when the width is too small to show both. */
-    private enum Drawer {
-        NONE, LIBRARY, LAYERS
-    }
-
     public SkinCreatorScreen(Screen parent) {
         super(Component.translatable("screen.mcskincreator.title"));
         this.parent = parent;
@@ -212,17 +200,21 @@ public class SkinCreatorScreen extends Screen {
     @Override
     protected void init() {
         if (this.library == null) {
-            this.topBar = new TopBar(this.history, this::startOver, this::openExport,
-                    this::openSkins, this::openAbout);
+            this.topBar = new TopBar(this.history,
+                    () -> new TopBar.Mark(Logo.texture(this.minecraft), Logo.size()),
+                    this::startOver, this::openExport, this::openSkins, this::openAbout);
             this.library = new LibraryPanel(this::relayout, this::name, this.sprites::get,
                     this.project::isSlim, this::isUsed, this::stack, this::openProvenance,
                     this::previewItem, this::openFooterLink, this::onCategoriesChanged);
             this.library.createSearch(this::queueSearch);
             this.library.setEmptyMessage(this::libraryMessage);
-            this.scene = new ScenePanel(this.preview, this::relayout, () -> this.hoveredLabel);
+            this.scene = new ScenePanel(this.preview, new PlayerFigure(this.preview),
+                    this::relayout, () -> this.hoveredLabel);
             this.layers = new LayersPanel(this.project, () -> catalog, this.sprites::get,
                     this.history, this::relayout, this::revealLibrary, this::openImport,
                     this::peekLayer);
+            this.chrome = new EditorChrome(this.topBar, this.library, this.scene, this.layers,
+                    this::relayout);
         }
         relayout();
 
@@ -255,32 +247,7 @@ public class SkinCreatorScreen extends Screen {
      */
     private void relayout() {
         Canvas canvas = new GameCanvas(null, this.font);
-
-        this.topBar.setBounds(0, 0, this.width, Metrics.TOP_BAR_HEIGHT);
-        this.topBar.layout(canvas);
-
-        int top = Metrics.TOP_BAR_HEIGHT;
-        int column = Metrics.columnWidth(this.width);
-        if (this.width >= columnsMinimum()) {
-            this.drawer = Drawer.NONE;
-            this.libraryTab = null;
-            this.layersTab = null;
-            this.library.setVisible(true);
-            this.layers.setVisible(true);
-
-            int libraryWidth = this.library.folded() ? Metrics.COLLAPSED_WIDTH : column;
-            int layersWidth = this.layers.folded() ? Metrics.COLLAPSED_WIDTH : column;
-            this.library.setBounds(0, top, libraryWidth, this.height - top);
-            this.layers.setBounds(this.width - layersWidth, top, layersWidth, this.height - top);
-            this.scene.setBounds(libraryWidth, top,
-                    this.width - libraryWidth - layersWidth, this.height - top);
-        } else {
-            layoutDrawers(canvas, top);
-        }
-
-        this.library.layout(canvas);
-        this.layers.layout(canvas);
-        this.scene.layout(canvas);
+        this.chrome.layout(canvas, this.width, this.height);
 
         // The window is laid out here too, and re-laid out after a scroll, because its
         // body is positioned in screen coordinates: its children have to move with it.
@@ -289,73 +256,9 @@ public class SkinCreatorScreen extends Screen {
         }
     }
 
-    /**
-     * The narrow arrangement: a tab bar at the bottom, and the open column as a drawer.
-     *
-     * <p>Portrait puts the drawer under the scene, landscape beside it, and in both the
-     * scene only shrinks. Two arrangements that hid it were tried on the site and
-     * dropped: stacking all three left the preview 21 pixels, and swapping them through
-     * one slot made the model disappear the moment the library opened.
-     */
-    private void layoutDrawers(Canvas canvas, int top) {
-        int tabHeight = Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD_TIGHT * 2;
-        int usableBottom = this.height - tabHeight;
-
-        this.libraryTab = new PixelButton(Component.translatable("panel.mcskincreator.library"),
-                PixelButton.Style.TAB, () -> toggleDrawer(Drawer.LIBRARY));
-        this.layersTab = new PixelButton(Component.translatable("panel.mcskincreator.layers"),
-                PixelButton.Style.TAB, () -> toggleDrawer(Drawer.LAYERS));
-        this.libraryTab.fit(canvas).setActive(this.drawer == Drawer.LIBRARY);
-        this.layersTab.fit(canvas).setActive(this.drawer == Drawer.LAYERS);
-
-        int tabsWidth = this.libraryTab.width() + this.layersTab.width() + Metrics.SEGMENT_GAP;
-        int tabsX = (this.width - tabsWidth) / 2;
-        int tabsY = usableBottom + Metrics.PAD_TIGHT;
-        this.libraryTab.setBounds(tabsX, tabsY, this.libraryTab.width(), Metrics.BUTTON_HEIGHT_COMPACT);
-        this.layersTab.setBounds(tabsX + this.libraryTab.width() + Metrics.SEGMENT_GAP, tabsY,
-                this.layersTab.width(), Metrics.BUTTON_HEIGHT_COMPACT);
-
-        this.library.setFolded(false);
-        this.layers.setFolded(false);
-        this.library.setVisible(this.drawer == Drawer.LIBRARY);
-        this.layers.setVisible(this.drawer == Drawer.LAYERS);
-
-        if (this.drawer == Drawer.NONE) {
-            this.scene.setBounds(0, top, this.width, usableBottom - top);
-            this.library.setBounds(0, usableBottom, 0, 0);
-            this.layers.setBounds(0, usableBottom, 0, 0);
-            return;
-        }
-
-        Element open = this.drawer == Drawer.LIBRARY ? this.library : this.layers;
-        if (this.height >= this.width) {
-            int drawerHeight = (usableBottom - top) / 2;
-            this.scene.setBounds(0, top, this.width, usableBottom - top - drawerHeight);
-            open.setBounds(0, usableBottom - drawerHeight, this.width, drawerHeight);
-        } else {
-            int drawerWidth = Math.min(Metrics.columnWidth(this.width), this.width / 2);
-            open.setBounds(0, top, drawerWidth, usableBottom - top);
-            this.scene.setBounds(drawerWidth, top, this.width - drawerWidth, usableBottom - top);
-        }
-    }
-
-    private void toggleDrawer(Drawer requested) {
-        this.drawer = this.drawer == requested ? Drawer.NONE : requested;
-        relayout();
-    }
-
-    /** Below this width the two columns and the scene no longer fit side by side. */
-    private int columnsMinimum() {
-        return Metrics.columnWidth(this.width) * 2 + Metrics.MIN_SCENE_WIDTH;
-    }
-
     /** The "+" of the layers panel: bring the library forward. */
     private void revealLibrary() {
-        this.library.setFolded(false);
-        if (this.width < columnsMinimum()) {
-            this.drawer = Drawer.LIBRARY;
-        }
-        relayout();
+        this.chrome.revealLibrary();
     }
 
     // ------------------------------------------------------------------ the stack
@@ -1267,18 +1170,7 @@ public class SkinCreatorScreen extends Screen {
     private void paint(Canvas canvas, int mouseX, int mouseY, float delta) {
         Paint paint = new Paint(canvas, mouseX, mouseY, System.currentTimeMillis(), this.focused);
 
-        // The ground is the game's own: the panorama behind a menu, the world behind a
-        // pause screen. Painting over it would be replacing something the player's
-        // resource pack may well have chosen.
-        this.topBar.draw(paint);
-        this.scene.draw(paint, delta);
-        if (this.library.visible()) {
-            this.library.draw(paint);
-        }
-        if (this.layers.visible()) {
-            this.layers.draw(paint);
-        }
-        drawTabs(paint);
+        this.chrome.draw(paint, delta);
 
         // Overlays go over their own panel and take clicks before it, which is what
         // keeps an open menu from being painted over by the strip it belongs to.
@@ -1294,17 +1186,6 @@ public class SkinCreatorScreen extends Screen {
 
         this.toasts.draw(canvas, this.width, this.height, paint.time());
         drawTooltip(paint);
-    }
-
-    private void drawTabs(Paint paint) {
-        if (this.libraryTab == null) {
-            return;
-        }
-        Canvas canvas = paint.canvas();
-        int barTop = this.libraryTab.y() - Metrics.PAD_TIGHT;
-        Surface.panel(canvas, 0, barTop, this.width, this.height - barTop);
-        this.libraryTab.draw(paint);
-        this.layersTab.draw(paint);
     }
 
     private void drawTooltip(Paint paint) {
@@ -1330,23 +1211,7 @@ public class SkinCreatorScreen extends Screen {
             targets.addAll(this.window.children());
             return targets;
         }
-        targets.addAll(this.topBar.children());
-        targets.addAll(this.scene.controls());
-        // A band comes after its own contents: it is in the list for the rail down its
-        // edge, and a tile sitting on top of the rail would otherwise never be hit.
-        if (this.library.visible()) {
-            targets.addAll(this.library.hitTargets());
-            targets.add(this.library);
-        }
-        if (this.layers.visible()) {
-            targets.addAll(this.layers.hitTargets());
-            targets.add(this.layers);
-        }
-        if (this.libraryTab != null) {
-            targets.add(this.libraryTab);
-            targets.add(this.layersTab);
-        }
-        targets.add(this.scene);
+        targets.addAll(this.chrome.targets());
         return targets;
     }
 

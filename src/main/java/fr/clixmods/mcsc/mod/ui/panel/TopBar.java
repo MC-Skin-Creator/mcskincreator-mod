@@ -9,6 +9,7 @@ package fr.clixmods.mcsc.mod.ui.panel;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 import fr.clixmods.mcsc.mod.project.History;
 import fr.clixmods.mcsc.mod.style.Metrics;
@@ -16,10 +17,8 @@ import fr.clixmods.mcsc.mod.style.Palette;
 import fr.clixmods.mcsc.mod.style.Surface;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
-import fr.clixmods.mcsc.mod.ui.Logo;
 import fr.clixmods.mcsc.mod.ui.Paint;
 import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
@@ -36,10 +35,21 @@ import net.minecraft.resources.Identifier;
  * different reason: in the game the language is the game's, and the mod follows it.
  */
 public class TopBar extends Element {
+    /**
+     * The mark's picture: its texture and the size of the file it came from.
+     *
+     * <p>The icon ships far larger than the 16 pixels it is drawn at, so whatever draws
+     * it has to sample the whole image rather than a corner of it — which means the bar
+     * needs the source size along with the texture.
+     */
+    public record Mark(Identifier texture, int size) {
+    }
+
     /** The mark, drawn from the icon the mod already ships. */
     private static final int LOGO_SIZE = 16;
 
     private final History history;
+    private final Supplier<Mark> logo;
     private final Runnable onNew;
     private final Runnable onExport;
     private final Runnable onSkins;
@@ -48,9 +58,15 @@ public class TopBar extends Element {
     private final List<Element> children = new ArrayList<>();
     private final List<Integer> separators = new ArrayList<>();
 
-    public TopBar(History history, Runnable onNew, Runnable onExport, Runnable onSkins,
-                  Runnable onAbout) {
+    /**
+     * @param logo the mark to draw, or null for none. Asked for rather than looked up,
+     *             so that the bar can be laid out and painted where there is no game to
+     *             look it up in.
+     */
+    public TopBar(History history, Supplier<Mark> logo, Runnable onNew, Runnable onExport,
+                  Runnable onSkins, Runnable onAbout) {
         this.history = history;
+        this.logo = logo;
         this.onNew = onNew;
         this.onExport = onExport;
         this.onSkins = onSkins;
@@ -66,7 +82,7 @@ public class TopBar extends Element {
         this.children.clear();
         this.separators.clear();
 
-        Brand brand = new Brand(this.onAbout);
+        Brand brand = new Brand(this.logo, this.onAbout);
         brand.fit(canvas);
         int buttonY = this.y + (this.height - Metrics.BUTTON_HEIGHT_COMPACT) / 2;
         brand.setBounds(this.x + Metrics.PAD_TIGHT, this.y + (this.height - LOGO_SIZE) / 2,
@@ -175,9 +191,11 @@ public class TopBar extends Element {
      * there is no second MC Skin Creator.
      */
     private static final class Brand extends Element {
+        private final Supplier<Mark> logo;
         private final Runnable action;
 
-        private Brand(Runnable action) {
+        private Brand(Supplier<Mark> logo, Runnable action) {
+            this.logo = logo;
             this.action = action;
         }
 
@@ -191,12 +209,12 @@ public class TopBar extends Element {
             Canvas canvas = paint.canvas();
             boolean hot = paint.hot(this);
 
-            Identifier logo = Logo.texture(Minecraft.getInstance());
-            if (logo != null) {
+            Mark mark = this.logo.get();
+            if (mark != null && mark.texture() != null && mark.size() > 0) {
                 // The whole icon, scaled down to the mark: the file is 128 px and the
                 // mark is 16, so the source rectangle is the image, not a corner of it.
-                int source = Logo.size();
-                canvas.blit(logo, this.x, this.y, LOGO_SIZE, LOGO_SIZE,
+                int source = mark.size();
+                canvas.blit(mark.texture(), this.x, this.y, LOGO_SIZE, LOGO_SIZE,
                         0.0F, 0.0F, source, source, source, source);
             }
             canvas.text(Component.translatable("gui.mcskincreator.brand"),
