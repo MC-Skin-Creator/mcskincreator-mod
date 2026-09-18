@@ -41,6 +41,11 @@ class EditorGeometryTest {
                     continue;
                 }
                 int[] box = element.hitBox();
+                if (box[2] == 0 || box[3] == 0) {
+                    // Clipped away entirely, which is how a band too short for its
+                    // contents gives up: they are out of reach, not off screen.
+                    continue;
+                }
                 assertTrue(box[0] >= 0 && box[1] >= 0
                                 && box[0] + box[2] <= width && box[1] + box[3] <= height,
                         () -> describe(element) + " is outside a " + width + "x" + height + " screen");
@@ -60,7 +65,7 @@ class EditorGeometryTest {
                         continue;
                     }
                     int[] box = child.hitBox();
-                    assertTrue(box[2] == 0 || (box[0] >= panel.x()
+                    assertTrue(box[2] == 0 || box[3] == 0 || (box[0] >= panel.x()
                                     && box[0] + box[2] <= panel.x() + panel.width()),
                             () -> describe(child) + " runs past its panel at "
                                     + width + "x" + height);

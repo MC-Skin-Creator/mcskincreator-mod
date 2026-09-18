@@ -92,6 +92,22 @@ failure red — taken from where the game uses them.
 
 ## Scale
 
+**The editor takes its own GUI scale.** It is a workbench, not a menu: three columns,
+a grid of thumbnails, a stack of layers and four settings at once, and at the scale
+most people play at it would get 640 by 360 pixels to do that in. The game's font is 8
+of those — a ninth of the height of a layer row — so everything around it has to be
+big too, and the result reads as an interface designed for a phone.
+
+The font is the floor and it cannot be lowered: it is a bitmap, and half a pixel of it
+is a broken letter rather than a smaller one. Drawing the editor two thirds the size
+inside the player's scale would mangle every glyph on screen. So
+[`EditorScale`](src/main/java/fr/clixmods/mcsc/mod/ui/EditorScale.java) asks the window
+for the whole scale nearest to **960 by 540** — what a 1080p window gives at a scale of
+2, and the size this interface is laid out for — and gives the player's own back the
+moment the screen closes. It is their setting, so it is restored in `removed()`, which
+the game calls however the screen ends, and re-applied on every layout, because a
+window resize makes the game recompute it from the options.
+
 The site is laid out around a 12 px font; the game's is 8 px. Every spacing and line
 height is two thirds of its reference value — `Metrics.ui(int)`, and nothing does
 that conversion anywhere else.
@@ -108,6 +124,11 @@ What is **not** converted at all is anything the game already has an opinion abo
 button is 20 px tall because that is what a Minecraft button is. The insets in
 `Metrics` are the borders of the sprites above, so a label sits clear of the frame the
 sprite draws.
+
+**Padding is 4 and 8, and there is no third.** These used to be the site's spacings run
+through `ui()`, which gave 5 and 3 — a third of a letter of air between controls, and
+the whole interface read as cramped for it. A Minecraft screen is laid out on fours and
+eights.
 
 **There are two control heights and there is no third.** `BUTTON_HEIGHT` (20) and
 `BUTTON_HEIGHT_COMPACT` (16), which is also `TAB_HEIGHT`. A row holding a 14 px tab
@@ -195,9 +216,13 @@ preview.
 - Don't lay a panel's contents out from its edge; lay them out from its frame.
 - Don't float a tab. It is drawn to sit on what it opens, and it has no bottom edge.
 - Don't wrap a row of tabs onto a second row. Collapse it to a dropdown.
-- Don't pin a band whose height is fixed against one that has to fit in the rest: the
-  settings wanted 137 px of a column that has 163 on a 720p window, and the list was
-  left one row that drew over them. One scroll fits every screen the game has.
+- Don't let the settings scroll. The list moves, they stay: a slider that can scroll
+  out from under a drag is a slider nobody can use. What makes that safe is the
+  editor's own scale, and a band clipped to itself so it can never reach into the list
+  the way it once did.
+- Don't make a tab of something that opens nothing. The model chooser was a pair of
+  tabs with no body under them — one drawn as a black box, the other as an open frame,
+  and neither making sense. It is one control that says what the model is.
 - Don't say the same thing twice in two empty states. With no layers there is nothing
   to select either, and both sentences landed in the same place.
 - Don't put the preview behind anything.

@@ -52,6 +52,7 @@ src/main/java/fr/clixmods/mcsc/mod/
     ├── ScreenCompat.java      the two call renames outside drawing
     ├── Element.java, Paint.java   the widget base and the per-frame context
     ├── EditorChrome.java      where the four zones go: columns, drawers, paint order, hit list
+    ├── EditorScale.java       the GUI scale this screen takes for itself, and gives back
     ├── SkinCreatorScreen.java the editor: project, catalogue, requests, windows, input
     ├── Figure.java, PlayerFigure.java   the player in the scene, and the game's way of drawing one
     ├── MenuButtons.java, SkinPanel.java   the entry on the vanilla menus

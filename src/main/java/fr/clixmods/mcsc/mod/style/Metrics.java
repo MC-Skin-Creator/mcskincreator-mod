@@ -23,10 +23,16 @@ public final class Metrics {
     private Metrics() {
     }
 
-    /** Generic inner padding, 8 site px. */
-    public static final int PAD = ui(8);
-    /** Tight inner padding, 4 site px. */
-    public static final int PAD_TIGHT = ui(4);
+    /**
+     * The two gaps this interface uses, and there is no third.
+     *
+     * <p>Not converted from the site any more. The site's spacings ran through
+     * {@link #ui(int)} and came out 5 and 3, which is a third of a letter of air
+     * between controls — and the whole interface read as cramped for it. These are the
+     * game's own rhythm: a Minecraft screen is laid out on fours and eights.
+     */
+    public static final int PAD = 8;
+    public static final int PAD_TIGHT = 4;
 
     // The borders of the sprites in Sprites, so content is laid inside them.
     /** {@code popup/background} carries a 6 px border. */
@@ -63,13 +69,20 @@ public final class Metrics {
      * keep a column readable at one end and from sprawling at the other.
      */
     public static int columnWidth(int screenWidth) {
-        return Math.max(MIN_COLUMN_WIDTH, Math.min(MAX_COLUMN_WIDTH, screenWidth * 19 / 100));
+        return Math.max(MIN_COLUMN_WIDTH, Math.min(MAX_COLUMN_WIDTH, screenWidth * 17 / 100));
     }
 
     /** Narrow enough to still hold two thumbnails side by side. */
-    public static final int MIN_COLUMN_WIDTH = 104;
-    /** Wide enough on a big screen without turning into a second scene. */
-    public static final int MAX_COLUMN_WIDTH = 170;
+    public static final int MIN_COLUMN_WIDTH = 120;
+    /**
+     * Wide enough on a big screen without turning into a second scene.
+     *
+     * <p>The cap used to be 170 and it was reached everywhere, which is why the columns
+     * looked stranded in a wide window: the share stopped applying and the scene took
+     * everything the column did not. The site's own library is a little over a seventh
+     * of its width, and this is that share with room to go on growing before it stops.
+     */
+    public static final int MAX_COLUMN_WIDTH = 210;
 
     /** A folded column keeps just enough room for the button that unfolds it. */
     public static final int COLLAPSED_WIDTH = ui(40);

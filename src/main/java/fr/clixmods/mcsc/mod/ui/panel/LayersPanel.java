@@ -27,6 +27,7 @@ import fr.clixmods.mcsc.mod.ui.Element;
 import fr.clixmods.mcsc.mod.ui.Paint;
 import fr.clixmods.mcsc.mod.ui.ScrollPane;
 import fr.clixmods.mcsc.mod.ui.widget.LayerRow;
+import fr.clixmods.mcsc.mod.ui.widget.Dropdown;
 import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
 import fr.clixmods.mcsc.mod.ui.widget.Slider;
 import net.minecraft.network.chat.Component;
@@ -42,12 +43,13 @@ import net.minecraft.world.entity.player.PlayerModelType;
  * own region only: a hat cannot be dragged below a pair of trousers, because on the
  * model it never is.
  *
- * <p>One scroll rather than a list above a pinned inspector. Pinned, the settings
- * wanted 137 pixels of a column that on a 720p window has 163 to give, and the list
- * was left one row that drew straight over them. A band that has to fit in whatever is
- * left is a band that will one day not fit; a band that scrolls fits every screen the
- * game has. The settings follow the selected layer down the list, which is also where
- * one is looking when changing them.
+ * <p>The list scrolls and the settings do not. They are a fixed panel at the foot of
+ * the column: what is being adjusted stays under the hand while the list moves, and a
+ * slider that can scroll out from under a drag is a slider nobody can use. What makes
+ * that safe is that the editor now takes its own scale, so the column has some 450
+ * pixels rather than 360 and the settings fit in what is left with room to spare —
+ * they are clipped to their own band regardless, so they can never draw over the list
+ * the way they did before.
  *
  * <p>With no selection the settings area says so rather than leaving an empty box,
  * which is what an empty state is for.
@@ -65,26 +67,22 @@ public class LayersPanel extends Panel {
     private final ScrollPane scroll = new ScrollPane();
     private final List<PlacedRow> rows = new ArrayList<>();
     private final List<GroupTitle> titles = new ArrayList<>();
-    /** The header's controls, which do not scroll. */
+    /** The header's controls and the settings, none of which scroll. */
     private final List<Element> fixed = new ArrayList<>();
-    /** The settings, which do: they are the tail of the same content as the rows. */
-    private final List<Placed> scrolled = new ArrayList<>();
+    /** The settings only, so the band they live in can be drawn and clipped on its own. */
+    private final List<Element> settings = new ArrayList<>();
 
     private PixelButton foldButton;
-    /** Where the rule under the model tabs goes: they are a tab bar, so they have one. */
-    private int modelTabsBottom;
     private int bodyTop;
     private int bodyHeight;
-    /** Where the settings begin, measured from the top of the scrolling content. */
-    private int settingsContentY;
+    /** The top of the settings band, which is where the scrolling list stops. */
+    private int settingsTop;
     private Layer dragged;
 
     private record PlacedRow(LayerRow row, int contentY) {
     }
 
-    /** Anything else that scrolls with the rows, and how far down the content it sits. */
-    private record Placed(Element element, int contentY) {
-    }
+
 
     private record GroupTitle(String region, int count, int contentY) {
     }
@@ -108,7 +106,7 @@ public class LayersPanel extends Panel {
     public void layout(Canvas canvas) {
         clearChildren();
         this.rows.clear();
-        this.scrolled.clear();
+        this.settings.clear();
         this.titles.clear();
         this.fixed.clear();
 
@@ -144,26 +142,26 @@ public class LayersPanel extends Panel {
         int left = contentLeft();
         int cursorY = this.y + header + Metrics.PAD_TIGHT;
 
-        int segmentX = left;
-        for (PlayerModelType kind : new PlayerModelType[] {PlayerModelType.WIDE, PlayerModelType.SLIM}) {
-            PixelButton button = new PixelButton(Component.translatable(modelLabelKey(kind)),
-                    PixelButton.Style.TAB, () -> {
-                        this.history.record();
-                        this.project.setModel(kind);
-                        this.relayout.run();
-                    });
-            button.fit(canvas).setActive(this.project.model() == kind);
-            button.withTooltip(Component.translatable(modelLabelKey(kind) + ".tooltip"));
-            button.setBounds(segmentX, cursorY, button.width(), Metrics.TAB_HEIGHT);
-            this.fixed.add(addChild(button));
-            segmentX += button.width() + Metrics.SEGMENT_GAP;
-        }
-
-        // The two model tabs stand on a rule, the way the game's tabs stand on the thing
-        // they open; the import button is an action rather than one of that pair, so it
-        // takes a row of its own rather than sharing theirs.
-        this.modelTabsBottom = cursorY + Metrics.TAB_HEIGHT;
-        cursorY = this.modelTabsBottom + Metrics.PAD;
+        // The model is a property of the skin, not a view of this panel — nothing below
+        // it changes when it changes — so it is not a tab bar and was never going to
+        // read as one. A tab that opens onto nothing is exactly what looked wrong about
+        // the pair: one drawn as a black box and the other as an open frame, with no
+        // body under either to make sense of them. It is one control that says what the
+        // model is.
+        Dropdown<PlayerModelType> model = new Dropdown<>(
+                List.of(PlayerModelType.WIDE, PlayerModelType.SLIM),
+                kind -> Component.translatable(modelLabelKey(kind)),
+                this.project::model,
+                kind -> {
+                    this.history.record();
+                    this.project.setModel(kind);
+                    this.relayout.run();
+                },
+                kind -> true);
+        model.setBounds(left, cursorY, right - left, Metrics.BUTTON_HEIGHT_COMPACT);
+        model.inScreen(this.y + this.height);
+        this.fixed.add(addChild(model));
+        cursorY += Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD_TIGHT;
 
         PixelButton importTexture = new PixelButton(
                 Component.translatable("gui.mcskincreator.import"),
@@ -174,10 +172,25 @@ public class LayersPanel extends Panel {
         this.fixed.add(addChild(importTexture));
         cursorY += Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD;
 
+        int bottom = this.y + this.height - Metrics.PANEL_INSET;
+        int available = Math.max(0, bottom - cursorY);
+        // The list keeps at least one row whatever the settings want, and the settings
+        // take what is left over. At the sizes the editor gives itself this never
+        // bites; the clamp is what stops it ever biting the list instead.
+        int band = Math.min(settingsHeight(canvas), Math.max(0, available - Metrics.LAYER_ROW));
+
         this.bodyTop = cursorY;
-        this.bodyHeight = Math.max(0, this.y + this.height - Metrics.PANEL_INSET - cursorY);
+        this.bodyHeight = Math.max(0, available - band);
+        this.settingsTop = bottom - band;
 
         layoutStack(canvas, left, right);
+        layoutSettings(canvas, left, right);
+        // The band is clipped when it is drawn, so it is clipped for the pointer too:
+        // on a window too short to hold every setting, the ones that fell off the
+        // bottom are out of reach rather than merely invisible.
+        for (Element control : this.settings) {
+            control.clipTo(this.x, this.settingsTop, this.width, band);
+        }
     }
 
     private static String modelLabelKey(PlayerModelType kind) {
@@ -212,29 +225,35 @@ public class LayersPanel extends Panel {
                 cursorY += Metrics.LAYER_ROW + Metrics.SEGMENT_GAP;
             }
         }
-
-        if (cursorY > 0) {
-            cursorY += Metrics.PAD;
-        }
-        this.settingsContentY = cursorY;
-        cursorY = layoutSettings(canvas, left, right, cursorY);
         this.scroll.setContent(cursorY, this.bodyHeight);
     }
 
-    /**
-     * The settings of the selected layer, at the foot of the scrolling content.
-     *
-     * @return where the content ends
-     */
-    private int layoutSettings(Canvas canvas, int left, int right, int top) {
-        int cursorY = top + canvas.lineHeight() + Metrics.PAD_TIGHT;
+    /** How tall the settings band wants to be: its heading, four sliders and a button. */
+    private int settingsHeight(Canvas canvas) {
+        if (this.project.isEmpty()) {
+            // No layers, so nothing to select and nothing to say about a selection. The
+            // list's own empty state already says what to do.
+            return 0;
+        }
+        // The rule that separates the band from the list is part of the band, or the
+        // band's own clip cuts it off.
+        int heading = Metrics.PAD_TIGHT + canvas.lineHeight() + Metrics.PAD;
+        if (this.project.selected() == null) {
+            return heading + canvas.lineHeight() + Metrics.PAD;
+        }
+        return heading + (Slider.heightFor(canvas) + Metrics.PAD_TIGHT) * 4
+                + Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD_TIGHT;
+    }
+
+    /** The settings of the selected layer, pinned at the foot of the column. */
+    private void layoutSettings(Canvas canvas, int left, int right) {
         Layer layer = this.project.selected();
         if (layer == null) {
             // Nothing to set, so nothing is laid out: the band says why in its own place.
-            return cursorY;
+            return;
         }
-        int gutter = ScrollPane.BAR_WIDTH + Metrics.PAD_TIGHT;
-        int width = right - left - gutter;
+        int cursorY = this.settingsTop + Metrics.PAD_TIGHT + canvas.lineHeight() + Metrics.PAD;
+        int width = right - left;
 
         cursorY = addSlider(canvas, left, cursorY, width, "opacity", 0, 100,
                 layer::opacity, layer::setOpacity, value -> Component.literal(value + "%"));
@@ -255,8 +274,8 @@ public class LayersPanel extends Panel {
         reset.withTooltip(Component.translatable("gui.mcskincreator.reset_colors.tooltip"));
         reset.fitWithin(canvas, width);
         reset.setBounds(left, cursorY, width, Metrics.BUTTON_HEIGHT_COMPACT);
-        this.scrolled.add(new Placed(addChild(reset), cursorY));
-        return cursorY + Metrics.BUTTON_HEIGHT_COMPACT;
+        this.settings.add(addChild(reset));
+        this.fixed.add(reset);
     }
 
     private int addSlider(Canvas canvas, int left, int top, int width, String id,
@@ -274,7 +293,8 @@ public class LayersPanel extends Panel {
                 // One drag is one entry in the history, however many frames it lasts.
                 () -> this.history.beginGesture(id), this.history::endGesture);
         slider.setBounds(left, top, width, Slider.heightFor(canvas));
-        this.scrolled.add(new Placed(addChild(slider), top));
+        this.settings.add(addChild(slider));
+        this.fixed.add(slider);
         return top + Slider.heightFor(canvas) + Metrics.PAD_TIGHT;
     }
 
@@ -312,13 +332,13 @@ public class LayersPanel extends Panel {
         Canvas canvas = paint.canvas();
         drawFrame(paint);
         for (Element element : this.fixed) {
-            element.draw(paint);
+            if (!this.settings.contains(element)) {
+                element.draw(paint);
+            }
         }
         if (folded()) {
             return;
         }
-        Surface.rule(canvas, contentLeft(), this.modelTabsBottom, contentWidth());
-
         int left = contentLeft();
         int right = contentRight();
         int railRight = right - ScrollPane.BAR_WIDTH - Metrics.PAD_TIGHT;
@@ -342,10 +362,20 @@ public class LayersPanel extends Panel {
                     placed.row().draw(paint);
                 }
             }
-            drawSettings(paint, left, railRight, offset + this.settingsContentY);
         }
         canvas.popScissor();
         this.scroll.drawBar(canvas, right, this.bodyTop, this.bodyHeight);
+
+        // Its own band, and clipped to it: the settings are drawn after the list and
+        // must never be able to reach into it, whatever the column's height turned out
+        // to be.
+        // Clipped vertically only. Sideways it gets the whole panel: a value is right
+        // aligned on the content's own edge, and a scissor drawn to that same edge
+        // takes the last column of the last glyph with it.
+        canvas.pushScissor(this.x, this.settingsTop, this.width,
+                this.y + this.height - Metrics.PANEL_INSET - this.settingsTop);
+        drawSettings(paint, left, right, this.settingsTop);
+        canvas.popScissor();
     }
 
     private void drawGroupTitle(Canvas canvas, GroupTitle title, int left, int right, int y) {
@@ -368,28 +398,28 @@ public class LayersPanel extends Panel {
         Canvas canvas = paint.canvas();
         Layer layer = this.project.selected();
         if (layer == null) {
+            Surface.rule(canvas, left, top, Math.max(0, right - left));
             canvas.textWrapped(Component.translatable("empty.mcskincreator.inspector"),
-                    left, top, Math.max(1, right - left), Palette.INK_MUTED);
+                    left, top + Metrics.PAD, Math.max(1, right - left), Palette.INK_MUTED);
             return;
         }
 
-        // Ruled off from the stack above it: these settings belong to one row of that
+        // Ruled off from the list above it: these settings belong to one row of that
         // list, and without a line the heading reads as one more group of it.
-        Surface.rule(canvas, left, top - Metrics.PAD_TIGHT, Math.max(0, right - left));
+        Surface.rule(canvas, left, top, Math.max(0, right - left));
 
+        int titleY = top + Metrics.PAD_TIGHT;
         String title = Component.translatable("gui.mcskincreator.settings").getString()
                 .toUpperCase(Locale.ROOT);
-        canvas.textTracked(title, left, top, Palette.INK, Metrics.TITLE_TRACKING);
+        canvas.textTracked(title, left, titleY, Palette.INK, Metrics.TITLE_TRACKING);
         int titleWidth = canvas.trackedWidth(title, Metrics.TITLE_TRACKING);
-        int nameRoom = Math.max(0, right - left - titleWidth - Metrics.PAD_TIGHT);
+        int nameRoom = Math.max(0, right - left - titleWidth - Metrics.PAD);
         canvas.text(Component.literal(fr.clixmods.mcsc.mod.ui.Marquee.cut(
                         canvas, layer.name().getString(), nameRoom)),
-                left + titleWidth + Metrics.PAD_TIGHT, top, Palette.INK);
+                left + titleWidth + Metrics.PAD, titleY, Palette.INK);
 
-        for (Placed placed : this.scrolled) {
-            if (onScreen(placed.element())) {
-                placed.element().draw(paint);
-            }
+        for (Element element : this.settings) {
+            element.draw(paint);
         }
     }
 
@@ -407,7 +437,7 @@ public class LayersPanel extends Panel {
                 width, Palette.INK_MUTED);
     }
 
-    /** Moves everything that scrolls to where the offset now puts it. */
+    /** Moves the rows to where the offset now puts them. */
     private void place() {
         int offset = this.bodyTop - this.scroll.offset();
         for (PlacedRow placed : this.rows) {
@@ -415,12 +445,6 @@ public class LayersPanel extends Panel {
             row.setBounds(row.x(), offset + placed.contentY(), row.width(), row.height());
             row.clipTo(this.x, this.bodyTop, this.width, this.bodyHeight);
             row.setDragging(this.dragged == row.layer());
-        }
-        for (Placed placed : this.scrolled) {
-            Element element = placed.element();
-            element.setBounds(element.x(), offset + placed.contentY(),
-                    element.width(), element.height());
-            element.clipTo(this.x, this.bodyTop, this.width, this.bodyHeight);
         }
     }
 
@@ -439,11 +463,6 @@ public class LayersPanel extends Panel {
         for (PlacedRow placed : this.rows) {
             if (onScreen(placed.row())) {
                 targets.add(placed.row());
-            }
-        }
-        for (Placed placed : this.scrolled) {
-            if (onScreen(placed.element())) {
-                targets.add(placed.element());
             }
         }
         return targets;

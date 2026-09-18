@@ -26,20 +26,28 @@ import net.minecraft.util.FormattedCharSequence;
  * own and the mod's — which is the same pair the client merges.
  */
 final class Translations {
-    private static boolean installed;
+    private static String installed;
 
     private Translations() {
     }
 
-    static synchronized void install() {
-        if (installed) {
+    /**
+     * Installs a language.
+     *
+     * <p>French is not an afterthought here, it is the test: it is the longest of the
+     * three the mod ships, and a column that holds "Import a texture" does not hold
+     * "Importer une texture". Laying the interface out against the shortest language it
+     * speaks is how a label ends up cut for everybody else.
+     */
+    static synchronized void install(String language) {
+        if (language.equals(installed)) {
             return;
         }
-        installed = true;
+        installed = language;
 
         Map<String, String> strings = new HashMap<>();
-        read("assets/minecraft/lang/en_us.json", strings);
-        read("assets/mcskincreator/lang/en_us.json", strings);
+        read("assets/minecraft/lang/" + language + ".json", strings);
+        read("assets/mcskincreator/lang/" + language + ".json", strings);
 
         Language.inject(new Language() {
             @Override

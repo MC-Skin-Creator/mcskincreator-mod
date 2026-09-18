@@ -143,6 +143,8 @@ public class SkinCreatorScreen extends Screen {
     private LayersPanel layers;
     /** Where the four zones go. The screen owns what is in them, not where they are. */
     private EditorChrome chrome;
+    /** The scale this screen draws at, which is its own rather than the player's. */
+    private final EditorScale scale = new EditorScale();
 
     private ModalWindow window;
     private Element focused;
@@ -199,6 +201,14 @@ public class SkinCreatorScreen extends Screen {
 
     @Override
     protected void init() {
+        // Before anything is measured: taking the scale changes what a pixel is, and
+        // every size below is in pixels. A resize makes the game recompute the scale
+        // from the options, so this runs on every layout rather than once.
+        if (this.scale.apply(this.minecraft)) {
+            this.width = this.minecraft.getWindow().getGuiScaledWidth();
+            this.height = this.minecraft.getWindow().getGuiScaledHeight();
+        }
+
         if (this.library == null) {
             this.topBar = new TopBar(this.history,
                     () -> new TopBar.Mark(Logo.texture(this.minecraft), Logo.size()),
@@ -1486,6 +1496,7 @@ public class SkinCreatorScreen extends Screen {
     @Override
     public void removed() {
         super.removed();
+        this.scale.restore(this.minecraft);
         this.closed = true;
         this.preview.close();
         for (CategorySprites loaded : this.sprites.values()) {

@@ -55,8 +55,15 @@ public final class EditorPreview {
     private Catalog catalog = Catalog.EMPTY;
     private boolean laidOut;
 
+    /** The language the mod speaks longest, which is the one worth laying out against. */
+    public static final String LONGEST_LANGUAGE = "fr_fr";
+
     public EditorPreview() {
-        Translations.install();
+        this(LONGEST_LANGUAGE);
+    }
+
+    public EditorPreview(String language) {
+        Translations.install(language);
 
         this.topBar = new TopBar(this.history, () -> null,
                 () -> { }, () -> { }, () -> { }, () -> { });
@@ -198,7 +205,11 @@ public final class EditorPreview {
 
     /** The one call a caller needs when all it wants is a picture. */
     public static BufferedImage of(int width, int height, int scale) {
-        return new EditorPreview().withCatalog(sampleCatalog()).withLayers(5)
+        return of(LONGEST_LANGUAGE, width, height, scale);
+    }
+
+    public static BufferedImage of(String language, int width, int height, int scale) {
+        return new EditorPreview(language).withCatalog(sampleCatalog()).withLayers(5)
                 .render(width, height, scale);
     }
 
