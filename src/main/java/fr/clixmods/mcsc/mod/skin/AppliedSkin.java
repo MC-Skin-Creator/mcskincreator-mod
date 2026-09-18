@@ -9,6 +9,7 @@ package fr.clixmods.mcsc.mod.skin;
 
 import java.io.IOException;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.world.entity.player.PlayerModelType;
@@ -72,14 +73,26 @@ public final class AppliedSkin {
         AppliedSkin.profileId = profileId;
     }
 
-    /** Drops the override and the texture with it. Must run on the client thread. */
-    public static void forget() {
-        profileId = null;
-        TEXTURE.close();
-    }
-
-    public static boolean isWorn() {
-        return profileId != null && TEXTURE.isUploaded();
+    /**
+     * Wraps a skin lookup so it answers the applied skin for {@code id}.
+     *
+     * <p>The mixin covers what is drawn from a player <em>entity</em>, and the menus
+     * have none: the panel on the title screen asks {@code SkinManager} for a lookup of
+     * the profile, which resolves the account's skin and so goes on showing the old one
+     * until its cache and the profile behind it are rebuilt — that is, until the game
+     * restarts. This is the same override, at the other door.
+     *
+     * <p>Wrapping the supplier rather than the result is what keeps it live:
+     * {@code PlayerSkinWidget} keeps the supplier and calls it as it draws, on both
+     * targets, so a panel built before the upload shows the new skin the moment it
+     * lands, without being rebuilt.
+     */
+    public static Supplier<PlayerSkin> over(UUID id, Supplier<PlayerSkin> lookup) {
+        return () -> {
+            PlayerSkin resolved = lookup.get();
+            PlayerSkin applied = worn(id, resolved);
+            return applied == null ? resolved : applied;
+        };
     }
 
     /**

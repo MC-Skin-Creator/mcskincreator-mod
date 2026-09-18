@@ -10,6 +10,9 @@ package fr.clixmods.mcsc.mod.ui;
 import java.util.List;
 import java.util.Optional;
 
+import com.mojang.authlib.GameProfile;
+
+import fr.clixmods.mcsc.mod.skin.AppliedSkin;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
@@ -111,8 +114,16 @@ final class SkinPanel {
         // until the real one is downloaded, so the panel fills in on its own and
         // offline players get Steve or Alex instead of an empty box. The flag would
         // demand a signed texture, which a locally applied skin will never carry.
+        //
+        // What it resolves, though, is the account's skin, and a running client's idea
+        // of that is the profile it was handed on joining: after an upload this panel
+        // would go on showing the old skin until the game restarts. Wrapping the lookup
+        // puts the applied skin here too - the mixin cannot, since a menu has no player
+        // entity to draw from.
+        GameProfile profile = client.getGameProfile();
         PlayerSkinWidget preview = new PlayerSkinWidget(SKIN_WIDTH, SKIN_HEIGHT, client.getEntityModels(),
-                client.getSkinManager().createLookup(client.getGameProfile(), false));
+                AppliedSkin.over(profile.id(),
+                        client.getSkinManager().createLookup(profile, false)));
         preview.setPosition(x, y);
         preview.setTooltip(Tooltip.create(Component.translatable("gui.mcskincreator.skin_preview")));
         return preview;

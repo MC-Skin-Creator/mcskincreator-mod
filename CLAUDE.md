@@ -198,6 +198,13 @@ restarting the game. Every other way in is private on at least one target —
 `SkinManager#registerTextures` is package-private on 1.21.11 and private on 26.2,
 `PlayerInfo#skinLookup` is private on both, all checked with `javap`.
 
+It covers what is drawn from a player **entity**, and only that. A menu has no player
+entity: `SkinPanel` asks `SkinManager#createLookup` for a supplier, so it takes the
+same override through `AppliedSkin.over(…)`, which wraps that supplier. Anything else
+that comes to draw the local player's skin needs one door or the other — the mixin is
+not a catch-all, and forgetting this is how the title screen kept showing the old skin
+after the rest of the game had moved on.
+
 Two things about the setup are worth knowing before touching it:
 
 - **No refmap, and none is needed.** Loom rewrites the annotation itself when it remaps

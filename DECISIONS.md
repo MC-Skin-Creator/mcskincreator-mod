@@ -60,8 +60,17 @@ Minecraft's caches sit on top of that, so the new skin used to appear only on a
 restart — a minute in which a successful upload is indistinguishable from a failed one.
 
 The mod closes that minute by wearing the uploaded pixels itself: `skin/AppliedSkin`
-holds them, and the mod's one mixin takes the return of `AbstractClientPlayer#getSkin`
-for the player they belong to. Three choices inside that are deliberate:
+holds them, and they reach the screen through **two doors**, because the game draws the
+player's skin two ways. The mod's one mixin takes the return of
+`AbstractClientPlayer#getSkin`, which covers everything drawn from a player entity; the
+panel on the title and pause menus has no entity and asks `SkinManager` for a supplier
+instead, so it wraps that supplier with `AppliedSkin.over(…)`. Missing the second door
+is what left the menu preview showing the old skin while the player in the world already
+wore the new one. Wrapping the supplier rather than its result is deliberate:
+`PlayerSkinWidget` keeps the supplier and calls it as it draws, so a panel built before
+the upload updates without being rebuilt.
+
+Three further choices are deliberate:
 
 - **After the upload, never before.** A client wearing a skin that failed to send would
   be a worse lie than the wait it replaces.
