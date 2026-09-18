@@ -5,10 +5,12 @@
 Fabric client mod that brings the [MC Skin Creator](https://github.com/MC-Skin-Creator)
 skin editor into the game.
 
-## Status: the editor, in the site's own interface
+## Status: the editor, and the skin on your account
 
-The editor stacks a skin out of layers and shows it on a player model. It does not
-apply the skin yet: nothing you build leaves the screen.
+The editor stacks a skin out of layers, shows it on a player model, and can put it
+on your Minecraft account — the real one, the one everybody sees. That last step is
+the only thing the mod does that leaves your machine, it happens once per press of a
+button, and it never happens on its own.
 
 The screen is the site's, in the game — the same materials, the same palette, the
 same gestures, the same three zones. The rules it follows are in
@@ -34,14 +36,40 @@ What is in:
 - undo and redo over 60 states, with one entry per gesture rather than per frame
 - export into `<game>/mcskincreator/`: the composed 64x64 sheet, or the character
   seen from the front
+- **applying the skin to your Minecraft account**, through Mojang's own endpoint, with
+  the classic or slim model you chose. The button confirms first and says what it will
+  cost, it locks between two uploads, and it is absent — with the reason — when the
+  session is not signed in with Microsoft
 - English, French and Spanish, with a label and a tooltip for every control
 - multi-version builds through [Stonecutter](https://stonecutter.kikugie.dev/):
   **Minecraft 1.21.11 and 26.2** from the same code
 - CI building every supported version on each push and pull request
 
 What is not in yet: the pixel drawing tools, per-element colours, importing a
-texture, the account, and applying the skin. They all live in the
+texture, the MC Skin Creator account the saved skins will hang off, and the local
+fitting room — trying a skin on in your own client without touching the account.
+They all live in the
 [issues](https://github.com/MC-Skin-Creator/mcskincreator-mod/issues).
+
+### What the mod does with your session
+
+Applying a skin is the one thing here that needs your Minecraft session token, so it
+is worth saying plainly where it goes.
+
+- The token is read at the moment you press **Apply** and sent to exactly one address,
+  `https://api.minecraftservices.com/minecraft/profile/skins` — the same call the
+  official launcher makes for its own account.
+- It is never sent to the MC Skin Creator back-end, never written to a log, never put
+  in a crash report, and never kept in a field between two uploads.
+- Two files hold all of it, and they are short on purpose:
+  [`MojangSkins`](src/main/java/fr/clixmods/mcsc/mod/account/MojangSkins.java) and
+  [`GameSession`](src/main/java/fr/clixmods/mcsc/mod/account/GameSession.java). Nothing
+  outside that package can reach the token at all.
+- Uploading happens once per press. The mod never uploads on its own, on a timer, or
+  in a batch, and it locks the button between two uploads so a session cannot be
+  rate-limited by an impatient click.
+
+A dedicated `SECURITY.md` is [issue #13](https://github.com/MC-Skin-Creator/mcskincreator-mod/issues/13).
 
 The editor reads the MC Skin Creator API at `https://mcskincreator.app/api/v1`, and
 uses every route of that contract: the catalogue and its atlases, the search, an

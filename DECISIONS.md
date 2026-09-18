@@ -6,16 +6,58 @@ Mojang's version manifest, not copied from a tutorial.
 
 ## 1. Skin level
 
-Three levels were on the table. We ship **level 1 first**:
+Three levels were on the table:
 
 | Level | What it does | Who sees the skin | Status |
 |---|---|---|---|
-| 1. Fitting room | the mod replaces the skin texture locally | you only | planned first |
-| 2. Mojang upload | upload to the account through the official API | everyone, everywhere | after level 1 |
+| 1. Fitting room | the mod replaces the skin texture locally | you only | not built, issue #11 |
+| 2. Mojang upload | upload to the account through the official API | everyone, everywhere | **built** |
 | 3. Server mod | rewriting the `textures` property server-side | everyone on that server | out of scope, another repository |
 
-Players **will** mistake level 1 for a real skin change. The interface has to spell
-the difference out, or every attempt will look like a bug.
+**Level 2 shipped before level 1**, which reverses the order this file first set out.
+The reason is worth recording, because the original order was not wrong so much as
+answering a different question: level 1 was first because it is the safe one, not
+because it is the one a player wants. What makes the mod a product is the skin
+actually changing, and level 1 is a mirror — every hour of it would have been spent
+explaining to players that the change they just made is not a change. Level 2 needs
+no such explaining, and it turned out not to depend on level 1 for anything: the
+composed sheet already existed, because export writes it to a file.
+
+Level 1 is still worth having, and it is still issue #11. Its value is what it always
+was, only smaller than it looked: trying a skin on without spending an upload against
+Mojang's rate limit, and working offline.
+
+Players **will** mistake level 1 for a real skin change when it lands. The interface
+has to spell the difference out, or every attempt will look like a bug — and now that
+level 2 exists to be confused with, that is no longer a hypothetical.
+
+### What level 2 costs, and what pays for it
+
+The session token is the account. Three rules hold the whole design, and each is one
+a reader of this repository can check rather than take on trust:
+
+- **One address.** The token goes to `api.minecraftservices.com` and nowhere else,
+  from one file — `account/MojangSkins.java`. Nothing outside `account/` can reach it:
+  `GameSession` is package-private and `AccountSkin` is the only way in. `MojangSkinsTest`
+  pins the endpoint so that changing it has to be argued for in a diff.
+- **Never in a log.** `SkinUploadException` carries a status code and a `Retry-After`,
+  and deliberately nothing of the request. A failure ends up in crash reports, and a
+  crash report is the likeliest way a token escapes a mod that meant well.
+- **Never on its own.** One press, one upload. The mod has no timer, no batch and no
+  retry, and `UploadCooldown` locks the button between two uploads — with Mojang's own
+  `Retry-After` honoured when it sends one.
+
+The cooldown's floor after a success is the mod's own number, not a published limit:
+Mojang documents no rate for skin changes. A generous floor costs a player nothing —
+the CDN takes longer than the floor does to show the change anyway — and a session
+rate-limited by an impatient click costs them ten minutes.
+
+`PlayerModelType` goes up with the sheet as Mojang's `classic` or `slim`, so the arms
+are the width the skin was drawn for. The upload needs a PNG, and the composer answers
+either a PNG or a raw RGBA buffer; `NativeImage` on both target versions can read a PNG
+and write one to a *file*, but has no call that hands back the bytes — so `skin/Png.java`
+encodes the raw shape. Sixty lines of well-specified format beat a temporary file
+between two buffers already in memory.
 
 ## 2. Loader: Fabric
 

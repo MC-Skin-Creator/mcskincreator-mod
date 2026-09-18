@@ -12,9 +12,9 @@ import java.util.function.Supplier;
 
 import fr.clixmods.mcsc.mod.style.Metrics;
 import fr.clixmods.mcsc.mod.style.Palette;
-import fr.clixmods.mcsc.mod.style.Surface;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Paint;
+import fr.clixmods.mcsc.mod.ui.Prose;
 import net.minecraft.network.chat.Component;
 
 /**
@@ -70,31 +70,16 @@ public class TextWindow extends ModalWindow {
 
     private int heightOf(Canvas canvas, Line line) {
         int rows = wrapped(canvas, line).size();
-        int text = rows * (canvas.lineHeight() + 1) + Metrics.PAD_TIGHT;
-        return line.warning() ? text + canvas.lineHeight() + Metrics.PAD_TIGHT * 3 : text;
+        if (line.warning()) {
+            return Prose.noteHeight(canvas, rows) + Metrics.PAD_TIGHT;
+        }
+        return rows * (canvas.lineHeight() + 1) + Metrics.PAD_TIGHT;
     }
 
-    /**
-     * Wraps a paragraph to the body width by hand.
-     *
-     * <p>The game can wrap text itself, but only straight onto the screen; the window
-     * needs the line count first to know how tall it is before it draws anything.
-     */
+    /** Wraps a paragraph to the body width, a note's band and gutter taken off first. */
     private List<String> wrapped(Canvas canvas, Line line) {
-        int room = width() - Metrics.PAD * 2 - (line.warning() ? Metrics.BAND + Metrics.PAD : 0);
-        List<String> rows = new java.util.ArrayList<>();
-        StringBuilder current = new StringBuilder();
-        for (String word : line.text().getString().split(" ")) {
-            String candidate = current.isEmpty() ? word : current + " " + word;
-            if (canvas.textWidth(candidate) > room && !current.isEmpty()) {
-                rows.add(current.toString());
-                current = new StringBuilder(word);
-            } else {
-                current = new StringBuilder(candidate);
-            }
-        }
-        rows.add(current.toString());
-        return rows;
+        int body = width() - Metrics.PAD * 2;
+        return Prose.wrap(canvas, line.text(), line.warning() ? Prose.noteRoom(body) : body);
     }
 
     @Override
@@ -108,18 +93,7 @@ public class TextWindow extends ModalWindow {
         for (Line line : this.lines.get()) {
             List<String> rows = wrapped(canvas, line);
             if (line.warning()) {
-                int boxHeight = heightOf(canvas, line) - Metrics.PAD_TIGHT;
-                Surface.slot(canvas, left, cursorY, width, boxHeight, Palette.SLOT);
-                canvas.fill(left + Metrics.OUTLINE, cursorY + Metrics.OUTLINE,
-                        Metrics.BAND, boxHeight - Metrics.OUTLINE * 2, Palette.GOLD);
-                int textX = left + Metrics.BAND + Metrics.PAD;
-                canvas.text(Component.translatable("gui.mcskincreator.warning"),
-                        textX, cursorY + Metrics.PAD_TIGHT, Palette.GOLD);
-                int rowY = cursorY + Metrics.PAD_TIGHT + canvas.lineHeight() + Metrics.PAD_TIGHT;
-                for (String row : rows) {
-                    canvas.text(Component.literal(row), textX, rowY, Palette.INK_MUTED);
-                    rowY += canvas.lineHeight() + 1;
-                }
+                Prose.drawNote(canvas, left, cursorY, width, rows);
             } else {
                 for (String row : rows) {
                     canvas.text(Component.literal(row), left, cursorY, Palette.INK_MUTED);

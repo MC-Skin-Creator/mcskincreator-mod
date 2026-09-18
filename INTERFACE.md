@@ -146,7 +146,7 @@ keys yet), no random-outfit button, and no starter templates.
 | Per-element colours, and the swatch row that goes with them | issue #7 |
 | Composing locally instead of over the network | issue #8 |
 | Importing a texture, and the starter templates | issues #8, #10 |
-| Applying the skin to the local render, and uploading it | issues #11, #12 |
+| The fitting room: the skin on your own client only | issue #11 |
 
 The saved-skin list is built: **My skins** in the top bar lists what the server
 keeps for this installation, each row drawn from the picture the server composed
@@ -157,3 +157,28 @@ entry, because silently replacing one is the single thing nobody could undo.
 Export writes into `<game>/mcskincreator/`: the composed sheet as a 64x64 PNG, or
 the character seen from the front, which the server draws. There is no language
 picker: in the game the language is the game's, and the mod follows it.
+
+## Applying to the account
+
+The export window is where the skin leaves the editor, and its cards are not alike.
+Two of them write a file onto this machine. The third changes the player's real skin,
+for everyone, until they change it back — and it is last in the list for that reason.
+Three rules follow from it, and none of them is decoration.
+
+**The cost is stated before the button, not after.** Applying opens a confirmation
+that says what will change and, in a framed note, that Minecraft's profile servers
+take tens of seconds to hand the new skin out. Without that sentence a successful
+upload is indistinguishable from a failed one, and the player presses again — which is
+exactly what gets a session rate-limited. The note is the feature; the button is the
+easy part.
+
+**A card that cannot work is absent, and the absence is explained.** With no
+Microsoft-signed-in session there is no token, so the apply card is not drawn at all —
+a control whose target is empty disappears rather than opening onto nothing. But a
+choice that silently vanishes is one nobody can ask about, so the export window carries
+a note under its cards saying why. That is what `CardWindow`'s note is for.
+
+**A locked button counts down.** Between two uploads the confirm button is disabled
+and its label says how many seconds are left, refreshed as they pass. A button that
+says "wait 20 seconds" and still says it a minute later is a button people conclude is
+broken, so `SkinCreatorScreen.tick()` re-lays the window out as the count changes.
