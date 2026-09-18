@@ -36,6 +36,7 @@ import fr.clixmods.mcsc.mod.style.Surface;
 import fr.clixmods.mcsc.mod.style.Tiles;
 import fr.clixmods.mcsc.mod.ui.panel.LayersPanel;
 import fr.clixmods.mcsc.mod.ui.panel.LibraryPanel;
+import fr.clixmods.mcsc.mod.ui.panel.Panel;
 import fr.clixmods.mcsc.mod.ui.panel.ScenePanel;
 import fr.clixmods.mcsc.mod.ui.panel.TopBar;
 import fr.clixmods.mcsc.mod.ui.widget.Dropdown;
@@ -722,11 +723,15 @@ public class SkinCreatorScreen extends Screen {
         }
         targets.addAll(this.topBar.children());
         targets.addAll(this.scene.controls());
+        // A band comes after its own contents: it is in the list for the rail down its
+        // edge, and a tile sitting on top of the rail would otherwise never be hit.
         if (this.library.visible()) {
             targets.addAll(this.library.hitTargets());
+            targets.add(this.library);
         }
         if (this.layers.visible()) {
             targets.addAll(this.layers.hitTargets());
+            targets.add(this.layers);
         }
         if (this.libraryTab != null) {
             targets.add(this.libraryTab);
@@ -769,6 +774,16 @@ public class SkinCreatorScreen extends Screen {
             }
         }
 
+        // The rail of an open window is not one of its children: the window draws it
+        // itself, so the press has to be offered to the window before it counts as
+        // having landed on nothing.
+        if (this.window != null && this.window.barMouseDown(mouseX, mouseY)) {
+            this.focused = null;
+            blurEverythingBut(targets, null);
+            relayout();
+            return true;
+        }
+
         // A press that landed on nothing still takes the focus off whatever had it.
         this.focused = null;
         blurEverythingBut(targets, null);
@@ -785,14 +800,46 @@ public class SkinCreatorScreen extends Screen {
 
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        if (this.window != null && this.window.draggingBar()) {
+            if (this.window.barMouseDrag(event.y())) {
+                // The body's controls are placed at the offset they were laid out at,
+                // so moving the rail is what moves them.
+                relayout();
+            }
+            return true;
+        }
         if (this.pressed != null) {
             this.pressed.mouseDrag(event.x(), event.y(), dragX, dragY, event.button());
+            for (Panel band : bands()) {
+                if (band != this.pressed) {
+                    band.mouseDrag(event.x(), event.y(), dragX, dragY, event.button());
+                }
+            }
             return true;
         }
         for (Element element : targets()) {
             element.mouseDrag(event.x(), event.y(), dragX, dragY, event.button());
         }
         return true;
+    }
+
+    /**
+     * The bands that own gestures of their own.
+     *
+     * <p>A gesture can belong to a band rather than to what was pressed: a layer row is
+     * taken hold of by its grip, and it is the band that reorders the stack around it.
+     * So a band hears the drag and the release whatever they started on, and ignores
+     * the ones that are not its own.
+     */
+    private List<Panel> bands() {
+        List<Panel> bands = new ArrayList<>();
+        if (this.library.visible()) {
+            bands.add(this.library);
+        }
+        if (this.layers.visible()) {
+            bands.add(this.layers);
+        }
+        return bands;
     }
 
     @Override
@@ -803,8 +850,16 @@ public class SkinCreatorScreen extends Screen {
             closeWindow();
             return true;
         }
+        if (this.window != null) {
+            this.window.barMouseUp();
+        }
         if (this.pressed != null) {
             this.pressed.mouseUp(event.x(), event.y(), event.button());
+            for (Panel band : bands()) {
+                if (band != this.pressed) {
+                    band.mouseUp(event.x(), event.y(), event.button());
+                }
+            }
             this.pressed = null;
             return true;
         }

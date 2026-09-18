@@ -488,7 +488,7 @@ public class LibraryPanel extends Panel {
 
     @Override
     public boolean mouseDown(double mouseX, double mouseY, int button) {
-        if (folded()) {
+        if (folded() || button != 0) {
             return false;
         }
         return this.scroll.barMouseDown(mouseX, mouseY,
