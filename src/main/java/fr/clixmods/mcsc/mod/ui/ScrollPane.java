@@ -35,6 +35,11 @@ public final class ScrollPane {
     private int contentHeight;
     private int viewportHeight;
     private boolean draggingBar;
+    /**
+     * Where inside the handle the press landed, so that dragging moves the handle with
+     * the pointer instead of snapping its middle under it.
+     */
+    private int grabWithinHandle;
 
     /** Tells the pane how much there is to scroll through, and clamps the offset. */
     public void setContent(int contentHeight, int viewportHeight) {
@@ -76,12 +81,10 @@ public final class ScrollPane {
         }
         int x = right - BAR_WIDTH;
         Surface.slot(canvas, x, top, BAR_WIDTH, height, Palette.FIELD);
-
-        int inner = height - Metrics.OUTLINE * 2;
-        int handle = Math.max(Metrics.ui(18), inner * this.viewportHeight / Math.max(1, this.contentHeight));
-        int travel = inner - handle;
-        int handleY = top + Metrics.OUTLINE + (travel * this.offset / Math.max(1, maxOffset()));
-        Surface.button(canvas, x, handleY, BAR_WIDTH, handle, Surface.Tone.NEUTRAL, false, false);
+        // Lit while it is being held, so a grab that took is visible before the
+        // content has moved far enough to say so on its own.
+        Surface.button(canvas, x, handleY(top, height), BAR_WIDTH, handleHeight(height),
+                Surface.Tone.NEUTRAL, this.draggingBar, false);
     }
 
     /** @return true when the press landed on the rail and started a drag */
@@ -94,6 +97,17 @@ public final class ScrollPane {
             return false;
         }
         this.draggingBar = true;
+
+        // Taking hold of the handle keeps it where it was taken hold of: pressing its
+        // lower edge and moving down by ten pixels moves the handle by ten pixels.
+        // Pressing the rail above or below it is the other gesture — the handle jumps
+        // to the pointer, and is then dragged from its middle.
+        int handle = handleHeight(height);
+        int handleY = handleY(top, height);
+        this.grabWithinHandle = mouseY >= handleY && mouseY < handleY + handle
+                ? (int) (mouseY - handleY)
+                : handle / 2;
+
         dragTo(mouseY, top, height);
         return true;
     }
@@ -108,11 +122,34 @@ public final class ScrollPane {
         this.draggingBar = false;
     }
 
+    /** True from the press on the rail until the release, wherever the pointer went. */
+    public boolean draggingBar() {
+        return this.draggingBar;
+    }
+
     private void dragTo(double mouseY, int top, int height) {
-        int inner = height - Metrics.OUTLINE * 2;
-        int handle = Math.max(Metrics.ui(18), inner * this.viewportHeight / Math.max(1, this.contentHeight));
-        int travel = Math.max(1, inner - handle);
-        double along = (mouseY - top - Metrics.OUTLINE - handle / 2.0) / travel;
+        int travel = Math.max(1, inner(height) - handleHeight(height));
+        double along = (mouseY - top - Metrics.OUTLINE - this.grabWithinHandle) / travel;
         this.offset = Math.max(0, Math.min(maxOffset(), (int) Math.round(along * maxOffset())));
+    }
+
+    /** The rail inside its outline: the whole travel of the handle, handle included. */
+    private int inner(int height) {
+        return height - Metrics.OUTLINE * 2;
+    }
+
+    /**
+     * The handle is as tall a share of the rail as the viewport is of the content, down
+     * to a floor that stays big enough to aim at — and never taller than the rail.
+     */
+    private int handleHeight(int height) {
+        int inner = inner(height);
+        int share = inner * this.viewportHeight / Math.max(1, this.contentHeight);
+        return Math.min(inner, Math.max(Metrics.ui(18), share));
+    }
+
+    private int handleY(int top, int height) {
+        int travel = Math.max(0, inner(height) - handleHeight(height));
+        return top + Metrics.OUTLINE + travel * this.offset / Math.max(1, maxOffset());
     }
 }
