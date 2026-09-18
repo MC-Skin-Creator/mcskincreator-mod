@@ -28,6 +28,7 @@ import fr.clixmods.mcsc.mod.catalog.Catalog;
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
 import fr.clixmods.mcsc.mod.catalog.CatalogFormatException;
 import fr.clixmods.mcsc.mod.catalog.CatalogItem;
+import fr.clixmods.mcsc.mod.catalog.CatalogModel;
 import fr.clixmods.mcsc.mod.catalog.CatalogText;
 import fr.clixmods.mcsc.mod.catalog.CatalogWork;
 import fr.clixmods.mcsc.mod.project.History;
@@ -40,6 +41,7 @@ import fr.clixmods.mcsc.mod.remote.SavedSkin;
 import fr.clixmods.mcsc.mod.remote.SearchResults;
 import fr.clixmods.mcsc.mod.skin.AppliedSkin;
 import fr.clixmods.mcsc.mod.skin.CategorySprites;
+import fr.clixmods.mcsc.mod.skin.ModelSprites;
 import fr.clixmods.mcsc.mod.skin.PreviewSkin;
 import fr.clixmods.mcsc.mod.skin.ProjectJson;
 import fr.clixmods.mcsc.mod.skin.SkinThumbnails;
@@ -57,6 +59,7 @@ import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
 import fr.clixmods.mcsc.mod.ui.window.CardWindow;
 import fr.clixmods.mcsc.mod.ui.window.ConfirmWindow;
 import fr.clixmods.mcsc.mod.ui.window.ModalWindow;
+import fr.clixmods.mcsc.mod.ui.window.ModelsWindow;
 import fr.clixmods.mcsc.mod.ui.window.NameWindow;
 import fr.clixmods.mcsc.mod.ui.window.SkinsWindow;
 import fr.clixmods.mcsc.mod.ui.window.TextWindow;
@@ -147,6 +150,19 @@ public class SkinCreatorScreen extends Screen {
     /** Provenance sheets already fetched, by {@code category/element}. */
     private final Map<String, ItemCredit> credits = new HashMap<>();
 
+    /**
+     * The pictures of the ready-made stacks, drawn from the atlases already here.
+     *
+     * <p>Rebuilt rather than patched: a stack spans several categories, so one atlas
+     * arriving can complete a dozen of them at once, and working out which would cost
+     * more than redrawing the sheet.
+     */
+    private ModelSprites modelSprites;
+    /** What the sheet was drawn from, so it is only redrawn when that changed. */
+    private int modelSpritesStamp = -1;
+    /** Rises every time a category's pixels land. */
+    private int atlasRevision;
+
     private TopBar topBar;
     private LibraryPanel library;
     private ScenePanel scene;
@@ -219,7 +235,8 @@ public class SkinCreatorScreen extends Screen {
         Icons.ensureRegistered(this.minecraft);
 
         if (this.library == null) {
-            this.topBar = new TopBar(this.history, this::startOver, this::openExport,
+            this.topBar = new TopBar(this.history, this::startOver, this::openModels,
+                    () -> !catalog.readyMade().isEmpty(), this::openExport,
                     this::openSkins, this::openAbout);
             this.library = new LibraryPanel(this::relayout, this::name, this.sprites::get,
                     this.project::isSlim, this::isUsed, this::stack, this::openProvenance,
@@ -464,6 +481,12 @@ public class SkinCreatorScreen extends Screen {
             queueCompose();
         }
 
+        // Only while its window is showing: the sheet is a few hundred stacks composed,
+        // which is not work to do for a window nobody has open.
+        if (this.window instanceof ModelsWindow) {
+            refreshModelSprites();
+        }
+
         long now = System.currentTimeMillis();
         if (this.composePending && now - this.pendingSince >= COMPOSE_DEBOUNCE_MS) {
             this.composePending = false;
@@ -571,6 +594,7 @@ public class SkinCreatorScreen extends Screen {
                     }
                     this.toasts.succeeded("atlas:" + category.id());
                     this.sprites.put(category.id(), CategorySprites.of(category.id(), buffers));
+                    this.atlasRevision++;
                 }));
     }
 
@@ -808,6 +832,72 @@ public class SkinCreatorScreen extends Screen {
         this.project.clear();
         this.project.setModel(PlayerModelType.WIDE);
         relayout();
+    }
+
+    /**
+     * Opens the catalogue's ready-made stacks.
+     *
+     * <p>Their pieces come from all over the library, so this is the one gesture that
+     * fetches every category rather than the region on screen — there is no way to show
+     * a model without the pixels it is made of. They are content-addressed and kept, so
+     * it is paid once.
+     */
+    private void openModels() {
+        for (CatalogModel model : catalog.readyMade()) {
+            for (CatalogCategory category : catalog.categoriesOf(model)) {
+                if (this.requestedAtlases.add(category.id())) {
+                    requestAtlas(category);
+                }
+            }
+        }
+        refreshModelSprites();
+        open(new ModelsWindow(catalog::models, catalog::outfits, this::name,
+                () -> this.modelSprites, this::chooseReadyMade, null));
+    }
+
+    /**
+     * Puts one of the catalogue's ready-made stacks on the model.
+     *
+     * <p>One history entry for the whole thing: a model that stacked eleven elements
+     * comes back off with one undo, not eleven.
+     */
+    private void chooseReadyMade(CatalogModel model) {
+        this.history.record();
+        int stacked = this.project.apply(model, catalog, this.minecraft.options.languageCode);
+        closeWindow();
+        if (stacked == 0) {
+            // Every piece named an element the catalogue has since dropped.
+            this.toasts.failed("readymade", Component.translatable("toast.mcskincreator.model_empty"));
+            return;
+        }
+        this.toasts.succeeded("readymade");
+        this.toasts.ok(Component.translatable(
+                model.kind() == CatalogModel.Kind.MODEL
+                        ? "toast.mcskincreator.model_applied"
+                        : "toast.mcskincreator.outfit_applied",
+                name(model.name()), stacked));
+        relayout();
+    }
+
+    /**
+     * Redraws the ready-made sheet when what it was drawn from has moved: a new atlas,
+     * or the other player model. Never called while drawing — it ends in a texture
+     * upload, and a frame is for deciding what to draw.
+     */
+    private void refreshModelSprites() {
+        if (catalog.readyMade().isEmpty()) {
+            return;
+        }
+        int stamp = this.atlasRevision * 2 + (this.project.isSlim() ? 1 : 0);
+        if (this.modelSprites != null && this.modelSpritesStamp == stamp) {
+            return;
+        }
+        if (this.modelSprites != null) {
+            this.modelSprites.close();
+        }
+        this.modelSprites = ModelSprites.of(catalog.readyMade(), catalog,
+                this.sprites::get, this.project.isSlim());
+        this.modelSpritesStamp = stamp;
     }
 
     private void openAbout() {
@@ -1568,6 +1658,10 @@ public class SkinCreatorScreen extends Screen {
         super.removed();
         this.closed = true;
         this.preview.close();
+        if (this.modelSprites != null) {
+            this.modelSprites.close();
+            this.modelSprites = null;
+        }
         for (CategorySprites loaded : this.sprites.values()) {
             loaded.close();
         }

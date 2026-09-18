@@ -132,20 +132,28 @@ immediately from the atlas buffer already in memory, and the composition replace
 when it lands, so a server that cannot compose costs a notification rather than the
 preview.
 
+The models and outfits window is the one place that composes locally, because it
+shows two hundred stacks at once and a request each is not a thing to ask for. Its
+pictures are what choosing an entry will put on the model, which is not always what
+the site shows for the same entry: the catalogue gives some pieces a colour
+override, and a layer here cannot hold one yet.
+
 ## What is not built yet
 
 The interface is complete; several of the things it is an interface *to* are not.
 These are deliberate gaps, and each one follows the rule above about empty targets —
 the control is absent rather than dead. That is why there is no animation chooser in
 the scene dock, no colour swatches in the inspector (the catalogue carries no colour
-keys yet), no random-outfit button, and no starter templates.
+keys yet), and no random-outfit button. The starter models the site offers are
+there — that is what the **Models** button in the top bar opens — and the button
+itself disappears when the catalogue turns out to carry none.
 
 | Missing | Where it lands |
 |---|---|
 | The pixel drawing tools and their shortcuts | issues #7, #8 |
 | Per-element colours, and the swatch row that goes with them | issue #7 |
 | Composing locally instead of over the network | issue #8 |
-| Importing a texture, and the starter templates | issues #8, #10 |
+| Importing a texture | issue #8 |
 | The fitting room: the skin on your own client only | issue #11 |
 
 The saved-skin list is built: **My skins** in the top bar lists what the server

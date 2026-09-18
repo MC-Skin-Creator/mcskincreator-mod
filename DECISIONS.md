@@ -216,13 +216,20 @@ reveals real functionality on hover — an element's provenance, a layer's delet
 button — so anything revealed that way has to be reachable by focus too. Whatever
 holds the focus draws as whatever is hovered, and that is decided in one place.
 
-**The interface owns no pixels of its own.** The model is vanilla's
+**The interface owns almost no pixels of its own.** The model is vanilla's
 `PlayerSkinWidget`, the thumbnails are folded out of the category atlases the API
-already serves, and the stack is composed by the server. The mod generates exactly
-two textures: the stone grain under the panels and the icon atlas, both from
-deterministic noise and pixel drawings written out as rows of characters — because a
-drawing that can be read in a diff can be corrected in one, and a PNG of the same
-thing cannot.
+already serves, and the stack being edited is composed by the server. Two textures
+are drawn from nothing: the stone grain under the panels and the icon atlas, both
+from deterministic noise and pixel drawings written out as rows of characters —
+because a drawing that can be read in a diff can be corrected in one, and a PNG of
+the same thing cannot.
+
+The one exception is the sheet of ready-made models and outfits, which the mod
+stacks and folds itself (`Composite`, `ModelSprites`). The catalogue offers two
+hundred and odd of them, and asking the server for two hundred compositions to fill
+one window is not a thing to do to a service, or to a player waiting on it. The
+blend copies the server's, half rounded to even like the `Uint8ClampedArray` the
+site composes into, so the picture is the one the stack will actually produce.
 
 The layer stack is the mod's, and it follows the server's format rather than
 inventing a second one: the project validator is the authority on what a project is,

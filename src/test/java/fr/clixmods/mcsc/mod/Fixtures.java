@@ -9,9 +9,12 @@ package fr.clixmods.mcsc.mod;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
+import fr.clixmods.mcsc.mod.catalog.Catalog;
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
 import fr.clixmods.mcsc.mod.catalog.CatalogItem;
+import fr.clixmods.mcsc.mod.catalog.CatalogModel;
 import fr.clixmods.mcsc.mod.catalog.CatalogText;
 import fr.clixmods.mcsc.mod.catalog.ThumbCrop;
 
@@ -39,6 +42,24 @@ public final class Fixtures {
     /** A category that holds one layer at a time, the way the skin does. */
     public static CatalogCategory single(String id, String region, String... itemIds) {
         return category(id, region, true, itemIds);
+    }
+
+    /** A catalogue holding nothing but these categories: no credits, no ready-made stacks. */
+    public static Catalog catalog(CatalogCategory... categories) {
+        return new Catalog(List.of(categories), Map.of(), List.of(), List.of());
+    }
+
+    /**
+     * A ready-made stack. Each piece is written {@code "category/item"}, bottom first,
+     * which keeps a test's expectation readable next to the stack it should produce.
+     */
+    public static CatalogModel readyMade(String id, CatalogModel.Kind kind, boolean slim, String... pieces) {
+        List<CatalogModel.Piece> parts = new ArrayList<>(pieces.length);
+        for (String piece : pieces) {
+            String[] split = piece.split("/", 2);
+            parts.add(new CatalogModel.Piece(split[0], split[1]));
+        }
+        return new CatalogModel(id, new CatalogText(id, id, id), kind, slim, parts);
     }
 
     private static CatalogCategory category(String id, String region, boolean single, String... itemIds) {

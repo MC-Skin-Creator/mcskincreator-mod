@@ -24,9 +24,14 @@ import com.google.gson.JsonPrimitive;
  *
  * <p>Deliberately reads the JSON as a tree rather than binding it to classes: the
  * catalogue serves the whole site, so it carries fields the mod has no use for
- * ({@code projects}, {@code outfits}, {@code dir}, {@code ajout}, {@code base}) and
- * will grow more. A tree reader ignores what it does not know and survives the next
- * field the site adds, where a bound class breaks on it.
+ * ({@code dir}, {@code ajout}, {@code base}) and will grow more. A tree reader ignores
+ * what it does not know and survives the next field the site adds, where a bound class
+ * breaks on it.
+ *
+ * <p>The ready-made stacks are the site's {@code projects} and {@code outfits}. Their
+ * names are worth keeping straight: on the site a <em>project</em> is what it calls a
+ * <em>modèle</em> — a finished character offered as a starting point — and not the
+ * project being edited, which is a different thing entirely with a different shape.
  *
  * <p>Two details of the real schema are easy to get wrong and both are silent when
  * you do. A <strong>category</strong> names itself with {@code label}, while an
@@ -76,7 +81,9 @@ public final class CatalogParser {
                 }
             }
         }
-        return new Catalog(parsed, works(root.get("credits")));
+        return new Catalog(parsed, works(root.get("credits")),
+                readyMade(root.get("projects"), CatalogModel.Kind.MODEL),
+                readyMade(root.get("outfits"), CatalogModel.Kind.OUTFIT));
     }
 
     /**
@@ -99,6 +106,60 @@ public final class CatalogParser {
             }
         }
         return Map.copyOf(works);
+    }
+
+    /**
+     * Reads one of the two ready-made lists.
+     *
+     * <p>Absent, or not a list, is not an error: neither is promised to be there, and
+     * a catalogue that carries no model is still a catalogue to browse. An entry with
+     * no id or no piece is dropped, for the same reason an item-less category is.
+     */
+    private static List<CatalogModel> readyMade(JsonElement element, CatalogModel.Kind kind) {
+        if (element == null || !element.isJsonArray()) {
+            return List.of();
+        }
+
+        List<CatalogModel> models = new ArrayList<>();
+        for (JsonElement entry : element.getAsJsonArray()) {
+            if (!entry.isJsonObject()) {
+                continue;
+            }
+            JsonObject json = entry.getAsJsonObject();
+            String id = string(json, "id");
+            List<CatalogModel.Piece> pieces = pieces(json.get("layers"));
+            if (id.isBlank() || pieces.isEmpty()) {
+                continue;
+            }
+            // An outfit is worn by the body already on screen, so it carries no model
+            // of its own even if the catalogue were to grow the field.
+            boolean slim = kind == CatalogModel.Kind.MODEL && truthy(json, "slim");
+            models.add(new CatalogModel(id, text(json, "name"), kind, slim, pieces));
+        }
+        return List.copyOf(models);
+    }
+
+    /** The elements a ready-made stack is made of, bottom first. */
+    private static List<CatalogModel.Piece> pieces(JsonElement element) {
+        if (element == null || !element.isJsonArray()) {
+            return List.of();
+        }
+
+        List<CatalogModel.Piece> pieces = new ArrayList<>();
+        for (JsonElement entry : element.getAsJsonArray()) {
+            if (!entry.isJsonObject()) {
+                continue;
+            }
+            JsonObject json = entry.getAsJsonObject();
+            // A piece names its element the way a serialised project does, and not the
+            // way a catalogue entry does: "cat" and "preset", never "category"/"item".
+            String category = string(json, "cat");
+            String item = string(json, "preset");
+            if (!category.isBlank() && !item.isBlank()) {
+                pieces.add(new CatalogModel.Piece(category, item));
+            }
+        }
+        return List.copyOf(pieces);
     }
 
     /** @return the category, or {@code null} if it has no usable id or no element */

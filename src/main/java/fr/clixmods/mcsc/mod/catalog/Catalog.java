@@ -14,26 +14,63 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * The library the server serves, reduced to what the screen browses: regions, and
- * the categories inside them.
+ * The library the server serves, reduced to what the screen browses: regions and the
+ * categories inside them, plus the ready-made stacks it offers alongside.
  *
  * <p>Order is the catalogue's own: it is the order the site shows, and the mod has no
  * better one to offer.
  *
- * @param works the table of origins the catalogue publishes, by key. An element points
- *              at one of these rather than carrying it, because the same skin is cut
- *              into dozens of elements and is credited once.
+ * @param works   the table of origins the catalogue publishes, by key. An element points
+ *                at one of these rather than carrying it, because the same skin is cut
+ *                into dozens of elements and is credited once.
+ * @param models  whole characters, which replace the stack
+ * @param outfits sets of clothes, which stack on whoever is wearing them
  */
-public record Catalog(List<CatalogCategory> categories, Map<String, CatalogWork> works) {
-    public static final Catalog EMPTY = new Catalog(List.of(), Map.of());
+public record Catalog(List<CatalogCategory> categories, Map<String, CatalogWork> works,
+                      List<CatalogModel> models, List<CatalogModel> outfits) {
+    public static final Catalog EMPTY = new Catalog(List.of(), Map.of(), List.of(), List.of());
 
     public Catalog {
         categories = List.copyOf(categories);
         works = Map.copyOf(works);
+        models = List.copyOf(models);
+        outfits = List.copyOf(outfits);
     }
 
+    /**
+     * Whether the library has anything to browse.
+     *
+     * <p>Judged on the categories alone: ready-made stacks are made of elements, so a
+     * catalogue with no category has nothing to offer whatever else it carries.
+     */
     public boolean isEmpty() {
         return this.categories.isEmpty();
+    }
+
+    /** Models first, then outfits — the order the window lists them in. */
+    public List<CatalogModel> readyMade() {
+        List<CatalogModel> all = new ArrayList<>(this.models.size() + this.outfits.size());
+        all.addAll(this.models);
+        all.addAll(this.outfits);
+        return List.copyOf(all);
+    }
+
+    /**
+     * The categories a ready-made stack needs pixels from, in catalogue order.
+     *
+     * <p>A model spans several categories, and its picture cannot be drawn until every
+     * one of them has arrived — so the window asks for exactly these and no more.
+     */
+    public List<CatalogCategory> categoriesOf(CatalogModel model) {
+        LinkedHashSet<String> wanted = new LinkedHashSet<>();
+        for (CatalogModel.Piece piece : model.pieces()) {
+            wanted.add(piece.categoryId());
+        }
+        List<CatalogCategory> found = new ArrayList<>(wanted.size());
+        for (String id : wanted) {
+            category(id).ifPresent(found::add);
+        }
+        return List.copyOf(found);
     }
 
     /** The regions, in catalogue order and without repeats. */

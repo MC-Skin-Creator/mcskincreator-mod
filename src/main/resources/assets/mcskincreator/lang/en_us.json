@@ -146,5 +146,17 @@
   "licence.mcskincreator.cc-by-sa-4": "CC BY-SA 4.0 — attribution and share-alike",
   "licence.mcskincreator.libre": "Free to use, as stated by the author",
   "licence.mcskincreator.libre-credit": "Free to use with credit, as stated by the author",
-  "licence.mcskincreator.libre-restreint": "Free to use with restrictions, not published here"
+  "licence.mcskincreator.libre-restreint": "Free to use with restrictions, not published here",
+  "gui.mcskincreator.models": "Models",
+  "gui.mcskincreator.models.tooltip": "Start from a model, or put on an outfit",
+  "window.mcskincreator.models": "Models and outfits",
+  "window.mcskincreator.models.models": "Models",
+  "window.mcskincreator.models.models.detail": "A whole character. Choosing one replaces your stack.",
+  "window.mcskincreator.models.outfits": "Outfits",
+  "window.mcskincreator.models.outfits.detail": "Clothes to put on. Your body, hair and face stay as they are.",
+  "window.mcskincreator.models.replaces": "Replaces your stack",
+  "window.mcskincreator.models.stacks": "Stacks on what you are wearing",
+  "toast.mcskincreator.model_applied": "%s: %s layers",
+  "toast.mcskincreator.outfit_applied": "%s put on: %s layers",
+  "toast.mcskincreator.model_empty": "Nothing left of it in the catalogue"
 }

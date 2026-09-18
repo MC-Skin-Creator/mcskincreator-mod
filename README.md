@@ -30,6 +30,9 @@ What is in:
   brightness
 - **where every element comes from**: the "i" on a thumbnail opens the work it was
   cut out of — title, author, licence — and the starter models it is a piece of
+- the **models and outfits** the site offers, under **Models** in the top bar: a
+  model is a whole character and replaces your stack, an outfit is clothes and goes
+  on over what you are already wearing. Either way it is one undo to take back
 - **My skins**: the skins kept on the server, opened, saved and deleted from the
   game. They are the same entries the site's own library holds
 - three columns while the window is wide enough, drawers below that, either side

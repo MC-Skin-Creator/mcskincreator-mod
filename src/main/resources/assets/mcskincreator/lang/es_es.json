@@ -146,5 +146,17 @@
   "licence.mcskincreator.cc-by-sa-4": "CC BY-SA 4.0 — atribución y compartir igual",
   "licence.mcskincreator.libre": "Uso libre, según su autor",
   "licence.mcskincreator.libre-credit": "Uso libre con atribución, según su autor",
-  "licence.mcskincreator.libre-restreint": "Uso libre con restricciones, no publicado aquí"
+  "licence.mcskincreator.libre-restreint": "Uso libre con restricciones, no publicado aquí",
+  "gui.mcskincreator.models": "Modelos",
+  "gui.mcskincreator.models.tooltip": "Empezar desde un modelo, o ponerse un conjunto",
+  "window.mcskincreator.models": "Modelos y conjuntos",
+  "window.mcskincreator.models.models": "Modelos",
+  "window.mcskincreator.models.models.detail": "Un personaje entero. Elegir uno reemplaza tu pila.",
+  "window.mcskincreator.models.outfits": "Conjuntos",
+  "window.mcskincreator.models.outfits.detail": "Ropa para ponerse. Tu cuerpo, tu cabello y tu rostro no cambian.",
+  "window.mcskincreator.models.replaces": "Reemplaza tu pila",
+  "window.mcskincreator.models.stacks": "Se apila sobre lo que llevas puesto",
+  "toast.mcskincreator.model_applied": "%s: %s capas",
+  "toast.mcskincreator.outfit_applied": "%s puesto: %s capas",
+  "toast.mcskincreator.model_empty": "No queda nada de él en el catálogo"
 }
