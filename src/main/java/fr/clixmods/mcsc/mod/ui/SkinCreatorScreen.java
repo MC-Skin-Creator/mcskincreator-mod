@@ -41,7 +41,7 @@ import fr.clixmods.mcsc.mod.remote.SavedSkin;
 import fr.clixmods.mcsc.mod.remote.SearchResults;
 import fr.clixmods.mcsc.mod.skin.AppliedSkin;
 import fr.clixmods.mcsc.mod.skin.CategorySprites;
-import fr.clixmods.mcsc.mod.skin.ModelSprites;
+import fr.clixmods.mcsc.mod.skin.ReadyMadeSkins;
 import fr.clixmods.mcsc.mod.skin.PreviewSkin;
 import fr.clixmods.mcsc.mod.skin.ProjectJson;
 import fr.clixmods.mcsc.mod.skin.SkinThumbnails;
@@ -151,15 +151,19 @@ public class SkinCreatorScreen extends Screen {
     private final Map<String, ItemCredit> credits = new HashMap<>();
 
     /**
-     * The pictures of the ready-made stacks, drawn from the atlases already here.
+     * The pictures of the starter models, and of the outfits, drawn from the atlases
+     * already here.
      *
-     * <p>Rebuilt rather than patched: a stack spans several categories, so one atlas
-     * arriving can complete a dozen of them at once, and working out which would cost
-     * more than redrawing the sheet.
+     * <p>Rebuilt rather than patched: a ready-made stack spans several categories, so
+     * one atlas arriving can complete a dozen of them at once, and working out which
+     * would cost more than redrawing the sheet. The outfits' sheet is kept in
+     * {@link #sprites} beside the categories' own, which is what lets the library draw
+     * an outfit with the same tile as everything else.
      */
-    private ModelSprites modelSprites;
-    /** What the sheet was drawn from, so it is only redrawn when that changed. */
+    private CategorySprites modelSprites;
+    /** What the two sheets were drawn from, so they are only redrawn when that changed. */
     private int modelSpritesStamp = -1;
+    private int outfitSpritesStamp = -1;
     /** Rises every time a category's pixels land. */
     private int atlasRevision;
 
@@ -236,11 +240,12 @@ public class SkinCreatorScreen extends Screen {
 
         if (this.library == null) {
             this.topBar = new TopBar(this.history, this::startOver, this::openModels,
-                    () -> !catalog.readyMade().isEmpty(), this::openExport,
+                    () -> !catalog.models().isEmpty(), this::openExport,
                     this::openSkins, this::openAbout);
             this.library = new LibraryPanel(this::relayout, this::name, this.sprites::get,
-                    this.project::isSlim, this::isUsed, this::stack, this::openProvenance,
-                    this::previewItem, this::openFooterLink, this::onCategoriesChanged);
+                    this.project::isSlim, this::isUsed, this::stack, this::wear,
+                    this::openProvenance, this::previewItem, this::openFooterLink,
+                    this::onCategoriesChanged);
             this.library.createSearch(this::queueSearch);
             this.library.setEmptyMessage(this::libraryMessage);
             this.scene = new ScenePanel(this.preview, this::relayout, () -> this.hoveredLabel);
@@ -481,10 +486,13 @@ public class SkinCreatorScreen extends Screen {
             queueCompose();
         }
 
-        // Only while its window is showing: the sheet is a few hundred stacks composed,
-        // which is not work to do for a window nobody has open.
+        // Only while what needs them is on screen: a sheet is a few hundred stacks
+        // composed, which is not work to do for something nobody is looking at.
         if (this.window instanceof ModelsWindow) {
             refreshModelSprites();
+        }
+        if (this.library.showingOutfits()) {
+            refreshOutfitSprites();
         }
 
         long now = System.currentTimeMillis();
@@ -835,15 +843,15 @@ public class SkinCreatorScreen extends Screen {
     }
 
     /**
-     * Opens the catalogue's ready-made stacks.
+     * Opens the catalogue's starter models.
      *
-     * <p>Their pieces come from all over the library, so this is the one gesture that
-     * fetches every category rather than the region on screen — there is no way to show
-     * a model without the pixels it is made of. They are content-addressed and kept, so
-     * it is paid once.
+     * <p>Their pieces come from all over the library, so this is one of the two
+     * gestures that fetch every category rather than the region on screen — there is no
+     * way to show a model without the pixels it is made of. Atlas addresses carry the
+     * hash of their own pixels and are kept, so it is paid once.
      */
     private void openModels() {
-        for (CatalogModel model : catalog.readyMade()) {
+        for (CatalogModel model : catalog.models()) {
             for (CatalogCategory category : catalog.categoriesOf(model)) {
                 if (this.requestedAtlases.add(category.id())) {
                     requestAtlas(category);
@@ -851,20 +859,30 @@ public class SkinCreatorScreen extends Screen {
             }
         }
         refreshModelSprites();
-        open(new ModelsWindow(catalog::models, catalog::outfits, this::name,
-                () -> this.modelSprites, this::chooseReadyMade, null));
+        open(new ModelsWindow(catalog::models, this::name, () -> this.modelSprites,
+                this::chooseModel, null));
     }
 
     /**
-     * Puts one of the catalogue's ready-made stacks on the model.
+     * Starts again from a starter model: the stack is replaced, and the player model
+     * with it.
      *
-     * <p>One history entry for the whole thing: a model that stacked eleven elements
-     * comes back off with one undo, not eleven.
+     * <p>One history entry for the whole thing, so a model that stacked eleven elements
+     * comes back off with one undo rather than eleven.
      */
-    private void chooseReadyMade(CatalogModel model) {
-        this.history.record();
-        int stacked = this.project.apply(model, catalog, this.minecraft.options.languageCode);
+    private void chooseModel(CatalogModel model) {
+        applyReadyMade(model);
         closeWindow();
+    }
+
+    /** Puts an outfit on over whatever is already worn. Also one history entry. */
+    private void wear(CatalogModel outfit) {
+        applyReadyMade(outfit);
+    }
+
+    private void applyReadyMade(CatalogModel entry) {
+        this.history.record();
+        int stacked = this.project.apply(entry, catalog, this.minecraft.options.languageCode);
         if (stacked == 0) {
             // Every piece named an element the catalogue has since dropped.
             this.toasts.failed("readymade", Component.translatable("toast.mcskincreator.model_empty"));
@@ -872,32 +890,50 @@ public class SkinCreatorScreen extends Screen {
         }
         this.toasts.succeeded("readymade");
         this.toasts.ok(Component.translatable(
-                model.kind() == CatalogModel.Kind.MODEL
+                entry.kind() == CatalogModel.Kind.MODEL
                         ? "toast.mcskincreator.model_applied"
                         : "toast.mcskincreator.outfit_applied",
-                name(model.name()), stacked));
+                name(entry.name()), stacked));
         relayout();
     }
 
     /**
-     * Redraws the ready-made sheet when what it was drawn from has moved: a new atlas,
-     * or the other player model. Never called while drawing — it ends in a texture
-     * upload, and a frame is for deciding what to draw.
+     * Redraws a sheet of ready-made pictures when what it was drawn from has moved: a
+     * new atlas, or the other player model. Never called while drawing — it ends in a
+     * texture upload, and a frame is for deciding what to draw.
      */
     private void refreshModelSprites() {
-        if (catalog.readyMade().isEmpty()) {
-            return;
-        }
-        int stamp = this.atlasRevision * 2 + (this.project.isSlim() ? 1 : 0);
-        if (this.modelSprites != null && this.modelSpritesStamp == stamp) {
+        if (catalog.models().isEmpty() || this.modelSpritesStamp == stamp()) {
             return;
         }
         if (this.modelSprites != null) {
             this.modelSprites.close();
         }
-        this.modelSprites = ModelSprites.of(catalog.readyMade(), catalog,
-                this.sprites::get, this.project.isSlim());
-        this.modelSpritesStamp = stamp;
+        // A model carries its own skin, so nothing is stood under it.
+        this.modelSprites = CategorySprites.of("ready-made-models", ReadyMadeSkins.of(
+                catalog.models(), catalog, this.sprites::get, this.project.isSlim(), null));
+        this.modelSpritesStamp = stamp();
+    }
+
+    private void refreshOutfitSprites() {
+        if (catalog.outfits().isEmpty() || this.outfitSpritesStamp == stamp()) {
+            return;
+        }
+        CategorySprites previous = this.sprites.remove(LibraryPanel.OUTFIT_SHEET);
+        if (previous != null) {
+            previous.close();
+        }
+        // An outfit is clothes: without a body under them its picture is empty sleeves.
+        byte[] body = ReadyMadeSkins.mannequin(catalog, this.sprites::get, this.project.isSlim());
+        this.sprites.put(LibraryPanel.OUTFIT_SHEET, CategorySprites.of(LibraryPanel.OUTFIT_SHEET,
+                ReadyMadeSkins.of(catalog.outfits(), catalog, this.sprites::get,
+                        this.project.isSlim(), body)));
+        this.outfitSpritesStamp = stamp();
+    }
+
+    /** What a sheet of ready-made pictures depends on: the atlases here, and the model. */
+    private int stamp() {
+        return this.atlasRevision * 2 + (this.project.isSlim() ? 1 : 0);
     }
 
     private void openAbout() {

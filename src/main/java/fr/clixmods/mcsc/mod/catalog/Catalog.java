@@ -47,14 +47,6 @@ public record Catalog(List<CatalogCategory> categories, Map<String, CatalogWork>
         return this.categories.isEmpty();
     }
 
-    /** Models first, then outfits — the order the window lists them in. */
-    public List<CatalogModel> readyMade() {
-        List<CatalogModel> all = new ArrayList<>(this.models.size() + this.outfits.size());
-        all.addAll(this.models);
-        all.addAll(this.outfits);
-        return List.copyOf(all);
-    }
-
     /**
      * The categories a ready-made stack needs pixels from, in catalogue order.
      *

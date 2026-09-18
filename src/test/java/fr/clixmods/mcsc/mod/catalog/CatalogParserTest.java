@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -506,7 +507,8 @@ class CatalogParserTest {
                 """;
 
         private static CatalogModel model(String id) {
-            return parse(READY_MADE).readyMade().stream()
+            Catalog catalog = parse(READY_MADE);
+            return Stream.concat(catalog.models().stream(), catalog.outfits().stream())
                     .filter(entry -> entry.id().equals(id))
                     .findFirst()
                     .orElseThrow();
@@ -572,8 +574,8 @@ class CatalogParserTest {
         void aCatalogueCarryingNeitherListIsStillACatalogue() {
             Catalog catalog = parse(PAYLOAD);
 
+            assertEquals(List.of(), catalog.models());
             assertEquals(List.of(), catalog.outfits());
-            assertEquals(List.of(), catalog.readyMade());
             assertFalse(catalog.isEmpty());
         }
 

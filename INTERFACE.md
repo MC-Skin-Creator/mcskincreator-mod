@@ -132,11 +132,16 @@ immediately from the atlas buffer already in memory, and the composition replace
 when it lands, so a server that cannot compose costs a notification rather than the
 preview.
 
-The models and outfits window is the one place that composes locally, because it
-shows two hundred stacks at once and a request each is not a thing to ask for. Its
-pictures are what choosing an entry will put on the model, which is not always what
-the site shows for the same entry: the catalogue gives some pieces a colour
-override, and a layer here cannot hold one yet.
+The ready-made stacks — the starter models and the outfits — are the one place that
+composes locally, because there are two hundred of them on screen at once and a
+request each is not a thing to ask for. Their pictures are what choosing one will put
+on the model, which is not always what the site shows for the same entry: the
+catalogue gives some pieces a colour override, and a layer here cannot hold one yet.
+
+An outfit is clothes and nothing else, so its picture is stood on a body taken from
+the catalogue's own skin category. The site names one outright and the catalogue no
+longer carries it, which is exactly what a hardcoded id gets you — a silently empty
+body.
 
 ## What is not built yet
 
@@ -147,6 +152,15 @@ the scene dock, no colour swatches in the inspector (the catalogue carries no co
 keys yet), and no random-outfit button. The starter models the site offers are
 there — that is what the **Models** button in the top bar opens — and the button
 itself disappears when the catalogue turns out to carry none.
+
+**Outfits are a region of the library, not a window.** The site gives them a shelf
+between the body and the head, and they are picked exactly the way an element is, so
+they are one more region here too. The catalogue does not carry that region — outfits
+are a list beside the categories rather than a category — so `LibraryPanel` adds the
+tab, and stands the outfits on a shelf that never leaves the panel. That shelf is a
+category in shape only: it lets an outfit be drawn and picked by the same `ItemTile`
+as everything else instead of a second widget to keep looking the same, and the
+project only ever sees a real `CatalogModel`.
 
 | Missing | Where it lands |
 |---|---|

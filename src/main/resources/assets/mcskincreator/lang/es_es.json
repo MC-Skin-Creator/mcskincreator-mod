@@ -12,6 +12,7 @@
   "library.mcskincreator.thumbnails_stale": "Esta categoría ha cambiado. Vuelve a abrir el editor.",
   "library.mcskincreator.region.all": "Elementos",
   "library.mcskincreator.region.base": "Base",
+  "library.mcskincreator.region.outfit": "Conjuntos",
   "library.mcskincreator.region.head": "Cabeza",
   "library.mcskincreator.region.torso": "Torso",
   "library.mcskincreator.region.arms": "Brazos",
@@ -148,15 +149,10 @@
   "licence.mcskincreator.libre-credit": "Uso libre con atribución, según su autor",
   "licence.mcskincreator.libre-restreint": "Uso libre con restricciones, no publicado aquí",
   "gui.mcskincreator.models": "Modelos",
-  "gui.mcskincreator.models.tooltip": "Empezar desde un modelo, o ponerse un conjunto",
-  "window.mcskincreator.models": "Modelos y conjuntos",
-  "window.mcskincreator.models.models": "Modelos",
-  "window.mcskincreator.models.models.detail": "Un personaje entero. Elegir uno reemplaza tu pila.",
-  "window.mcskincreator.models.outfits": "Conjuntos",
-  "window.mcskincreator.models.outfits.detail": "Ropa para ponerse. Tu cuerpo, tu cabello y tu rostro no cambian.",
-  "window.mcskincreator.models.replaces": "Reemplaza tu pila",
-  "window.mcskincreator.models.stacks": "Se apila sobre lo que llevas puesto",
+  "gui.mcskincreator.models.tooltip": "Empezar de nuevo desde un personaje entero",
+  "window.mcskincreator.models": "Modelos de inicio",
   "toast.mcskincreator.model_applied": "%s: %s capas",
   "toast.mcskincreator.outfit_applied": "%s puesto: %s capas",
-  "toast.mcskincreator.model_empty": "No queda nada de él en el catálogo"
+  "toast.mcskincreator.model_empty": "No queda nada de él en el catálogo",
+  "window.mcskincreator.models.notice": "Un personaje entero. Elegir uno reemplaza todo lo que has apilado — deshacer lo devuelve."
 }

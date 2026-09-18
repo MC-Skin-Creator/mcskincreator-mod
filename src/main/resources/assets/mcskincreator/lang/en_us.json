@@ -12,6 +12,7 @@
   "library.mcskincreator.thumbnails_stale": "This category has changed. Reopen the editor.",
   "library.mcskincreator.region.all": "Elements",
   "library.mcskincreator.region.base": "Base",
+  "library.mcskincreator.region.outfit": "Outfits",
   "library.mcskincreator.region.head": "Head",
   "library.mcskincreator.region.torso": "Torso",
   "library.mcskincreator.region.arms": "Arms",
@@ -148,15 +149,10 @@
   "licence.mcskincreator.libre-credit": "Free to use with credit, as stated by the author",
   "licence.mcskincreator.libre-restreint": "Free to use with restrictions, not published here",
   "gui.mcskincreator.models": "Models",
-  "gui.mcskincreator.models.tooltip": "Start from a model, or put on an outfit",
-  "window.mcskincreator.models": "Models and outfits",
-  "window.mcskincreator.models.models": "Models",
-  "window.mcskincreator.models.models.detail": "A whole character. Choosing one replaces your stack.",
-  "window.mcskincreator.models.outfits": "Outfits",
-  "window.mcskincreator.models.outfits.detail": "Clothes to put on. Your body, hair and face stay as they are.",
-  "window.mcskincreator.models.replaces": "Replaces your stack",
-  "window.mcskincreator.models.stacks": "Stacks on what you are wearing",
+  "gui.mcskincreator.models.tooltip": "Start again from a whole character",
+  "window.mcskincreator.models": "Starter models",
   "toast.mcskincreator.model_applied": "%s: %s layers",
   "toast.mcskincreator.outfit_applied": "%s put on: %s layers",
-  "toast.mcskincreator.model_empty": "Nothing left of it in the catalogue"
+  "toast.mcskincreator.model_empty": "Nothing left of it in the catalogue",
+  "window.mcskincreator.models.notice": "A whole character. Choosing one replaces everything you have stacked — one undo brings it back."
 }

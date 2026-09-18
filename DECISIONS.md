@@ -224,12 +224,14 @@ from deterministic noise and pixel drawings written out as rows of characters �
 because a drawing that can be read in a diff can be corrected in one, and a PNG of
 the same thing cannot.
 
-The one exception is the sheet of ready-made models and outfits, which the mod
-stacks and folds itself (`Composite`, `ModelSprites`). The catalogue offers two
-hundred and odd of them, and asking the server for two hundred compositions to fill
-one window is not a thing to do to a service, or to a player waiting on it. The
-blend copies the server's, half rounded to even like the `Uint8ClampedArray` the
-site composes into, so the picture is the one the stack will actually produce.
+The one exception is the pictures of the ready-made stacks — the starter models and
+the outfits — which the mod stacks and folds itself (`Composite`,
+`ReadyMadeSkins`). The catalogue offers two hundred and odd of them, and asking the
+server for two hundred compositions to fill one panel is not a thing to do to a
+service, or to a player waiting on it. The blend copies the server's, half rounded
+to even like the `Uint8ClampedArray` the site composes into, so the picture is the
+one the stack will actually produce. They are then a `CategorySprites` sheet like
+any other, so the library draws them with the tile it already had.
 
 The layer stack is the mod's, and it follows the server's format rather than
 inventing a second one: the project validator is the authority on what a project is,
