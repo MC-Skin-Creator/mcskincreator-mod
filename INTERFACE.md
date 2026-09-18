@@ -166,11 +166,18 @@ for everyone, until they change it back — and it is last in the list for that 
 Three rules follow from it, and none of them is decoration.
 
 **The cost is stated before the button, not after.** Applying opens a confirmation
-that says what will change and, in a framed note, that Minecraft's profile servers
-take tens of seconds to hand the new skin out. Without that sentence a successful
-upload is indistinguishable from a failed one, and the player presses again — which is
-exactly what gets a session rate-limited. The note is the feature; the button is the
-easy part.
+that says what will change and, in a framed note, that other players wait on
+Minecraft's profile servers — tens of seconds, sometimes longer. The note is the
+feature; the button is the easy part.
+
+That note used to say nothing changes on screen either, and it was right until the mod
+started wearing the skin itself. **The player now sees the change on their own player
+the moment Mojang accepts it**, which removes the worst of the confusion — a
+successful upload no longer looks like a failure — but it does not remove the note. It
+inverts it: what is instant is what *you* see, and the gap that remains is what
+everyone else sees. Someone who reads "applied", looks down at their new skin and then
+asks a friend who still sees the old one needs that sentence more than before, not
+less.
 
 **A card that cannot work is absent, and the absence is explained.** With no
 Microsoft-signed-in session there is no token, so the apply card is not drawn at all —

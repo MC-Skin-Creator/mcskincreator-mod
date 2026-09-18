@@ -52,6 +52,38 @@ Mojang documents no rate for skin changes. A generous floor costs a player nothi
 the CDN takes longer than the floor does to show the change anyway — and a session
 rate-limited by an impatient click costs them ten minutes.
 
+### Wearing it before Mojang has propagated it
+
+An upload changes the account, and the account is not what a running client draws. The
+profile the client was handed on joining still carries the old `textures` property, and
+Minecraft's caches sit on top of that, so the new skin used to appear only on a
+restart — a minute in which a successful upload is indistinguishable from a failed one.
+
+The mod closes that minute by wearing the uploaded pixels itself: `skin/AppliedSkin`
+holds them, and the mod's one mixin takes the return of `AbstractClientPlayer#getSkin`
+for the player they belong to. Three choices inside that are deliberate:
+
+- **After the upload, never before.** A client wearing a skin that failed to send would
+  be a worse lie than the wait it replaces.
+- **The body only.** The cape and the elytra stay the ones the game resolved, because
+  they belong to the account and this mod has not touched them. An override that
+  dropped them would take a player's cape off to show them a skin.
+- **It lasts the session.** There is no reliable moment at which the real profile can be
+  seen to have caught up — the client is not told, and its copy is not refreshed until
+  it reconnects — so rather than guess at one, the override stands. It cannot drift:
+  the pixels are the ones the account now holds, and the only thing that replaces them
+  is another upload, which replaces the account skin in the same breath.
+
+Editing the game's state instead — clearing the entity's cached `PlayerInfo`, as is
+sometimes suggested — does not work and is worth writing down so it is not tried again:
+the profile it would be rebuilt from still carries the old texture property, so the
+game would resolve the old skin a second time.
+
+**Other players are out of scope, and not by preference.** Their clients read the
+profile from the server; a client-side mod cannot make them refresh. Doing it properly
+needs something server-side, which is level 3 above and another repository. Until then
+the honest thing is to say so in the interface, which is what the confirmation does.
+
 `PlayerModelType` goes up with the sheet as Mojang's `classic` or `slim`, so the arms
 are the width the skin was drawn for. The upload needs a PNG, and the composer answers
 either a PNG or a raw RGBA buffer; `NativeImage` on both target versions can read a PNG

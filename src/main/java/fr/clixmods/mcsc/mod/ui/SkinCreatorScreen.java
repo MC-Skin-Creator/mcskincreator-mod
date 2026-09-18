@@ -38,6 +38,7 @@ import fr.clixmods.mcsc.mod.remote.ItemCredit;
 import fr.clixmods.mcsc.mod.remote.McscApi;
 import fr.clixmods.mcsc.mod.remote.SavedSkin;
 import fr.clixmods.mcsc.mod.remote.SearchResults;
+import fr.clixmods.mcsc.mod.skin.AppliedSkin;
 import fr.clixmods.mcsc.mod.skin.CategorySprites;
 import fr.clixmods.mcsc.mod.skin.PreviewSkin;
 import fr.clixmods.mcsc.mod.skin.ProjectJson;
@@ -60,6 +61,7 @@ import fr.clixmods.mcsc.mod.ui.window.NameWindow;
 import fr.clixmods.mcsc.mod.ui.window.SkinsWindow;
 import fr.clixmods.mcsc.mod.ui.window.TextWindow;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.User;
 //? if >=26.1 {
 /*import net.minecraft.client.gui.GuiGraphicsExtractor;
 *///?} else {
@@ -1113,9 +1115,17 @@ public class SkinCreatorScreen extends Screen {
             return;
         }
 
+        byte[] sheet = this.composed;
+        PlayerModelType model = this.project.model();
         this.toasts.ok(Component.translatable("toast.mcskincreator.applying"));
-        AccountSkin.apply(this.minecraft, this.composed, this.project.model())
+        AccountSkin.apply(this.minecraft, sheet, model)
                 .whenComplete((nothing, failure) -> Minecraft.getInstance().execute(() -> {
+                    // Put on before the screen is consulted: the editor may well have
+                    // been closed while the upload was in flight, and a skin that
+                    // reached the account should go on the player either way.
+                    if (failure == null) {
+                        wearLocally(sheet, model);
+                    }
                     if (this.closed) {
                         return;
                     }
@@ -1129,6 +1139,26 @@ public class SkinCreatorScreen extends Screen {
                     }
                     this.toasts.ok(Component.translatable("toast.mcskincreator.applied"));
                 }));
+    }
+
+    /**
+     * Wears what was just uploaded, so the player sees it now rather than on the next
+     * start of the game.
+     *
+     * <p>Only ever after Mojang accepted it, so this cannot show a skin that failed to
+     * send. A failure here costs the immediacy and nothing else: the account has the
+     * skin, and the game will draw it on its own next time it starts.
+     */
+    private void wearLocally(byte[] sheet, PlayerModelType model) {
+        User user = Minecraft.getInstance().getUser();
+        if (user == null) {
+            return;
+        }
+        try {
+            AppliedSkin.wear(user.getProfileId(), sheet, model);
+        } catch (IOException | RuntimeException cause) {
+            MCSkinCreatorClient.LOGGER.warn("Wearing the applied skin locally failed", cause);
+        }
     }
 
     /**

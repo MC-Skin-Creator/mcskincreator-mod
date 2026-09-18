@@ -43,6 +43,8 @@ src/main/java/fr/clixmods/mcsc/mod/
 ├── catalog/                   what the catalogue says: regions, categories, elements, crops
 ├── skin/                      pixels: front sprites, category sheets, the previewed skin, textures
 ├── project/                   what is being edited: the layer stack and its history
+├── account/                   the Mojang upload, and the only code that holds the session token
+├── mixin/                     the one mixin: the applied skin, worn before Mojang propagates it
 ├── style/                     the design system: palette, metrics, the four materials, the grain
 └── ui/
     ├── Canvas.java            the drawing surface, and the only file the interface versions
@@ -186,6 +188,30 @@ any new drawing code will need the same treatment.
 4. Add version-specific code only for a real incompatibility.
 5. **Build every target** (`./gradlew build`). A change is not done because the
    active target compiles.
+
+## Mixins
+
+There is **one**, and the bar for a second is high: everything else the mod does, it
+does through public API. `mixin/AbstractClientPlayerMixin` takes the return of
+`AbstractClientPlayer#getSkin` so the player wears the skin they just applied without
+restarting the game. Every other way in is private on at least one target —
+`SkinManager#registerTextures` is package-private on 1.21.11 and private on 26.2,
+`PlayerInfo#skinLookup` is private on both, all checked with `javap`.
+
+Two things about the setup are worth knowing before touching it:
+
+- **No refmap, and none is needed.** Loom rewrites the annotation itself when it remaps
+  the jar: `method = "getSkin"` comes out as `method_52814` in the 1.21.11 jar and
+  stays `getSkin` in the 26.2 one, which ships unobfuscated. Verified by unzipping both
+  jars, not assumed. If you add a mixin, check the same way rather than trusting it.
+- **`compatibilityLevel` is expanded, not written.** `mcskincreator.mixins.json` says
+  `JAVA_${java}` and `processResources` fills it in per target, because the mixin
+  classes are Java 21 bytecode on one target and Java 25 on the other and Mixin checks
+  the class file version against that level. A hardcoded level is wrong on one of them.
+
+`getSkin` has the same signature on both targets, so the mixin itself carries no
+Stonecutter directive. One that needed one would be an argument for solving the problem
+another way.
 
 ## Dependencies
 

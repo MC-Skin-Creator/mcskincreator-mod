@@ -8,9 +8,10 @@ skin editor into the game.
 ## Status: the editor, and the skin on your account
 
 The editor stacks a skin out of layers, shows it on a player model, and can put it
-on your Minecraft account — the real one, the one everybody sees. That last step is
-the only thing the mod does that leaves your machine, it happens once per press of a
-button, and it never happens on its own.
+on your Minecraft account — the real one, the one everybody sees — and on your player
+here, immediately, without restarting the game. The upload is the only thing the mod
+does that leaves your machine, it happens once per press of a button, and it never
+happens on its own.
 
 The screen is the site's, in the game — the same materials, the same palette, the
 same gestures, the same three zones. The rules it follows are in
@@ -40,6 +41,9 @@ What is in:
   the classic or slim model you chose. The button confirms first and says what it will
   cost, it locks between two uploads, and it is absent — with the reason — when the
   session is not signed in with Microsoft
+- **and you wear it straight away**, without restarting: once Mojang has accepted the
+  upload the mod puts those same pixels on your player here. Other players still wait
+  for Minecraft's profile servers, which is what the confirmation warns about
 - English, French and Spanish, with a label and a tooltip for every control
 - multi-version builds through [Stonecutter](https://stonecutter.kikugie.dev/):
   **Minecraft 1.21.11 and 26.2** from the same code
