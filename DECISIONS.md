@@ -145,3 +145,39 @@ The layer stack is the mod's, and it follows the server's format rather than
 inventing a second one: the project validator is the authority on what a project is,
 and two representations of the same thing would drift. `ProjectJson` writes it in one
 method for that reason.
+
+## 8. Everything the mod asks of the site goes through `/api/v1`
+
+The site's API answers under two prefixes, and they are not the same promise.
+`/api/…` travels in the same jar as the site's own front end, changes with it on the
+same day and guarantees nothing. `/api/v1/…` is a frozen contract: routes and fields
+are added there, never removed or renamed, and a client compiled against it keeps
+working. A mod is installed on somebody's machine and is a version — or ten — behind,
+so it is the second one it calls, and only the second one.
+
+That decides what the mod can be built on. The eleven routes of the contract are
+all used: the catalogue and its atlases, the search, an element's provenance, the
+composed texture and the front view, and the five routes of the saved-skin library.
+The routes outside it are left alone even where they would be convenient — the
+editor's autosave, the PNG import, the share image, the random draws, and the
+`POST /credits` that would group the works of a whole stack in one call. The mod
+groups them itself, out of the catalogue it already holds, rather than lean on a
+route that may move.
+
+**The project document is the site's, to the letter.** It is one shape everywhere:
+composed by `POST /textures`, stored by `PUT /skins/{id}`, and read back from
+storage. Its rules are the server's validator, and three of them are silent when
+broken — the model is a `slim` boolean rather than a `model` string, a layer names
+its element with `cat` and `preset`, and opacity and the adjustments are factors
+rather than the whole percentages this mod's sliders work in. Writing them any other
+way is refused with a 400 naming the path, which is how the first version of this
+was found: nothing ever composed. `ProjectJson` is therefore the only place that
+writes or reads a project, and it has a test per rule.
+
+**The saved skins are per installation, not per account.** There is no account yet.
+The storage routes ask for an `X-Client-Id` header, a UUID, and refuse the call
+outright without one; the site draws it in the browser, and the mod draws it once and
+keeps it in `config/mcskincreator-client.txt`. That file is the way back to the
+library rather than the library itself — losing it leaves the skins on the server and
+loses the door to them. The day accounts exist, one will gather several of these ids
+without this side of the contract changing (issue #9).

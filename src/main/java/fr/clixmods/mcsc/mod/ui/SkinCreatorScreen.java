@@ -12,9 +12,14 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
+
+import com.google.gson.JsonParser;
 
 import fr.clixmods.mcsc.mod.MCSkinCreatorClient;
 import fr.clixmods.mcsc.mod.catalog.Catalog;
@@ -22,14 +27,19 @@ import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
 import fr.clixmods.mcsc.mod.catalog.CatalogFormatException;
 import fr.clixmods.mcsc.mod.catalog.CatalogItem;
 import fr.clixmods.mcsc.mod.catalog.CatalogText;
+import fr.clixmods.mcsc.mod.catalog.CatalogWork;
 import fr.clixmods.mcsc.mod.project.History;
 import fr.clixmods.mcsc.mod.project.Layer;
 import fr.clixmods.mcsc.mod.project.SkinProject;
 import fr.clixmods.mcsc.mod.remote.ApiException;
+import fr.clixmods.mcsc.mod.remote.ItemCredit;
 import fr.clixmods.mcsc.mod.remote.McscApi;
+import fr.clixmods.mcsc.mod.remote.SavedSkin;
+import fr.clixmods.mcsc.mod.remote.SearchResults;
 import fr.clixmods.mcsc.mod.skin.CategorySprites;
 import fr.clixmods.mcsc.mod.skin.PreviewSkin;
 import fr.clixmods.mcsc.mod.skin.ProjectJson;
+import fr.clixmods.mcsc.mod.skin.SkinThumbnails;
 import fr.clixmods.mcsc.mod.style.Metrics;
 import fr.clixmods.mcsc.mod.style.Palette;
 import fr.clixmods.mcsc.mod.style.Surface;
@@ -44,6 +54,7 @@ import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
 import fr.clixmods.mcsc.mod.ui.window.CardWindow;
 import fr.clixmods.mcsc.mod.ui.window.ModalWindow;
 import fr.clixmods.mcsc.mod.ui.window.NameWindow;
+import fr.clixmods.mcsc.mod.ui.window.SkinsWindow;
 import fr.clixmods.mcsc.mod.ui.window.TextWindow;
 import net.minecraft.client.Minecraft;
 //? if >=26.1 {
@@ -96,6 +107,22 @@ public class SkinCreatorScreen extends Screen {
     private static final long COMPOSE_DEBOUNCE_MS = 300;
 
     /**
+     * How long to wait before asking the server what a search matches.
+     *
+     * <p>Longer than the composition's: a query is typed letter by letter, and every
+     * letter would otherwise be a request whose answer is thrown away by the next one.
+     * The panel filters what it already holds in the meantime, so the field never
+     * feels stalled.
+     */
+    private static final long SEARCH_DEBOUNCE_MS = 400;
+
+    /** How many matches to ask for: the whole library rather than a first page. */
+    private static final int SEARCH_PAGE_SIZE = 500;
+
+    /** The magnification of an exported front view: 16 by 32 texels, eight times. */
+    private static final int FRONT_VIEW_SCALE = 8;
+
+    /**
      * The parsed catalogue, kept for the session: it is the same library on every
      * opening, and re-reading it would be a request for nothing. Only the JSON is kept
      * here — the atlases are pixels, and pixels belong to the screen that uploaded them.
@@ -110,6 +137,10 @@ public class SkinCreatorScreen extends Screen {
     /** One sheet of thumbnails per category, as its atlas arrives. */
     private final Map<String, CategorySprites> sprites = new HashMap<>();
     private final Set<String> requestedAtlases = new HashSet<>();
+    /** The front views of the saved skins, which the server composed as it stored them. */
+    private final SkinThumbnails skinThumbnails = new SkinThumbnails();
+    /** Provenance sheets already fetched, by {@code category/element}. */
+    private final Map<String, ItemCredit> credits = new HashMap<>();
 
     private TopBar topBar;
     private LibraryPanel library;
@@ -127,6 +158,20 @@ public class SkinCreatorScreen extends Screen {
     private Component failure = Component.empty();
     private boolean loadingCatalog;
     private boolean closed;
+
+    /** Which element the provenance sheet is about, and what is known of it so far. */
+    private ItemTile creditTile;
+    private boolean loadingCredit;
+
+    /** The library of saved skins, as the window showing it reads it. */
+    private SkinsWindow.Library skins = SkinsWindow.Library.LOADING;
+
+    /** The query waiting to go to the server, and since when. */
+    private String query = "";
+    private boolean searchPending;
+    private long searchSince;
+    /** Rises with every search, so a slow answer cannot replace a newer one. */
+    private int searchGeneration;
 
     /** The stack waiting to be composed, and since when. */
     private boolean composePending;
@@ -162,11 +207,12 @@ public class SkinCreatorScreen extends Screen {
         Icons.ensureRegistered(this.minecraft);
 
         if (this.library == null) {
-            this.topBar = new TopBar(this.history, this::startOver, this::openExport, this::openAbout);
+            this.topBar = new TopBar(this.history, this::startOver, this::openExport,
+                    this::openSkins, this::openAbout);
             this.library = new LibraryPanel(this::relayout, this::name, this.sprites::get,
                     this.project::isSlim, this::isUsed, this::stack, this::openProvenance,
                     this::previewItem, this::openFooterLink, this::onCategoriesChanged);
-            this.library.createSearch();
+            this.library.createSearch(this::queueSearch);
             this.library.setEmptyMessage(this::libraryMessage);
             this.scene = new ScenePanel(this.preview, this::relayout, () -> this.hoveredLabel);
             this.layers = new LayersPanel(this.project, () -> catalog, this.sprites::get,
@@ -406,9 +452,14 @@ public class SkinCreatorScreen extends Screen {
             queueCompose();
         }
 
-        if (this.composePending && System.currentTimeMillis() - this.pendingSince >= COMPOSE_DEBOUNCE_MS) {
+        long now = System.currentTimeMillis();
+        if (this.composePending && now - this.pendingSince >= COMPOSE_DEBOUNCE_MS) {
             this.composePending = false;
             compose();
+        }
+        if (this.searchPending && now - this.searchSince >= SEARCH_DEBOUNCE_MS) {
+            this.searchPending = false;
+            search();
         }
     }
 
@@ -418,7 +469,7 @@ public class SkinCreatorScreen extends Screen {
             return;
         }
         int generation = ++this.composeGeneration;
-        String body = ProjectJson.stack(this.project);
+        String body = ProjectJson.project(this.project);
 
         McscApi.shared().compose(body).whenComplete((texture, failure) ->
                 Minecraft.getInstance().execute(() -> {
@@ -501,6 +552,165 @@ public class SkinCreatorScreen extends Screen {
                     this.toasts.succeeded("atlas:" + category.id());
                     this.sprites.put(category.id(), CategorySprites.of(category.id(), buffers));
                 }));
+    }
+
+    // ------------------------------------------------------------------ searching
+
+    /** Puts a query in the queue, restarting the wait. */
+    private void queueSearch(String query) {
+        this.query = query.trim();
+        this.searchPending = !this.query.isEmpty();
+        this.searchSince = System.currentTimeMillis();
+    }
+
+    /**
+     * Asks the server what the query matches.
+     *
+     * <p>The panel can filter the catalogue it holds, and does while this is in flight,
+     * but only on the labels the player's language shows. The server looks in the three
+     * the catalogue carries at once, which is the whole reason this is a request: a
+     * French name is unreachable from an English game otherwise.
+     */
+    private void search() {
+        String asked = this.query;
+        if (asked.isEmpty()) {
+            return;
+        }
+        int generation = ++this.searchGeneration;
+
+        McscApi.shared().search(asked, 0, SEARCH_PAGE_SIZE).whenComplete((results, failure) ->
+                Minecraft.getInstance().execute(() -> {
+                    if (this.closed || generation != this.searchGeneration) {
+                        return;
+                    }
+                    if (failure != null) {
+                        // No message: the panel is already showing what it could match on
+                        // its own, and a red banner over a list that is not empty says
+                        // the wrong thing.
+                        MCSkinCreatorClient.LOGGER.warn("Searching for \"{}\" failed", asked, failure);
+                        return;
+                    }
+                    this.library.setSearchResults(asked, results.hits());
+                    relayout();
+                }));
+    }
+
+    // ------------------------------------------------------------------ provenance
+
+    /** The provenance sheet of an element, opened on what is known and filled in after. */
+    private void openProvenance(ItemTile tile) {
+        this.creditTile = tile;
+        this.loadingCredit = !this.credits.containsKey(creditKey(tile));
+        if (this.loadingCredit) {
+            requestCredit(tile);
+        }
+        open(new TextWindow("window.mcskincreator.provenance", this::provenanceLines, this.window));
+    }
+
+    private static String creditKey(ItemTile tile) {
+        return tile.category().id() + "/" + tile.item().id();
+    }
+
+    /**
+     * Fetches what the catalogue cannot say: which starter models this element is a
+     * piece of.
+     *
+     * <p>The work itself is already in the catalogue, which is why the sheet is readable
+     * before this lands and why a failure here costs a line rather than the window.
+     */
+    private void requestCredit(ItemTile tile) {
+        String key = creditKey(tile);
+        McscApi.shared().credit(tile.category().id(), tile.item().id()).whenComplete((credit, failure) ->
+                Minecraft.getInstance().execute(() -> {
+                    if (this.closed) {
+                        return;
+                    }
+                    if (failure != null) {
+                        MCSkinCreatorClient.LOGGER.warn("Reading the provenance of {} failed", key, failure);
+                    } else {
+                        this.credits.put(key, credit);
+                    }
+                    if (this.creditTile != null && creditKey(this.creditTile).equals(key)) {
+                        this.loadingCredit = false;
+                        relayout();
+                    }
+                }));
+    }
+
+    /**
+     * The provenance sheet.
+     *
+     * <p>Read again on every frame, so the models arrive in a window that is already
+     * open. An element that names no work is not a fault and does not read as one: the
+     * sheet says the provenance is not documented, which is an open question rather
+     * than a silence.
+     */
+    private List<TextWindow.Line> provenanceLines() {
+        ItemTile tile = this.creditTile;
+        if (tile == null) {
+            return List.of();
+        }
+
+        List<TextWindow.Line> lines = new ArrayList<>();
+        lines.add(new TextWindow.Line(tile.label(), false));
+        lines.add(new TextWindow.Line(Component.translatable("provenance.mcskincreator.category",
+                name(tile.category().name())), false));
+
+        ItemCredit credit = this.credits.get(creditKey(tile));
+        CatalogWork work = credit != null && credit.hasWork()
+                ? credit.work()
+                : catalog.workOf(tile.item());
+        if (work.isEmpty()) {
+            lines.add(TextWindow.Line.warning("provenance.mcskincreator.undocumented"));
+        } else {
+            lines.add(new TextWindow.Line(Component.translatable("provenance.mcskincreator.work",
+                    work.title().isBlank() ? tile.label().getString() : work.title(),
+                    work.author()), false));
+            lines.add(new TextWindow.Line(Component.translatable("provenance.mcskincreator.licence",
+                    licenceName(work)), false));
+            if (work.hasUrl()) {
+                lines.add(new TextWindow.Line(Component.literal(work.url()), false));
+            }
+        }
+
+        if (this.loadingCredit) {
+            lines.add(TextWindow.Line.of("provenance.mcskincreator.loading"));
+        } else if (credit != null) {
+            lines.add(modelsLine(credit));
+        }
+        return lines;
+    }
+
+    /** Which starter models this element is a piece of, which says what to expect of it. */
+    private TextWindow.Line modelsLine(ItemCredit credit) {
+        if (credit.total() == 0) {
+            return TextWindow.Line.of("provenance.mcskincreator.no_models");
+        }
+        String named = credit.models().stream()
+                .map(model -> model.name().forLanguage(this.minecraft.options.languageCode))
+                .collect(Collectors.joining(", "));
+        int unnamed = credit.unnamedModels();
+        Component text = unnamed == 0
+                ? Component.translatable("provenance.mcskincreator.models", credit.total(), named)
+                : Component.translatable("provenance.mcskincreator.models_more", credit.total(), named, unnamed);
+        return new TextWindow.Line(text, false);
+    }
+
+    /**
+     * A licence, named rather than spelled out.
+     *
+     * <p>The catalogue publishes a key ({@code cc-by}, {@code maison}…), which the site
+     * translates. The mod translates the ones it knows and shows the key itself for one
+     * it has never heard of, the same way an unknown region reads as its own name — a
+     * licence added to the catalogue appears as something rather than as nothing.
+     */
+    private static Component licenceName(CatalogWork work) {
+        if (work.licence().isBlank()) {
+            return Component.translatable("licence.mcskincreator.unknown");
+        }
+        String key = "licence.mcskincreator." + work.licence();
+        Component translated = Component.translatable(key);
+        return translated.getString().equals(key) ? Component.literal(work.licence()) : translated;
     }
 
     /** What the library says when it has nothing to show, which is not always the same. */
@@ -593,18 +803,218 @@ public class SkinCreatorScreen extends Screen {
             case "legal" -> open(new TextWindow("window.mcskincreator.legal",
                     List.of(TextWindow.Line.of("legal.mcskincreator.body")), null));
             case "credits" -> open(new TextWindow("window.mcskincreator.credits",
-                    List.of(TextWindow.Line.of("credits.mcskincreator.body")), null));
+                    this::creditsLines, null));
             default -> open(new TextWindow("window.mcskincreator.beta",
                     List.of(TextWindow.Line.of("beta.mcskincreator.body")), null));
         }
     }
 
-    private void openProvenance(ItemTile tile) {
-        open(new TextWindow("window.mcskincreator.provenance", List.of(
-                new TextWindow.Line(tile.label(), false),
-                new TextWindow.Line(Component.translatable("provenance.mcskincreator.category",
-                        name(tile.category().name())), false),
-                TextWindow.Line.of("provenance.mcskincreator.catalog")), this.window));
+    /**
+     * The credits of the skin on the model: one entry per work, in the order the works
+     * first appear, each naming the elements that come from it.
+     *
+     * <p>Built from the catalogue rather than asked for, because the catalogue already
+     * carries the table of works and which one every element points at — and because
+     * the route that would group them for a whole stack is not part of the {@code v1}
+     * contract, so a mod must not lean on it.
+     *
+     * <p>Elements the repository drew itself credit nobody outside it and are left out,
+     * which is what the site does with them too.
+     */
+    private List<TextWindow.Line> creditsLines() {
+        List<TextWindow.Line> lines = new ArrayList<>();
+        lines.add(TextWindow.Line.of("credits.mcskincreator.body"));
+
+        Map<CatalogWork, List<String>> used = new LinkedHashMap<>();
+        for (Layer layer : this.project.layers()) {
+            CatalogItem item = itemOf(layer).orElse(null);
+            if (item == null || CatalogWork.IN_HOUSE.equals(item.credit())) {
+                continue;
+            }
+            CatalogWork work = catalog.workOf(item);
+            if (work.isEmpty()) {
+                continue;
+            }
+            List<String> elements = used.computeIfAbsent(work, key -> new ArrayList<>());
+            String element = layer.name().getString();
+            if (!elements.contains(element)) {
+                elements.add(element);
+            }
+        }
+
+        if (used.isEmpty()) {
+            lines.add(TextWindow.Line.of(this.project.isEmpty()
+                    ? "credits.mcskincreator.nothing_stacked"
+                    : "credits.mcskincreator.nothing_to_credit"));
+            return lines;
+        }
+        for (Map.Entry<CatalogWork, List<String>> entry : used.entrySet()) {
+            CatalogWork work = entry.getKey();
+            lines.add(new TextWindow.Line(Component.translatable("credits.mcskincreator.work",
+                    work.title(), work.author(), licenceName(work),
+                    String.join(", ", entry.getValue())), false));
+        }
+        return lines;
+    }
+
+    /** The catalogue entry a layer was stacked from, which it may have outlived. */
+    private Optional<CatalogItem> itemOf(Layer layer) {
+        return catalog.category(layer.categoryId()).flatMap(category -> category.items().stream()
+                .filter(item -> item.id().equals(layer.itemId()))
+                .findFirst());
+    }
+
+    // ------------------------------------------------------------------ the library
+
+    /** Opens the saved skins, and asks the server for them each time it is opened. */
+    private void openSkins() {
+        open(new SkinsWindow(() -> this.skins, this.skinThumbnails,
+                this::openSavedSkin, this::deleteSavedSkin, this::openSaveName));
+        loadSkins();
+    }
+
+    private void loadSkins() {
+        this.skins = new SkinsWindow.Library(this.skins.skins(), true, Component.empty());
+        McscApi.shared().skins().whenComplete((loaded, failure) ->
+                Minecraft.getInstance().execute(() -> {
+                    if (this.closed) {
+                        return;
+                    }
+                    if (failure != null) {
+                        MCSkinCreatorClient.LOGGER.warn("Reading the saved skins from {} failed",
+                                McscApi.shared().baseUrl(), failure);
+                        this.skins = new SkinsWindow.Library(List.of(), false, skinsFailure(failure));
+                        relayout();
+                        return;
+                    }
+                    this.skins = new SkinsWindow.Library(loaded, false, Component.empty());
+                    loaded.forEach(this::requestSkinThumbnail);
+                    relayout();
+                }));
+    }
+
+    /**
+     * The front view of one saved skin.
+     *
+     * <p>Asked for once per entry and per screen: the server composed that picture when
+     * it stored the skin, so this costs a request and no composition — which is what
+     * lets a dozen saved skins be shown without rebuilding a dozen stacks.
+     */
+    private void requestSkinThumbnail(SavedSkin skin) {
+        if (this.skinThumbnails.has(skin.id())) {
+            return;
+        }
+        McscApi.shared().skinThumbnail(skin.id(), SkinThumbnails.SCALE).whenComplete((png, failure) ->
+                Minecraft.getInstance().execute(() -> {
+                    if (this.closed || failure != null) {
+                        if (failure != null) {
+                            // A row without its picture is still a row one can open.
+                            MCSkinCreatorClient.LOGGER.warn("Reading the picture of {} failed",
+                                    skin.id(), failure);
+                        }
+                        return;
+                    }
+                    try {
+                        this.skinThumbnails.put(skin.id(), png);
+                    } catch (IOException | RuntimeException cause) {
+                        MCSkinCreatorClient.LOGGER.warn("Unreadable picture for {}", skin.id(), cause);
+                    }
+                }));
+    }
+
+    /**
+     * Opens a saved skin: its layers become the stack, and its texture goes on the
+     * model at once.
+     *
+     * <p>The texture is the server's own, composed when the skin was stored, so the
+     * model is right before the composition of the reopened stack comes back — the same
+     * bargain the library makes when an element is picked.
+     */
+    private void openSavedSkin(SavedSkin skin) {
+        this.history.record();
+        int dropped = ProjectJson.read(skin.data(), this.project, catalog,
+                this.minecraft.options.languageCode);
+        closeWindow();
+        relayout();
+
+        if (dropped > 0) {
+            // Said rather than hidden: the stack is short of something the catalogue no
+            // longer carries, and a skin that opens with a layer missing and no word
+            // about it reads as the mod losing it.
+            this.toasts.failed("skin_open",
+                    Component.translatable("toast.mcskincreator.layers_dropped", dropped));
+        } else {
+            this.toasts.succeeded("skin_open");
+        }
+
+        McscApi.shared().skinTexture(skin.id()).whenComplete((texture, failure) ->
+                Minecraft.getInstance().execute(() -> {
+                    if (this.closed || failure != null || this.project.isEmpty()) {
+                        return;
+                    }
+                    this.composed = texture;
+                    show(texture);
+                }));
+    }
+
+    private void deleteSavedSkin(SavedSkin skin) {
+        McscApi.shared().delete(skin.id()).whenComplete((ignored, failure) ->
+                Minecraft.getInstance().execute(() -> {
+                    if (this.closed) {
+                        return;
+                    }
+                    if (failure != null) {
+                        MCSkinCreatorClient.LOGGER.warn("Deleting {} failed", skin.id(), failure);
+                        this.toasts.failed("skins", Component.translatable("toast.mcskincreator.skin_delete_failed"));
+                        return;
+                    }
+                    this.toasts.succeeded("skins");
+                    this.skinThumbnails.forget(skin.id());
+                    loadSkins();
+                }));
+    }
+
+    private void openSaveName() {
+        // Nothing to undo on cancel: the window's own close already gives the library
+        // back, and closing twice would take it away with it.
+        open(new NameWindow("window.mcskincreator.save", "skin",
+                this::saveSkin, () -> { }, this.window));
+    }
+
+    /**
+     * Stores the skin on the server under a name.
+     *
+     * <p>A new entry every time, deliberately: the mod has no notion of an open skin
+     * that follows the editing the way the site's does, and silently replacing one
+     * would be the one behaviour nobody could undo.
+     */
+    private void saveSkin(String name) {
+        SavedSkin skin = new SavedSkin(SavedSkin.newId(), name, System.currentTimeMillis(),
+                JsonParser.parseString(ProjectJson.project(this.project)).getAsJsonObject());
+
+        McscApi.shared().save(skin).whenComplete((written, failure) ->
+                Minecraft.getInstance().execute(() -> {
+                    if (this.closed) {
+                        return;
+                    }
+                    if (failure != null) {
+                        MCSkinCreatorClient.LOGGER.warn("Saving \"{}\" failed", name, failure);
+                        this.toasts.failed("skins", Component.translatable("toast.mcskincreator.skin_save_failed"));
+                        return;
+                    }
+                    this.toasts.succeeded("skins");
+                    this.toasts.ok(Component.translatable("toast.mcskincreator.skin_saved", written.name()));
+                    loadSkins();
+                }));
+    }
+
+    /** What to tell the player when the library does not arrive, for the same three cases. */
+    private static Component skinsFailure(Throwable failure) {
+        ApiException refusal = refusal(failure);
+        if (refusal != null) {
+            return Component.translatable("skins.mcskincreator.http_error", refusal.status());
+        }
+        return Component.translatable("skins.mcskincreator.unreachable", McscApi.shared().baseUrl());
     }
 
     private void openImport() {
@@ -616,12 +1026,19 @@ public class SkinCreatorScreen extends Screen {
     private void openExport() {
         open(new CardWindow("window.mcskincreator.export", List.of(
                 new CardWindow.Card("save", "export.mcskincreator.file",
-                        "export.mcskincreator.file_detail", this::openExportName)), null));
+                        "export.mcskincreator.file_detail", this::openExportName),
+                new CardWindow.Card("skin", "export.mcskincreator.front",
+                        "export.mcskincreator.front_detail", this::openFrontViewName)), null));
     }
 
     private void openExportName() {
         open(new NameWindow("window.mcskincreator.name", "skin",
                 this::exportTo, this::closeWindow, null));
+    }
+
+    private void openFrontViewName() {
+        open(new NameWindow("window.mcskincreator.name", "skin-front",
+                this::exportFrontView, this::closeWindow, null));
     }
 
     private void exportTo(String name) {
@@ -630,7 +1047,40 @@ public class SkinCreatorScreen extends Screen {
                     Component.translatable("toast.mcskincreator.nothing_to_export"));
             return;
         }
-        Path written = Export.write(this.minecraft, this.composed, name);
+        write(this.composed, name);
+    }
+
+    /**
+     * Writes out the character seen from the front rather than the sheet.
+     *
+     * <p>A skin file is for installing and this is for looking at, which is why it is
+     * worth its own round trip: {@code POST /thumbnails} draws the whole figure
+     * standing, at whole texels, and the mod has nothing that renders one.
+     */
+    private void exportFrontView(String name) {
+        if (this.project.isEmpty()) {
+            this.toasts.failed(Export.KIND,
+                    Component.translatable("toast.mcskincreator.nothing_to_export"));
+            return;
+        }
+
+        McscApi.shared().frontView(ProjectJson.project(this.project), FRONT_VIEW_SCALE)
+                .whenComplete((png, failure) -> Minecraft.getInstance().execute(() -> {
+                    if (this.closed) {
+                        return;
+                    }
+                    if (failure != null) {
+                        MCSkinCreatorClient.LOGGER.warn("Drawing the front view failed", failure);
+                        this.toasts.failed(Export.KIND,
+                                Component.translatable("toast.mcskincreator.export_failed"));
+                        return;
+                    }
+                    write(png, name);
+                }));
+    }
+
+    private void write(byte[] png, String name) {
+        Path written = Export.write(this.minecraft, png, name);
         if (written == null) {
             this.toasts.failed(Export.KIND, Component.translatable("toast.mcskincreator.export_failed"));
             return;
@@ -963,6 +1413,7 @@ public class SkinCreatorScreen extends Screen {
             loaded.close();
         }
         this.sprites.clear();
+        this.skinThumbnails.close();
     }
 
     @Override

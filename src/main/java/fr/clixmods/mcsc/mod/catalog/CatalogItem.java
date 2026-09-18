@@ -19,13 +19,16 @@ package fr.clixmods.mcsc.mod.catalog;
  * @param slimAtlasIndex the rank of its slim-model buffer, or {@value #NONE}
  * @param thumbCrop      the part of the body its thumbnail shows, when the element
  *                       overrides what its category asks for
+ * @param credit         the key of the work this element was cut out of, in the
+ *                       catalogue's own table, or empty when it names none
  */
 public record CatalogItem(
         String id,
         CatalogText name,
         int atlasIndex,
         int slimAtlasIndex,
-        ThumbCrop thumbCrop) {
+        ThumbCrop thumbCrop,
+        String credit) {
 
     /** No slim buffer: the element is drawn the same on both models. */
     public static final int NONE = -1;

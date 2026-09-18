@@ -11,6 +11,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -21,6 +22,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.zip.GZIPInputStream;
+
+import com.google.gson.JsonParser;
 
 import fr.clixmods.mcsc.mod.MCSkinCreatorClient;
 import fr.clixmods.mcsc.mod.catalog.Catalog;
@@ -36,6 +39,12 @@ import fr.clixmods.mcsc.mod.catalog.CatalogParser;
  * touch the game, which they do through {@code Minecraft#execute}. A synchronous call
  * from the render thread would freeze the game for as long as the server takes, and
  * that is the first thing that goes wrong in a mod that talks to an API.
+ *
+ * <p>Every route of the {@code /api/v1} contract is here, and nothing that is not in
+ * it: the editor's autosave, the PNG import, the share image and the random draws
+ * answer under {@code /api} only, which follows the site's jar and promises nothing to
+ * a mod installed months ago. What the contract holds is described in
+ * {@code site/API.md} of the site's repository.
  *
  * <p>Nothing here caches. Keeping a downloaded atlas on disk is issue #3's job, and
  * this class is the seam it plugs into.
@@ -55,6 +64,16 @@ public final class McscApi implements AutoCloseable {
 
     /** One element's buffer inside an atlas: 64 x 64 pixels, four bytes each. */
     public static final int ATLAS_BUFFER_BYTES = 64 * 64 * 4;
+
+    /** What the server accepts as a thumbnail magnification, and clamps to anyway. */
+    public static final int MIN_SCALE = 1;
+    public static final int MAX_SCALE = 16;
+
+    /** The header every storage call carries: without it the server answers 400. */
+    static final String CLIENT_HEADER = "X-Client-Id";
+
+    private static final String JSON = "application/json";
+    private static final String IMAGE = "application/octet-stream, image/png";
 
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(10);
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
@@ -108,8 +127,26 @@ public final class McscApi implements AutoCloseable {
 
     /** {@code GET /catalog} */
     public CompletableFuture<Catalog> catalog() {
-        return get("/catalog", "application/json")
-                .thenApply(bytes -> unchecked(() -> CatalogParser.parse(new String(bytes, StandardCharsets.UTF_8))));
+        return getJson("/catalog").thenApply(json -> unchecked(() -> CatalogParser.parse(json)));
+    }
+
+    /**
+     * {@code GET /search}: what matches, in the three languages the catalogue carries.
+     *
+     * <p>Worth a round trip rather than filtering what is already in memory, because
+     * the loaded names are only the ones the player's language shows: a French label
+     * matches here and cannot match there.
+     */
+    public CompletableFuture<SearchResults> search(String query, int page, int size) {
+        String path = "/search?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8)
+                + "&page=" + Math.max(0, page) + "&size=" + Math.max(1, size);
+        return getJson(path).thenApply(json -> unchecked(() -> SearchResults.parse(json)));
+    }
+
+    /** {@code GET /presets/{cat}/{id}/credit}: where an element came from. */
+    public CompletableFuture<ItemCredit> credit(String categoryId, String itemId) {
+        String path = "/presets/" + segment(categoryId) + "/" + segment(itemId) + "/credit";
+        return getJson(path).thenApply(json -> unchecked(() -> ItemCredit.parse(json)));
     }
 
     /**
@@ -155,17 +192,111 @@ public final class McscApi implements AutoCloseable {
      * this with local composition through {@code mcsc-engine}.
      */
     public CompletableFuture<byte[]> compose(String projectJson) {
-        HttpRequest request = request("/textures")
-                .header("Content-Type", "application/json")
-                .header("Accept", "application/octet-stream, image/png")
-                .POST(HttpRequest.BodyPublishers.ofString(projectJson, StandardCharsets.UTF_8))
-                .build();
-        return send(request, "/textures");
+        return post("/textures", projectJson);
     }
 
-    private CompletableFuture<byte[]> get(String path, String accept) {
-        HttpRequest request = request(path).header("Accept", accept).GET().build();
+    /**
+     * {@code POST /thumbnails}: the same project seen from the front, standing, at
+     * {@code scale} times its 16 by 32 pixels.
+     *
+     * <p>This is a picture of the character rather than of the sheet, which is what one
+     * wants of an export meant to be looked at instead of installed.
+     */
+    public CompletableFuture<byte[]> frontView(String projectJson, int scale) {
+        return post("/thumbnails?x=" + clampScale(scale), projectJson);
+    }
+
+    // ------------------------------------------------------------------ the library
+
+    /** {@code GET /skins}: the player's saved skins, the last created first. */
+    public CompletableFuture<List<SavedSkin>> skins() {
+        HttpRequest request = request("/skins").header("Accept", JSON).header(CLIENT_HEADER, ClientId.get())
+                .GET().build();
+        return send(request, "/skins")
+                .thenApply(bytes -> unchecked(() -> SavedSkin.parseList(text(bytes))));
+    }
+
+    /**
+     * {@code PUT /skins/{id}}: creates the entry or replaces it where it stands.
+     *
+     * <p>The server validates the project and composes its texture as it writes, so a
+     * refusal here is a refusal of the project itself — which is the one place a
+     * mistake in what the mod writes shows up as a status rather than as a wrong
+     * picture.
+     */
+    public CompletableFuture<SavedSkin> save(SavedSkin skin) {
+        String path = "/skins/" + segment(skin.id());
+        HttpRequest request = request(path)
+                .header("Content-Type", JSON)
+                .header("Accept", JSON)
+                .header(CLIENT_HEADER, ClientId.get())
+                .PUT(HttpRequest.BodyPublishers.ofString(skin.body().toString(), StandardCharsets.UTF_8))
+                .build();
+        return send(request, path).thenApply(bytes -> {
+            SavedSkin written = SavedSkin.of(JsonParser.parseString(text(bytes)));
+            // The answer is the entry as it was stored; what was sent stands in only if
+            // the server answered with something this version cannot read.
+            return written == null ? skin : written;
+        });
+    }
+
+    /** {@code DELETE /skins/{id}} */
+    public CompletableFuture<Void> delete(String id) {
+        String path = "/skins/" + segment(id);
+        HttpRequest request = request(path).header(CLIENT_HEADER, ClientId.get()).DELETE().build();
+        return send(request, path).thenApply(ignored -> null);
+    }
+
+    /** {@code GET /skins/{id}/texture.png}: the sheet the server composed as it wrote. */
+    public CompletableFuture<byte[]> skinTexture(String id) {
+        return getSkinImage("/skins/" + segment(id) + "/texture.png");
+    }
+
+    /** {@code GET /skins/{id}/thumbnail.png}: that skin, seen from the front. */
+    public CompletableFuture<byte[]> skinThumbnail(String id, int scale) {
+        return getSkinImage("/skins/" + segment(id) + "/thumbnail.png?x=" + clampScale(scale));
+    }
+
+    private CompletableFuture<byte[]> getSkinImage(String path) {
+        HttpRequest request = request(path).header("Accept", IMAGE)
+                .header(CLIENT_HEADER, ClientId.get()).GET().build();
         return send(request, path);
+    }
+
+    // ------------------------------------------------------------------ plumbing
+
+    private CompletableFuture<byte[]> post(String path, String body) {
+        HttpRequest request = request(path)
+                .header("Content-Type", JSON)
+                .header("Accept", IMAGE)
+                .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
+                .build();
+        return send(request, path);
+    }
+
+    private CompletableFuture<String> getJson(String path) {
+        HttpRequest request = request(path).header("Accept", JSON).GET().build();
+        return send(request, path).thenApply(McscApi::text);
+    }
+
+    private static String text(byte[] body) {
+        return new String(body, StandardCharsets.UTF_8);
+    }
+
+    static int clampScale(int scale) {
+        return Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale));
+    }
+
+    /**
+     * A value of the player's going into a path.
+     *
+     * <p>Catalogue identifiers are lowercase words and dashes and a skin id is drawn
+     * by the mod, so nothing here has ever needed escaping - which is exactly why it
+     * is done anyway, before the first identifier that does arrives as a broken
+     * address or as something worse.
+     */
+    static String segment(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
     private CompletableFuture<byte[]> send(HttpRequest request, String path) {

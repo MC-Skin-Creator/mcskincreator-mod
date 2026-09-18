@@ -25,10 +25,15 @@ What is in:
 - the **layers**, right: the stack grouped by region, drag to reorder, show and
   hide, duplicate and remove, and an inspector for opacity, hue, saturation and
   brightness
+- **where every element comes from**: the "i" on a thumbnail opens the work it was
+  cut out of — title, author, licence — and the starter models it is a piece of
+- **My skins**: the skins kept on the server, opened, saved and deleted from the
+  game. They are the same entries the site's own library holds
 - three columns while the window is wide enough, drawers below that, either side
   column foldable
 - undo and redo over 60 states, with one entry per gesture rather than per frame
-- export of the composed 64x64 sheet as a PNG, into `<game>/mcskincreator/`
+- export into `<game>/mcskincreator/`: the composed 64x64 sheet, or the character
+  seen from the front
 - English, French and Spanish, with a label and a tooltip for every control
 - multi-version builds through [Stonecutter](https://stonecutter.kikugie.dev/):
   **Minecraft 1.21.11 and 26.2** from the same code
@@ -38,10 +43,13 @@ What is not in yet: the pixel drawing tools, per-element colours, importing a
 texture, the account, and applying the skin. They all live in the
 [issues](https://github.com/MC-Skin-Creator/mcskincreator-mod/issues).
 
-The editor reads the MC Skin Creator API at `https://mcskincreator.app/api/v1`, so
-it needs to reach it. Point the mod at another deployment - a local back-end, say -
-with a system property or an environment variable, whichever is easier to set where
-you launch the game:
+The editor reads the MC Skin Creator API at `https://mcskincreator.app/api/v1`, and
+uses every route of that contract: the catalogue and its atlases, the search, an
+element's provenance, the composed texture and front view, and the five routes of
+the saved-skin library. Nothing outside `/api/v1` is called — the rest of the site's
+API travels with its own front end and promises nothing to a mod. Point the mod at
+another deployment - a local back-end, say - with a system property or an
+environment variable, whichever is easier to set where you launch the game:
 
 ```sh
 -Dmcskincreator.api=http://localhost:3000/api/v1
@@ -51,6 +59,11 @@ MCSKINCREATOR_API=http://localhost:3000/api/v1
 Neither is needed to play. When the library does not arrive, the screen says which
 address the mod tried and what came back, so a wrong address reads differently from
 a network that is down.
+
+The saved skins have no account behind them yet. The mod draws a client identifier
+once, keeps it in `config/mcskincreator-client.txt`, and sends it with every call to
+the library — exactly as the site does in the browser. Deleting that file does not
+delete the skins on the server, but it does lose the way back to them.
 
 ## Install
 

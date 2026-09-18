@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -21,18 +22,24 @@ import com.google.gson.JsonParser;
 
 import org.junit.jupiter.api.Test;
 
+import fr.clixmods.mcsc.mod.catalog.Catalog;
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
 import fr.clixmods.mcsc.mod.project.Layer;
 import fr.clixmods.mcsc.mod.project.SkinProject;
 import net.minecraft.world.entity.player.PlayerModelType;
 
 /**
- * The body sent to {@code POST /api/v1/textures}: the stack bottom to top, hidden
- * layers left out, and nothing written that was never moved off its default.
+ * The one document the server accepts, written and read back.
+ *
+ * <p>Three of its rules are silent when broken, and each has a test of its own here:
+ * the model is a {@code slim} boolean rather than a {@code model} string, a layer names
+ * its element with {@code cat} and {@code preset}, and the numbers are factors rather
+ * than the whole percentages the sliders of this mod work in.
  */
 class ProjectJsonTest {
     private final SkinProject project = new SkinProject();
     private final CatalogCategory hats = category("hats", "head", "cap", "crown", "helm");
+    private final Catalog catalog = new Catalog(List.of(this.hats), Map.of());
 
     private Layer add(String itemId) {
         return this.project.add(this.hats, this.hats.items().stream()
@@ -49,12 +56,12 @@ class ProjectJsonTest {
         return parse(json).getAsJsonArray("layers");
     }
 
-    private static List<String> itemsOf(String json) {
-        List<String> items = new ArrayList<>();
+    private static List<String> presetsOf(String json) {
+        List<String> presets = new ArrayList<>();
         for (var entry : layersOf(json)) {
-            items.add(entry.getAsJsonObject().get("item").getAsString());
+            presets.add(entry.getAsJsonObject().get("preset").getAsString());
         }
-        return items;
+        return presets;
     }
 
     @Test
@@ -63,77 +70,122 @@ class ProjectJsonTest {
         add("crown");
         add("helm");
 
-        assertEquals(List.of("cap", "crown", "helm"), itemsOf(ProjectJson.stack(this.project)));
+        assertEquals(List.of("cap", "crown", "helm"), presetsOf(ProjectJson.project(this.project)));
     }
 
     @Test
-    void aHiddenLayerIsLeftOut() {
+    void aHiddenLayerIsWrittenOutAndSaidToBeHidden() {
         add("cap");
         add("crown").setVisible(false);
         add("helm");
 
-        assertEquals(List.of("cap", "helm"), itemsOf(ProjectJson.stack(this.project)));
+        List<String> presets = presetsOf(ProjectJson.project(this.project));
+        JsonObject hidden = layersOf(ProjectJson.project(this.project)).get(1).getAsJsonObject();
+
+        assertEquals(List.of("cap", "crown", "helm"), presets,
+                "dropping it would lose the layer the moment the project is stored");
+        assertFalse(hidden.get("visible").getAsBoolean());
     }
 
     @Test
     void anEmptyProjectStillCarriesItsModel() {
-        String json = ProjectJson.stack(this.project);
+        String json = ProjectJson.project(this.project);
 
         assertEquals(0, layersOf(json).size());
-        assertEquals("classic", parse(json).get("model").getAsString());
+        assertEquals(ProjectJson.VERSION, parse(json).get("v").getAsInt());
+        assertFalse(parse(json).get("slim").getAsBoolean());
     }
 
     @Test
-    void theModelFollowsTheProject() {
+    void theModelIsABooleanCalledSlim() {
         this.project.setModel(PlayerModelType.SLIM);
 
-        assertEquals("slim", parse(ProjectJson.stack(this.project)).get("model").getAsString());
+        JsonObject document = parse(ProjectJson.project(this.project));
+
+        assertTrue(document.get("slim").getAsBoolean());
+        assertFalse(document.has("model"), "\"model\" is a name the server does not read");
     }
 
     @Test
-    void anUntouchedLayerCarriesNothingButItsIdentity() {
+    void aLayerNamesItsElementWithCatAndPreset() {
         add("cap");
 
-        JsonObject entry = layersOf(ProjectJson.stack(this.project)).get(0).getAsJsonObject();
+        JsonObject entry = layersOf(ProjectJson.project(this.project)).get(0).getAsJsonObject();
 
         assertEquals("preset", entry.get("kind").getAsString());
-        assertEquals("hats", entry.get("category").getAsString());
-        assertEquals("cap", entry.get("item").getAsString());
+        assertEquals("hats", entry.get("cat").getAsString());
+        assertEquals("cap", entry.get("preset").getAsString());
+        assertFalse(entry.has("category"), "the validator refuses a layer without \"cat\"");
+        assertFalse(entry.has("item"));
+    }
+
+    @Test
+    void anUntouchedLayerCarriesNothingItDidNotMove() {
+        add("cap");
+
+        JsonObject entry = layersOf(ProjectJson.project(this.project)).get(0).getAsJsonObject();
+
         assertFalse(entry.has("opacity"), "an opacity left at 100 has nothing to say");
         assertFalse(entry.has("adj"), "adjustments left alone have nothing to say");
-        assertEquals(3, entry.size());
+        assertFalse(entry.has("visible"), "a visible layer is the default");
     }
 
     @Test
-    void anOpacityThatMovedIsWritten() {
+    void anOpacityIsWrittenAsAFactor() {
         add("cap").setOpacity(40);
 
-        JsonObject entry = layersOf(ProjectJson.stack(this.project)).get(0).getAsJsonObject();
+        JsonObject entry = layersOf(ProjectJson.project(this.project)).get(0).getAsJsonObject();
 
-        assertEquals(40, entry.get("opacity").getAsInt());
-        assertFalse(entry.has("adj"));
+        assertEquals(0.4, entry.get("opacity").getAsDouble(), 1e-9,
+                "the server bounds opacity to 0..1, not to 0..100");
     }
 
     @Test
-    void oneAdjustmentOffItsDefaultWritesAllThree() {
+    void oneAdjustmentOffItsDefaultWritesAllThreeInTheServersUnits() {
         add("cap").setHue(30);
 
-        JsonObject entry = layersOf(ProjectJson.stack(this.project)).get(0).getAsJsonObject();
-        JsonObject adjustments = entry.getAsJsonObject("adj");
+        JsonObject adjustments = layersOf(ProjectJson.project(this.project))
+                .get(0).getAsJsonObject().getAsJsonObject("adj");
 
-        assertEquals(30, adjustments.get("hue").getAsInt());
-        assertEquals(100, adjustments.get("saturation").getAsInt());
-        assertEquals(0, adjustments.get("brightness").getAsInt());
-        assertFalse(entry.has("opacity"));
+        assertEquals(30, adjustments.get("hue").getAsInt(), "hue is in degrees on both sides");
+        assertEquals(1.0, adjustments.get("sat").getAsDouble(), 1e-9);
+        assertEquals(0.0, adjustments.get("lum").getAsDouble(), 1e-9);
+        assertFalse(adjustments.has("saturation"), "\"saturation\" is a name the server ignores");
+        assertFalse(adjustments.has("brightness"));
     }
 
     @Test
-    void whatWasClampedIsWhatIsSent() {
-        add("cap").setOpacity(500);
+    void everyAdjustmentStaysInsideTheBoundsTheServerAccepts() {
+        Layer layer = add("cap");
+        layer.setHue(500);
+        layer.setSaturation(500);
+        layer.setBrightness(500);
 
-        JsonObject entry = layersOf(ProjectJson.stack(this.project)).get(0).getAsJsonObject();
+        JsonObject adjustments = layersOf(ProjectJson.project(this.project))
+                .get(0).getAsJsonObject().getAsJsonObject("adj");
 
-        assertFalse(entry.has("opacity"), "a clamped 500 is 100, which is the default");
+        assertEquals(180, adjustments.get("hue").getAsInt());
+        assertEquals(2.0, adjustments.get("sat").getAsDouble(), 1e-9);
+        assertEquals(0.5, adjustments.get("lum").getAsDouble(), 1e-9);
+    }
+
+    @Test
+    void aRegionTheServerDoesNotKnowIsLeftOut() {
+        CatalogCategory elsewhere = category("odd", "somewhere", "thing");
+        this.project.add(elsewhere, elsewhere.items().get(0), "en_us");
+
+        JsonObject entry = layersOf(ProjectJson.project(this.project)).get(0).getAsJsonObject();
+
+        assertFalse(entry.has("region"), "an unknown region is refused, and defaults to base");
+    }
+
+    @Test
+    void aKnownRegionTravelsWithTheLayer() {
+        add("cap");
+
+        JsonObject entry = layersOf(ProjectJson.project(this.project)).get(0).getAsJsonObject();
+
+        assertEquals("head", entry.get("region").getAsString());
     }
 
     @Test
@@ -144,22 +196,69 @@ class ProjectJsonTest {
         assertEquals(1, layers.size());
         JsonObject entry = layers.get(0).getAsJsonObject();
         assertEquals("preset", entry.get("kind").getAsString());
-        assertEquals("hats", entry.get("category").getAsString());
-        assertEquals("cap", entry.get("item").getAsString());
+        assertEquals("hats", entry.get("cat").getAsString());
+        assertEquals("cap", entry.get("preset").getAsString());
         assertEquals(3, entry.size());
-        assertEquals("classic", parse(json).get("model").getAsString());
+        assertFalse(parse(json).get("slim").getAsBoolean());
     }
 
     @Test
     void aSinglePresetCanBeAskedForTheSlimModel() {
-        assertEquals("slim", parse(ProjectJson.singlePreset("hats", "cap", true)).get("model").getAsString());
+        assertTrue(parse(ProjectJson.singlePreset("hats", "cap", true)).get("slim").getAsBoolean());
     }
 
     @Test
-    void theBodyIsValidJson() {
+    void aProjectComesBackAsItWentOut() {
+        this.project.setModel(PlayerModelType.SLIM);
         add("cap").setOpacity(40);
-        add("crown").setBrightness(-10);
+        Layer crown = add("crown");
+        crown.setVisible(false);
+        crown.setHue(-30);
+        crown.setSaturation(150);
+        crown.setBrightness(-20);
 
-        assertTrue(parse(ProjectJson.stack(this.project)).has("layers"));
+        String written = ProjectJson.project(this.project);
+        SkinProject reopened = new SkinProject();
+        int dropped = ProjectJson.read(parse(written), reopened, this.catalog, "en_us");
+
+        assertEquals(0, dropped);
+        assertTrue(reopened.isSlim());
+        assertEquals(2, reopened.layers().size());
+        Layer first = reopened.layers().get(0);
+        Layer second = reopened.layers().get(1);
+        assertEquals("cap", first.itemId());
+        assertEquals(40, first.opacity());
+        assertTrue(first.visible());
+        assertFalse(second.visible());
+        assertEquals(-30, second.hue());
+        assertEquals(150, second.saturation());
+        assertEquals(-20, second.brightness());
+    }
+
+    @Test
+    void aLayerTheCatalogueNoLongerCarriesIsCountedAndLeftBehind() {
+        String stored = """
+                {"v": 1, "slim": false, "layers": [
+                  {"kind": "preset", "cat": "hats", "preset": "cap"},
+                  {"kind": "preset", "cat": "hats", "preset": "gone"},
+                  {"kind": "preset", "cat": "vanished", "preset": "cap"},
+                  {"kind": "paint", "paint": "AAAA"}
+                ]}""";
+
+        int dropped = ProjectJson.read(parse(stored), this.project, this.catalog, "en_us");
+
+        assertEquals(3, dropped, "a removed element, a removed category, and a drawing layer");
+        assertEquals(List.of("cap"), this.project.layers().stream().map(Layer::itemId).toList());
+    }
+
+    @Test
+    void readingReplacesWhateverWasBeingEdited() {
+        add("cap");
+        add("crown");
+
+        ProjectJson.read(parse("{\"v\": 1, \"slim\": false, \"layers\": []}"),
+                this.project, this.catalog, "en_us");
+
+        assertTrue(this.project.isEmpty(), "opening a saved skin is not stacking it on this one");
     }
 }

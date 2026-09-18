@@ -10,6 +10,7 @@ package fr.clixmods.mcsc.mod.catalog;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -18,12 +19,17 @@ import java.util.Optional;
  *
  * <p>Order is the catalogue's own: it is the order the site shows, and the mod has no
  * better one to offer.
+ *
+ * @param works the table of origins the catalogue publishes, by key. An element points
+ *              at one of these rather than carrying it, because the same skin is cut
+ *              into dozens of elements and is credited once.
  */
-public record Catalog(List<CatalogCategory> categories) {
-    public static final Catalog EMPTY = new Catalog(List.of());
+public record Catalog(List<CatalogCategory> categories, Map<String, CatalogWork> works) {
+    public static final Catalog EMPTY = new Catalog(List.of(), Map.of());
 
     public Catalog {
         categories = List.copyOf(categories);
+        works = Map.copyOf(works);
     }
 
     public boolean isEmpty() {
@@ -47,6 +53,20 @@ public record Catalog(List<CatalogCategory> categories) {
             }
         }
         return List.copyOf(found);
+    }
+
+    /**
+     * Where an element came from, as far as the catalogue alone can say.
+     *
+     * <p>Empty covers the two cases the interface says differently: an element that
+     * names no work at all, and one naming a work the table does not hold — the second
+     * is a broken link and the kind of thing the site has a test for.
+     */
+    public CatalogWork workOf(CatalogItem item) {
+        if (item == null || item.credit().isBlank()) {
+            return CatalogWork.NONE;
+        }
+        return this.works.getOrDefault(item.credit(), CatalogWork.NONE);
     }
 
     public Optional<CatalogCategory> category(String id) {

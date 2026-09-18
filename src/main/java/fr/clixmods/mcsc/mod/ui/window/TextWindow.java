@@ -8,6 +8,7 @@
 package fr.clixmods.mcsc.mod.ui.window;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 import fr.clixmods.mcsc.mod.style.Metrics;
 import fr.clixmods.mcsc.mod.style.Palette;
@@ -23,6 +24,11 @@ import net.minecraft.network.chat.Component;
  * <p>A line can be marked a warning, and then it is a slot with a gold band down its
  * left flank and a gold heading on its own line — never a coloured border, which is
  * the one way this interface never says anything.
+ *
+ * <p>The lines are read back every frame rather than kept, so a window can be opened
+ * on what is already known and fill in as an answer lands. That is what the provenance
+ * sheet does: the catalogue names the work at once, and the server adds the models the
+ * element is a piece of a moment later, without the window being closed and reopened.
  */
 public class TextWindow extends ModalWindow {
     /**
@@ -40,9 +46,15 @@ public class TextWindow extends ModalWindow {
         }
     }
 
-    private final List<Line> lines;
+    private final Supplier<List<Line>> lines;
 
+    /** Prose that does not change while the window is open. */
     public TextWindow(String titleKey, List<Line> lines, ModalWindow returnsTo) {
+        this(titleKey, () -> lines, returnsTo);
+    }
+
+    /** Prose that is read again on every frame. */
+    public TextWindow(String titleKey, Supplier<List<Line>> lines, ModalWindow returnsTo) {
         super(titleKey, returnsTo);
         this.lines = lines;
     }
@@ -50,7 +62,7 @@ public class TextWindow extends ModalWindow {
     @Override
     protected int contentHeight(Canvas canvas) {
         int height = 0;
-        for (Line line : this.lines) {
+        for (Line line : this.lines.get()) {
             height += heightOf(canvas, line);
         }
         return height;
@@ -93,7 +105,7 @@ public class TextWindow extends ModalWindow {
     protected void drawBody(Paint paint, int left, int top, int width) {
         Canvas canvas = paint.canvas();
         int cursorY = top;
-        for (Line line : this.lines) {
+        for (Line line : this.lines.get()) {
             List<String> rows = wrapped(canvas, line);
             if (line.warning()) {
                 int boxHeight = heightOf(canvas, line) - Metrics.PAD_TIGHT;

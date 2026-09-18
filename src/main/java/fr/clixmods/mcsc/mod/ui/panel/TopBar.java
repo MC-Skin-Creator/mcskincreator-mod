@@ -29,25 +29,27 @@ import net.minecraft.network.chat.Component;
  * rather than the buttons wrapping: export, then undo and redo, go first — those are
  * the ones nobody should have to hunt for.
  *
- * <p>Several of the site's controls are deliberately absent. The templates and
- * saved-skins lists, and the random outfit, have nothing behind them yet, and a button
- * whose target is empty disappears instead of opening onto nothing. The language
- * picker is gone for a different reason: in the game the language is the game's, and
- * the mod follows it.
+ * <p>Two of the site's controls are deliberately absent. The templates list and the
+ * random outfit have nothing behind them yet, and a button whose target is empty
+ * disappears instead of opening onto nothing. The language picker is gone for a
+ * different reason: in the game the language is the game's, and the mod follows it.
  */
 public class TopBar extends Element {
     private final History history;
     private final Runnable onNew;
     private final Runnable onExport;
+    private final Runnable onSkins;
     private final Runnable onAbout;
 
     private final List<Element> children = new ArrayList<>();
     private final List<Integer> separators = new ArrayList<>();
 
-    public TopBar(History history, Runnable onNew, Runnable onExport, Runnable onAbout) {
+    public TopBar(History history, Runnable onNew, Runnable onExport, Runnable onSkins,
+                  Runnable onAbout) {
         this.history = history;
         this.onNew = onNew;
         this.onExport = onExport;
+        this.onSkins = onSkins;
         this.onAbout = onAbout;
         this.height = Metrics.TOP_BAR_HEIGHT;
     }
@@ -82,17 +84,20 @@ public class TopBar extends Element {
         PixelButton fresh = new PixelButton(Component.translatable("gui.mcskincreator.new"),
                 PixelButton.Style.NORMAL, this.onNew)
                 .withTooltip(Component.translatable("gui.mcskincreator.new.tooltip"));
+        PixelButton skins = new PixelButton(Component.translatable("gui.mcskincreator.skins"),
+                PixelButton.Style.NORMAL, this.onSkins)
+                .withTooltip(Component.translatable("gui.mcskincreator.skins.tooltip"));
         undo.setEnabled(this.history.canUndo());
         redo.setEnabled(this.history.canRedo());
-        for (PixelButton button : List.of(export, undo, redo, fresh)) {
+        for (PixelButton button : List.of(export, undo, redo, fresh, skins)) {
             button.fit(canvas);
         }
 
         // Roomy: the site's order, grouped by separators. Cramped: the three controls
         // one must never hunt for come first, and the rest take what is left.
-        List<List<PixelButton>> groups = fits(cursorX, List.of(fresh, undo, redo, export))
-                ? List.of(List.of(fresh), List.of(undo, redo), List.of(export))
-                : List.of(List.of(export), List.of(undo, redo), List.of(fresh));
+        List<List<PixelButton>> groups = fits(cursorX, List.of(fresh, skins, undo, redo, export))
+                ? List.of(List.of(fresh, skins), List.of(undo, redo), List.of(export))
+                : List.of(List.of(export), List.of(undo, redo), List.of(fresh, skins));
 
         int right = this.x + this.width - Metrics.PAD_TIGHT;
         boolean firstGroup = true;
