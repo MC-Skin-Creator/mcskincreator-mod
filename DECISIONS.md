@@ -286,6 +286,55 @@ and the translation is applied *before* the rotation and so is unaffected by it 
 positive y is down on screen. Every one of those is a chance to send the figure off
 the side of the panel, and none of them can be checked in a screenshot.
 
+### The local player is only drawn when they are the camera
+
+The in-game view was first built the obvious way: borrow the game's camera, fly a
+client-side marker around the character, let the game render the world. It showed an
+empty world. The reason is a rule in `LevelRenderer.renderLevel`, and it is not
+negotiable through any setting:
+
+```java
+if (entity instanceof LocalPlayer && camera.entity() != entity) continue;
+```
+
+**Your own character is drawn only while they are the camera entity.** Put the camera
+anywhere else and they are skipped — and a camera that *is* them is either inside their
+head (first person) or locked to vanilla's fixed third-person distance. Reaching past
+that means injecting into the entity loop of the largest method in the renderer, which
+is exactly the kind of second mixin this file argues against.
+
+So the in-game view does not move the camera at all. The figure is **composited over the
+live world** through the same picture-in-picture route as the workshop view, with its
+render state extracted off the real player the way `InventoryScreen` extracts it — so
+armour, held item and cape come along, and the skin comes off the entity and therefore
+through the mod's own override. It gains a turn, a zoom and a pan that vanilla's third
+person has never had; what it gives up is parallax, since the background does not swing
+as the figure turns.
+
+Two things had to stop painting over the world for this to be visible at all, and both
+were hiding it completely rather than partly:
+
+- **vanilla's screen backdrop.** `Screen.renderBackground` blurs what is behind and then
+  lays the opaque tiled menu background over it. `SkinCreatorScreen` now overrides it to
+  draw nothing — the editor has always painted its own backdrop, so the only thing lost
+  is the blur;
+- **the editor's own panels.** The first-person arm is drawn low and to the right, which
+  is where the layers panel sat. Both side panels fold themselves away under a camera
+  that overlays the game, and the player's own fold choice is put back on the way out.
+
+### The editor pauses a single-player game
+
+`isPauseScreen()` returned false, which nobody noticed while the scene was a figure on a
+flat panel. It became obvious the moment a camera looked at the real world: mobs closing
+in behind the editor while a hat was being chosen. Somebody editing a skin is not
+playing, and the pause is not theirs to lose.
+
+Screens tick regardless of the pause (checked against `Minecraft.tick`, where the
+`screen.tick()` call sits outside the pause guard), so the composition debounce, the
+search and the camera all keep running. What does stop is the character's own animation
+— which is why the first-person swing plays out on a server and stands still at home.
+That is the right way round: nobody wants to be eaten for the sake of a wave.
+
 ### Wearing the edit in the world, and why that is not level 1
 
 The two in-game cameras are only worth having if the character is wearing what is

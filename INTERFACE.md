@@ -221,11 +221,18 @@ the model's parts directly — the one route that is not the same call on both
 Minecraft targets — so they are absent rather than dead, like everything else whose
 target is empty.
 
-**Two of the three cameras draw nothing at all.** The in-game and first-person views
-let the game draw in the world that is already behind the editor; the panel's whole
-job is then to keep out of the way — the screen leaves off its backdrop, and the
-gestures go to `scene/GameCamera`, which borrows the game's camera through public
-API and gives it back. No second mixin.
+**Under a camera that shows the world, the editor is a layer over the game.** The
+screen paints no backdrop — and overrides vanilla's, which blurs what is behind and
+then covers it with the opaque menu background — and both side panels fold themselves
+away, because the game draws the first-person arm exactly where the layers panel sat.
+The player's own fold choice comes back with them.
+
+**Only the first-person view borrows the game's camera** (`scene/GameCamera`, public
+API, given back on the way out — no second mixin). The in-game view cannot: the level
+renderer draws your own character only while they *are* the camera entity, so a camera
+flown around them shows an empty world. It composites the real character — armour, held
+item and cape — over the live world instead, through the same route as the workshop
+view. See `DECISIONS.md`, "The local player is only drawn when they are the camera".
 
 The scene does not build it, though: it is handed a [`Figure`](src/main/java/fr/clixmods/mcsc/mod/ui/Figure.java)
 and works out how much room it may have. `PlayerFigure` is the game's one; the preview

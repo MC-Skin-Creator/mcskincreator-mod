@@ -52,6 +52,9 @@ public final class EditorChrome {
     private Drawer drawer = Drawer.NONE;
     private PixelButton libraryTab;
     private PixelButton layersTab;
+    private boolean overlaid;
+    private boolean foldedLibrary;
+    private boolean foldedLayers;
 
     public EditorChrome(TopBar topBar, LibraryPanel library, ScenePanel scene, LayersPanel layers,
                         Runnable relayout) {
@@ -96,6 +99,7 @@ public final class EditorChrome {
     public void layout(Canvas canvas, int width, int height) {
         this.width = width;
         this.height = height;
+        foldForTheWorld();
 
         this.topBar.setBounds(0, 0, width, Metrics.TOP_BAR_HEIGHT);
         this.topBar.layout(canvas);
@@ -218,6 +222,29 @@ public final class EditorChrome {
             this.layers.draw(paint);
         }
         drawTabs(paint);
+    }
+
+    /**
+     * Gets the columns out of the way when the game is drawing the character.
+     *
+     * <p>A camera looking at the world needs the window, not a third of it: the game
+     * draws the first-person arm low and to the right, which is exactly where the layers
+     * column was. The fold is this screen's, not the player's, so their own choice is
+     * remembered on the way in and given back on the way out.
+     */
+    private void foldForTheWorld() {
+        boolean overlay = this.scene.overlaysGame();
+        if (overlay == this.overlaid) {
+            return;
+        }
+        this.overlaid = overlay;
+        if (overlay) {
+            this.foldedLibrary = this.library.folded();
+            this.foldedLayers = this.layers.folded();
+            this.drawer = Drawer.NONE;
+        }
+        this.library.setFolded(overlay || this.foldedLibrary);
+        this.layers.setFolded(overlay || this.foldedLayers);
     }
 
     private void drawTabs(Paint paint) {

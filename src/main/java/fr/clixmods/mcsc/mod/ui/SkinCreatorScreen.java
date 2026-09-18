@@ -1410,6 +1410,29 @@ public class SkinCreatorScreen extends Screen {
 
     // ------------------------------------------------------------------ drawing
 
+    /**
+     * Nothing. The editor paints its own backdrop, and vanilla's is in the way.
+     *
+     * <p>Vanilla draws a blurred copy of what is behind a screen and then the opaque
+     * tiled menu background over it — which is fine for a menu and fatal for a camera
+     * that is looking <em>at</em> what is behind: the in-game view came out blurred and
+     * then hidden altogether. Under the other cameras this costs nothing either, since
+     * {@link #paint} lays down an opaque fill of its own; skipping it just saves the
+     * blur.
+     *
+     * <p>The name is the one 26.x gave it, so the override is versioned rather than
+     * shared.
+     */
+    //? if >=26.1 {
+    /*@Override
+    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+    }
+    *///?} else {
+    @Override
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
+    }
+    //?}
+
     //? if >=26.1 {
     /*@Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
@@ -1741,9 +1764,22 @@ public class SkinCreatorScreen extends Screen {
         this.focused = ring.get(Math.floorMod(index + direction, ring.size()));
     }
 
+    /**
+     * True, so a single-player game stops while a skin is being edited.
+     *
+     * <p>It used to be false, which nobody noticed while the scene was a figure on a
+     * flat panel — and which became obvious the moment a camera looked at the real
+     * world: mobs closing in behind the editor. Somebody choosing a hat is not playing,
+     * and the pause is not theirs to lose.
+     *
+     * <p>Screens tick either way, so nothing in here stops with it: the composition
+     * debounce, the search and the camera all keep running. What does stop is the
+     * character's own animation, which is why the first-person swing plays out on a
+     * server and stands still at home.
+     */
     @Override
     public boolean isPauseScreen() {
-        return false;
+        return true;
     }
 
     @Override

@@ -45,10 +45,9 @@ src/main/java/fr/clixmods/mcsc/mod/
 ├── skin/                      pixels: front sprites, category and model sheets, the previewed
 │                               skin, the blend behind a model's picture, textures
 ├── project/                   what is being edited: the layer stack and its history
-├── scene/                     how the character is looked at: the workshop camera, the
-│                               animations in the game's own terms, the render state the
-│                               game draws from, and the game camera the two in-game
-│                               views borrow
+├── scene/                     how the character is looked at: the camera, the animations
+│                               in the game's own terms, the render state the game draws
+│                               from, and the game camera the first-person view borrows
 ├── account/                   the Mojang upload, and the only code that holds the session token
 ├── mixin/                     the one mixin: the applied skin, worn before Mojang propagates it
 ├── style/                     the design system: palette, metrics, the four materials, the grain
@@ -198,7 +197,7 @@ and `}` are load-bearing: breaking them silently changes what a target compiles.
 | Draw a widget | `Renderable#render` | `Renderable#extractRenderState` | `Canvas` |
 | Centered text | `drawCenteredString` | `centeredText` | `SkinCreatorScreen` |
 | Draw an entity | `GuiGraphics#submitEntityRenderState` | `GuiGraphicsExtractor#entity` | `Canvas` |
-| Entity type constants | `EntityType.MARKER` | `EntityTypes.MARKER` | `scene/GameCamera` |
+| Screen backdrop hook | `renderBackground(GuiGraphics, …)` | `extractBackground(GuiGraphicsExtractor, …)` | `SkinCreatorScreen` |
 
 26.x replaced immediate-mode GUI drawing with a render-state extraction pass, so
 any new drawing code will need the same treatment.
