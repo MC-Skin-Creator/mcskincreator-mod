@@ -43,9 +43,16 @@ import net.minecraft.client.Minecraft;
  * </ul>
  */
 public final class EditorScale {
-    /** The interface the editor is laid out for: a 1080p window at a scale of two. */
-    public static final int TARGET_WIDTH = 960;
-    public static final int TARGET_HEIGHT = 540;
+    /**
+     * The interface the editor is laid out for.
+     *
+     * <p>The site lays out in about 1900 pixels around an 11 px font. The game's font
+     * is 8, so the same arrangement at the same proportions needs {@code 1900 * 8/11},
+     * which is where 1280 comes from — it is not a round number chosen for looking
+     * like one.
+     */
+    public static final int TARGET_WIDTH = 1280;
+    public static final int TARGET_HEIGHT = 720;
 
     /** The player's own scale, kept from the first time this took it. */
     private int playersOwn;
@@ -88,14 +95,14 @@ public final class EditorScale {
      * The whole scale that lands nearest the size the editor is designed for.
      *
      * <p>Whichever of width and height runs out first decides, so a wide short window
-     * is not handed a scale its height cannot carry. Rounding rather than flooring
-     * keeps a 1440p window at 3 — 853 by 480, which is the design size — where flooring
-     * would give it 2 and 1280 by 720, an interface of small type in a large room.
+     * is not handed a scale its height cannot carry. Flooring rather than rounding, so
+     * the editor never has <em>less</em> than it is laid out for: 1080p, 1440p and 4K
+     * all land on exactly 1280 by 720, at a scale of one, two and three.
      */
     private static int wanted(Window window) {
         double byWidth = window.getWidth() / (double) TARGET_WIDTH;
         double byHeight = window.getHeight() / (double) TARGET_HEIGHT;
-        int nearest = (int) Math.round(Math.min(byWidth, byHeight));
+        int nearest = (int) Math.floor(Math.min(byWidth, byHeight));
         // calculateScale(0, …) is the game's own "auto": the largest scale this window
         // can carry and still hold a menu. Going past it would be asking for a screen
         // the game itself considers too small to draw.

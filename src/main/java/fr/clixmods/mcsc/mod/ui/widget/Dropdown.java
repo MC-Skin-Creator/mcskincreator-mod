@@ -35,8 +35,8 @@ import org.lwjgl.glfw.GLFW;
  * @param <T> what the options stand for
  */
 public class Dropdown<T> extends Element {
-    /** The caret that says this control opens onto a list. */
-    private static final int ARROW = Metrics.CARET_WIDTH;
+    /** {@code select { padding-right: 22px }} — the room the caret is given. */
+    private static final int ARROW = Metrics.CARET_ROOM;
 
     private final List<T> options;
     private final java.util.function.Function<T, Component> naming;
@@ -75,8 +75,8 @@ public class Dropdown<T> extends Element {
         Surface.button(canvas, this.x, this.y, this.width, this.height,
                 hot ? Surface.State.HOVERED : Surface.State.NORMAL);
 
-        int inset = Metrics.BUTTON_INSET + Metrics.PAD_TIGHT;
-        int room = this.width - inset - ARROW - Metrics.PAD_TIGHT * 2;
+        int inset = Metrics.BUTTON_INSET + Metrics.PAD_HAIR;
+        int room = this.width - inset - ARROW;
         Component current = this.naming.apply(this.read.get());
         canvas.text(Component.literal(fr.clixmods.mcsc.mod.ui.Marquee.cut(
                         canvas, current.getString(), room)),
@@ -84,7 +84,8 @@ public class Dropdown<T> extends Element {
                 hot ? Palette.INK_HOVERED : Palette.INK);
 
         Surface.caret(canvas,
-                this.x + this.width - Metrics.BUTTON_INSET - Metrics.PAD_TIGHT - ARROW,
+                this.x + this.width - Metrics.BUTTON_INSET - Metrics.PAD_HAIR
+                        - (ARROW + Metrics.CARET_WIDTH) / 2,
                 this.y + (this.height - Metrics.CARET_HEIGHT) / 2,
                 hot ? Palette.INK_HOVERED : Palette.INK);
     }

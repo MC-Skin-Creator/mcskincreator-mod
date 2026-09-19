@@ -205,8 +205,8 @@ public final class Surface {
      * tick is four pixels of noise, and the colour is legible across the column. The
      * slot stays, so an unticked box is still a box rather than a hole.
      */
-    public static void checkbox(Canvas canvas, int x, int y, boolean ticked, boolean hovered) {
-        int size = Metrics.CHECKBOX;
+    public static void checkbox(Canvas canvas, int x, int y, int size,
+                                boolean ticked, boolean hovered) {
         slot(canvas, x, y, size, size, hovered ? Palette.SLOT_HOVER : Palette.SLOT);
         if (ticked) {
             int inset = Metrics.OUTLINE + Metrics.BEVEL;
@@ -222,6 +222,10 @@ public final class Surface {
      * page-turn arrow — 23 by 13 pixels of near-white, which swamps a control this size
      * and says "next" rather than "more".
      */
+    public static void checkbox(Canvas canvas, int x, int y, boolean ticked, boolean hovered) {
+        checkbox(canvas, x, y, Metrics.CHECKBOX, ticked, hovered);
+    }
+
     public static void caret(Canvas canvas, int x, int y, int ink) {
         for (int row = 0; row < Metrics.CARET_HEIGHT; row++) {
             int width = Metrics.CARET_WIDTH - row * 2;

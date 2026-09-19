@@ -39,14 +39,17 @@ class EditorPreviewTest {
     /**
      * The sizes this screen gives itself.
      *
-     * <p>The editor takes its own GUI scale — the whole one nearest to 960 by 540 — so
-     * these are what a window actually produces: 1080p and 4K land on 960x540, 1440p on
-     * 853x480, 1600x900 on 800x450, and 720p is left at a scale of one. Each is written
-     * out magnified by that scale, so the picture is the size it appears on the screen
-     * it came from.
+     * <p>The editor takes the largest whole GUI scale that still leaves it 1280 by 720,
+     * so almost every window lands on exactly that: 1080p at a scale of one, 1440p at
+     * two, 4K at three. The odd sizes are the windows whose aspect leaves them a little
+     * more, and the last is a window too small to reach the design size at all.
+     *
+     * <p>Each is written out magnified by the scale that window uses, so the picture is
+     * the size it appears on the screen it came from — 1280x720 is written twice, once
+     * as a 1080p window shows it and once doubled, to be looked at closely.
      */
     private static final int[][] SIZES = {
-        {960, 540, 2}, {853, 480, 3}, {800, 450, 2}, {1280, 720, 1}, {640, 360, 3},
+        {1280, 720, 1}, {1600, 900, 1}, {1366, 768, 1}, {960, 540, 2},
     };
 
     @Test
@@ -62,12 +65,19 @@ class EditorPreviewTest {
     }
 
     @Test
+    void theDesignSizeIsWrittenOutDoubledToBeLookedAt() throws IOException {
+        Files.createDirectories(OUTPUT);
+        ImageIO.write(EditorPreview.of(1280, 720, 2), "png",
+                OUTPUT.resolve("1280x720@2.png").toFile());
+    }
+
+    @Test
     void anEmptyEditorRenders() throws IOException {
         Files.createDirectories(OUTPUT);
         BufferedImage image = new EditorPreview()
                 .withCatalog(EditorPreview.sampleCatalog())
-                .render(960, 540, 2);
-        ImageIO.write(image, "png", OUTPUT.resolve("960x540-empty.png").toFile());
+                .render(1280, 720, 1);
+        ImageIO.write(image, "png", OUTPUT.resolve("1280x720-empty.png").toFile());
     }
 
     /** The game's font is on the classpath, and its advances are the game's own. */

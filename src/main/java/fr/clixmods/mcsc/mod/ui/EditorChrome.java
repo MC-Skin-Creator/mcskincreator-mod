@@ -101,7 +101,9 @@ public final class EditorChrome {
         this.topBar.layout(canvas);
 
         int top = Metrics.TOP_BAR_HEIGHT;
-        int column = Metrics.columnWidth(width);
+        boolean wide = width >= Metrics.WIDE_LAYOUT;
+        int libraryColumn = wide ? Metrics.LIBRARY_WIDTH : Metrics.LIBRARY_WIDTH_NARROW;
+        int layersColumn = wide ? Metrics.LAYERS_WIDTH : Metrics.LAYERS_WIDTH_NARROW;
         if (width >= columnsMinimum()) {
             this.drawer = Drawer.NONE;
             this.libraryTab = null;
@@ -109,8 +111,8 @@ public final class EditorChrome {
             this.library.setVisible(true);
             this.layers.setVisible(true);
 
-            int libraryWidth = this.library.folded() ? Metrics.COLLAPSED_WIDTH : column;
-            int layersWidth = this.layers.folded() ? Metrics.COLLAPSED_WIDTH : column;
+            int libraryWidth = this.library.folded() ? Metrics.COLLAPSED_WIDTH : libraryColumn;
+            int layersWidth = this.layers.folded() ? Metrics.COLLAPSED_WIDTH : layersColumn;
             this.library.setBounds(0, top, libraryWidth, height - top);
             this.layers.setBounds(width - layersWidth, top, layersWidth, height - top);
             this.scene.setBounds(libraryWidth, top,
@@ -168,7 +170,7 @@ public final class EditorChrome {
             this.scene.setBounds(0, top, this.width, usableBottom - top - drawerHeight);
             open.setBounds(0, usableBottom - drawerHeight, this.width, drawerHeight);
         } else {
-            int drawerWidth = Math.min(Metrics.columnWidth(this.width), this.width / 2);
+            int drawerWidth = Math.min(Metrics.LIBRARY_WIDTH_NARROW, this.width / 2);
             open.setBounds(0, top, drawerWidth, usableBottom - top);
             this.scene.setBounds(drawerWidth, top, this.width - drawerWidth, usableBottom - top);
         }
@@ -181,7 +183,8 @@ public final class EditorChrome {
 
     /** Below this width the two columns and the scene no longer fit side by side. */
     private int columnsMinimum() {
-        return Metrics.columnWidth(this.width) * 2 + Metrics.MIN_SCENE_WIDTH;
+        return Metrics.LIBRARY_WIDTH_NARROW + Metrics.LAYERS_WIDTH_NARROW
+                + Metrics.MIN_SCENE_WIDTH;
     }
 
     /** True while the side columns are drawers rather than columns. */

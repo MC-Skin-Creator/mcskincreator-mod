@@ -140,14 +140,10 @@ button is 20 px tall because that is what a Minecraft button is. The insets in
 `Metrics` are the borders of the sprites above, so a label sits clear of the frame the
 sprite draws.
 
-**Padding is 4 and 8, and there is no third.** These used to be the site's spacings run
-through `ui()`, which gave 5 and 3 — a third of a letter of air between controls, and
-the whole interface read as cramped for it. A Minecraft screen is laid out on fours and
-eights.
-
-**There are two control heights and there is no third.** `BUTTON_HEIGHT` (20) and
-`BUTTON_HEIGHT_COMPACT` (16), which is also `TAB_HEIGHT`. A row holding a 14 px tab
-beside a 16 px button beside a 20 px one is the whole of why nothing lined up.
+**Three gaps and one control height.** The gaps are the site's 8, 6 and 3 converted:
+6, 4 and 2. The height is 20, which is its `padding: 5px 10px` over an 11 px line. A
+row holding a 14 px tab beside a 16 px button beside a 20 px one is the whole of why
+nothing used to line up.
 
 **A panel's contents start at its frame, not at its edge.** `popup/background` carries
 a six pixel border, so anything laid out closer than that is drawn *under* the frame:

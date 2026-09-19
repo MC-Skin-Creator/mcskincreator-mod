@@ -208,7 +208,7 @@ public class LibraryPanel extends Panel {
         this.footerLinks.clear();
 
         int header = headerHeight(canvas);
-        this.foldButton = new PixelButton(foldLabel(), PixelButton.Style.GHOST, () -> {
+        this.foldButton = new PixelButton(foldLabel(), PixelButton.Style.NORMAL, () -> {
             toggleFolded();
             this.relayout.run();
         });
@@ -218,16 +218,16 @@ public class LibraryPanel extends Panel {
         if (folded()) {
             // Folded, the header carries the unfold button and nothing else.
             this.foldButton.setBounds(this.x + (this.width - this.foldButton.width()) / 2,
-                    this.y + (header - Metrics.TAB_HEIGHT) / 2,
-                    this.foldButton.width(), Metrics.TAB_HEIGHT);
+                    this.y + (header - Metrics.HEADER_BUTTON) / 2,
+                    this.foldButton.width(), Metrics.HEADER_BUTTON);
             addChild(this.foldButton);
             return;
         }
 
         this.foldButton.setBounds(
                 contentRight() - this.foldButton.width(),
-                this.y + (header - Metrics.TAB_HEIGHT) / 2,
-                this.foldButton.width(), Metrics.TAB_HEIGHT);
+                this.y + (header - Metrics.HEADER_BUTTON) / 2,
+                this.foldButton.width(), Metrics.HEADER_BUTTON);
         addChild(this.foldButton);
 
         int left = contentLeft();
@@ -332,11 +332,14 @@ public class LibraryPanel extends Panel {
 
         int gutter = ScrollPane.BAR_WIDTH + Metrics.PAD_TIGHT;
         int usable = right - left - gutter;
-        // Three columns is what the site shows, and what this shows when the panel is
-        // wide enough for three readable ones. Below that it drops to two rather than
-        // splitting the width into thumbnails too small to tell apart.
-        int columns = Math.max(2, Math.min(Metrics.GRID_COLUMNS,
-                (usable + Metrics.GRID_GAP) / (Metrics.MIN_TILE_WIDTH + Metrics.GRID_GAP)));
+        // Three columns, the way the site's own grid is three columns of
+        // minmax(0, 1fr): a column always holds three whatever it is wide, and the
+        // tiles share whatever that leaves. It drops to two only in the drawer, where
+        // the panel is half a narrow screen and three would be thumbnails nobody can
+        // tell apart.
+        int columns = usable / Metrics.GRID_COLUMNS >= Metrics.MIN_TILE_WIDTH
+                ? Metrics.GRID_COLUMNS
+                : 2;
         int tileWidth = Math.max(Metrics.CATEGORY_TAB,
                 (usable - Metrics.GRID_GAP * (columns - 1)) / columns);
         int headerHeight = canvas.lineHeight() + Metrics.PAD_TIGHT * 2;
@@ -348,12 +351,11 @@ public class LibraryPanel extends Panel {
             this.headers.add(new GroupHeader(batchCategory, label, batch.getValue().size(), cursorY));
             cursorY += headerHeight;
 
-            // The render area follows the crop this category asks for, so a row of
-            // hairstyles is a row of hairstyles rather than six empty bodies.
-            int boxWidth = tileWidth - Metrics.SLOT_INSET * 2;
-            int renderHeight = Math.min(Metrics.MAX_THUMB_RENDER,
-                    Thumbnail.heightFor(boxWidth, batchCategory.thumbCrop()));
-            int tileHeight = ItemTile.heightFor(canvas, renderHeight);
+            // One height for every tile, whatever the crop, because that is what makes
+            // a grid a grid: the site letterboxes each thumbnail into a fixed box, and
+            // sizing each tile to its own crop instead gave a column of ragged rows with
+            // full-body tiles twice as tall as head ones.
+            int tileHeight = ItemTile.heightFor(canvas, Metrics.THUMB_RENDER);
 
             int column = 0;
             for (CatalogItem item : batch.getValue()) {

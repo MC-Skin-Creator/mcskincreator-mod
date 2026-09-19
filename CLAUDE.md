@@ -79,9 +79,10 @@ stylesheet transcribed into `style/Palette.java`, and naming a colour anywhere e
 the one thing not to do.
 
 **The editor can be rendered without the game.** `./gradlew :1.21.11:test` writes
-`build/ui-preview/`: the whole screen at the five sizes the game gives it, magnified to
-the size a player sees, drawn with the real font and the real sprites read out of the
-Minecraft jar on the test classpath. Look at it before and after changing anything that
+`build/ui-preview/`: the whole screen at the sizes a window actually produces, in
+French because that is the language the mod speaks longest, drawn with the real font
+read out of the Minecraft jar on the test classpath. `materials.png` beside it is every
+material at every height it is used at. Look at it before and after changing anything that
 draws — it is the only way to see this screen in this repository, and it is faster than
 a client either way. `src/test/java/fr/clixmods/mcsc/mod/preview/` is how it works, and
 what keeps it working is that nothing in `ui/` reaches for `Minecraft.getInstance()`:

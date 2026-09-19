@@ -108,8 +108,8 @@ class EditorGeometryTest {
      * picked them by hand.
      */
     private void forEverySize(Check check) {
-        for (int width = 200; width <= 900; width += 13) {
-            for (int height : new int[] {200, 240, 270, 360, 480}) {
+        for (int width = 200; width <= 1500; width += 17) {
+            for (int height : new int[] {240, 360, 540, 720, 900}) {
                 EditorPreview preview = new EditorPreview()
                         .withCatalog(EditorPreview.sampleCatalog())
                         .withLayers(5);

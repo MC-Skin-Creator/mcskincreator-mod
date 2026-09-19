@@ -130,11 +130,12 @@ public class LayerRow extends Element {
 
         int cursorX = checkboxX();
 
-        // Visibility is a yes or a no, so it is the game's checkbox rather than an eye
-        // the game has no sprite for.
-        Surface.checkbox(canvas, cursorX, this.y + (this.height - Metrics.CHECKBOX) / 2,
-                this.layer.visible(), paint.over(cursorX, this.y, Metrics.CHECKBOX, this.height));
-        cursorX += Metrics.CHECKBOX + Metrics.PAD_TIGHT;
+        // Visibility is a yes or a no, so it is a tick box rather than an eye the game
+        // has no icon for — at the size the site gives its eye.
+        Surface.checkbox(canvas, cursorX, this.y + (this.height - Metrics.LAYER_TOGGLE) / 2,
+                Metrics.LAYER_TOGGLE, this.layer.visible(),
+                paint.over(cursorX, this.y, Metrics.LAYER_TOGGLE, this.height));
+        cursorX += Metrics.LAYER_TOGGLE + Metrics.PAD_TIGHT;
 
         boolean duplicate = showsDuplicate(contentX());
         int actionsWidth = !lit ? 0
@@ -213,7 +214,7 @@ public class LayerRow extends Element {
     }
 
     private int contentX() {
-        return checkboxX() + Metrics.CHECKBOX + Metrics.PAD_TIGHT
+        return checkboxX() + Metrics.LAYER_TOGGLE + Metrics.PAD_TIGHT
                 + Metrics.LAYER_PREVIEW + Metrics.PAD_TIGHT;
     }
 
@@ -242,7 +243,7 @@ public class LayerRow extends Element {
         if (button != 0 || !contains(mouseX, mouseY)) {
             return false;
         }
-        if (mouseX < checkboxX() + Metrics.CHECKBOX) {
+        if (mouseX < checkboxX() + Metrics.LAYER_TOGGLE) {
             this.onToggleVisible.accept(this.layer);
             return true;
         }

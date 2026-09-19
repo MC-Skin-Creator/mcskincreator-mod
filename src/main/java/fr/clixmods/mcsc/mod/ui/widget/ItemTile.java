@@ -77,7 +77,8 @@ public class ItemTile extends Element {
 
     /** The height a tile needs: its render area, its label, and the padding around both. */
     public static int heightFor(Canvas canvas, int renderHeight) {
-        return Metrics.SLOT_INSET * 2 + Metrics.PAD_TIGHT + renderHeight + canvas.lineHeight();
+        return Metrics.SLOT_INSET * 2 + Metrics.THUMB_PAD * 2 + renderHeight
+                + Metrics.THUMB_PAD + canvas.lineHeight();
     }
 
     @Override
@@ -97,11 +98,12 @@ public class ItemTile extends Element {
 
         Surface.slot(canvas, this.x, this.y, this.width, this.height);
 
-        int inset = Metrics.SLOT_INSET;
+        int inset = Metrics.SLOT_INSET + Metrics.THUMB_PAD;
         int boxX = this.x + inset;
         int boxY = this.y + inset;
         int boxWidth = this.width - inset * 2;
-        int boxHeight = this.height - inset * 2 - Metrics.PAD_TIGHT - canvas.lineHeight();
+        int boxHeight = this.height - inset - Metrics.SLOT_INSET
+                - Metrics.THUMB_PAD - canvas.lineHeight();
 
         // The checker says "transparent here", so an element with holes does not read
         // as an element with black in it.
@@ -109,7 +111,7 @@ public class ItemTile extends Element {
         Thumbnail.draw(canvas, this.sprites.get(), this.item.atlasIndex(this.slim.get()),
                 this.category.thumbCrop(this.item), boxX, boxY, boxWidth, boxHeight);
 
-        int labelY = boxY + boxHeight + Metrics.PAD_TIGHT;
+        int labelY = boxY + boxHeight + Metrics.THUMB_PAD;
         this.marquee.draw(paint, this.label, boxX, labelY, boxWidth,
                 hot ? Palette.INK_HOVERED : Palette.INK_MUTED, hot);
 

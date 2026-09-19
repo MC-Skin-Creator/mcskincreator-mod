@@ -111,7 +111,7 @@ public class LayersPanel extends Panel {
         this.fixed.clear();
 
         int header = headerHeight(canvas);
-        this.foldButton = new PixelButton(foldLabel(), PixelButton.Style.GHOST, () -> {
+        this.foldButton = new PixelButton(foldLabel(), PixelButton.Style.NORMAL, () -> {
             toggleFolded();
             this.relayout.run();
         });
@@ -120,23 +120,25 @@ public class LayersPanel extends Panel {
 
         if (folded()) {
             this.foldButton.setBounds(this.x + (this.width - this.foldButton.width()) / 2,
-                    this.y + (header - Metrics.TAB_HEIGHT) / 2,
-                    this.foldButton.width(), Metrics.TAB_HEIGHT);
+                    this.y + (header - Metrics.HEADER_BUTTON) / 2,
+                    this.foldButton.width(), Metrics.HEADER_BUTTON);
             this.fixed.add(addChild(this.foldButton));
             return;
         }
 
         int right = contentRight();
         this.foldButton.setBounds(right - this.foldButton.width(),
-                this.y + (header - Metrics.TAB_HEIGHT) / 2,
-                this.foldButton.width(), Metrics.TAB_HEIGHT);
+                this.y + (header - Metrics.HEADER_BUTTON) / 2,
+                this.foldButton.width(), Metrics.HEADER_BUTTON);
         this.fixed.add(addChild(this.foldButton));
 
-        PixelButton add = new PixelButton(Component.literal("+"), PixelButton.Style.GHOST,
+        // A button, not a bare glyph. The site's header actions are buttons, and two of
+        // the interface's most used controls had no edge to aim at.
+        PixelButton add = new PixelButton(Component.literal("+"), PixelButton.Style.NORMAL,
                 this.onAddRequested);
         add.fit(canvas).withTooltip(Component.translatable("gui.mcskincreator.add.tooltip"));
-        add.setBounds(this.foldButton.x() - add.width() - Metrics.PAD_TIGHT,
-                this.foldButton.y(), add.width(), Metrics.TAB_HEIGHT);
+        add.setBounds(this.foldButton.x() - add.width() - Metrics.PAD_HAIR,
+                this.foldButton.y(), add.width(), Metrics.HEADER_BUTTON);
         this.fixed.add(addChild(add));
 
         int left = contentLeft();
