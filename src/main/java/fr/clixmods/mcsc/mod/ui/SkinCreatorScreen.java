@@ -1453,16 +1453,25 @@ public class SkinCreatorScreen extends Screen {
     //?}
 
     private void paint(Canvas canvas, int mouseX, int mouseY, float delta) {
-        Paint paint = new Paint(canvas, mouseX, mouseY, System.currentTimeMillis(), this.focused);
+        List<Element> targets = targets();
+        // An open menu owns the pointer. Everything under it is drawn as though the
+        // pointer were not there at all, or the layer row behind the menu lights up,
+        // offers its tooltip and takes the model's gaze with it.
+        boolean blocked = false;
+        for (Element element : targets) {
+            blocked |= element.overlayActive();
+        }
+        Paint paint = new Paint(canvas, mouseX, mouseY, System.currentTimeMillis(),
+                this.focused, blocked);
         applyHighlight(paint.time());
 
         this.chrome.draw(paint, delta);
 
         // Overlays go over their own panel and take clicks before it, which is what
         // keeps an open menu from being painted over by the strip it belongs to.
-        for (Element element : targets()) {
+        for (Element element : targets) {
             if (element.overlayActive()) {
-                element.drawOverlay(paint);
+                element.drawOverlay(paint.unblocked());
             }
         }
 
@@ -1475,6 +1484,11 @@ public class SkinCreatorScreen extends Screen {
     }
 
     private void drawTooltip(Paint paint) {
+        if (paint.blocked()) {
+            // The pointer is on an open menu; whatever it happens to be over has
+            // nothing to say about it.
+            return;
+        }
         for (Element element : targets()) {
             if (element.contains(paint.mouseX(), paint.mouseY()) && !element.tooltip().isEmpty()) {
                 paint.canvas().tooltip(element.tooltip(), paint.mouseX(), paint.mouseY());
@@ -1637,6 +1651,13 @@ public class SkinCreatorScreen extends Screen {
             }
             relayout();
             return true;
+        }
+        for (Element element : targets()) {
+            if (element.overlayActive()) {
+                // The wheel belongs to whatever is open over the screen, not to the
+                // column it happens to be floating above.
+                return true;
+            }
         }
         if (this.library.visible() && this.library.scroll(mouseX, mouseY, scrollY)) {
             return true;

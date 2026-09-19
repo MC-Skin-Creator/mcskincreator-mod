@@ -240,7 +240,23 @@ public final class Surface {
      * not read as an element with black in it.
      */
     public static void checker(Canvas canvas, int x, int y, int width, int height) {
-        int cell = Metrics.CHECKER;
+        checker(canvas, x, y, width, height, Metrics.CHECKER);
+    }
+
+    /**
+     * The same checker at a chosen square size.
+     *
+     * <p>Every square is a quad, so the count is the area over the square — which is
+     * fine behind a thumbnail and ruinous behind the 64x64 sheet, where a fixed square
+     * meant five and a half thousand quads a frame and the editor crawled. Behind
+     * something drawn at a whole zoom the square belongs in <em>texture</em> pixels:
+     * it then scales with the picture, stays put against it, and costs the same
+     * sixty-four squares however far in the view is zoomed.
+     */
+    public static void checker(Canvas canvas, int x, int y, int width, int height, int cell) {
+        if (cell < 1) {
+            cell = 1;
+        }
         for (int row = 0; row * cell < height; row++) {
             for (int column = 0; column * cell < width; column++) {
                 int shade = ((row + column) % 2 == 0) ? Palette.CHECKER_DARK : Palette.CHECKER_LIGHT;

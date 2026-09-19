@@ -111,6 +111,20 @@ public abstract class Panel extends Element {
     }
 
     /** Positions everything. Called on resize and whenever the contents change. */
+    /**
+     * True when the pointer is inside this panel's scrolling band.
+     *
+     * <p>Both columns used to answer the wheel on the strength of its <em>height</em>
+     * alone, and the screen offers the wheel to the library first — so with the pointer
+     * over the layers, the library took it and scrolled instead. A band has two
+     * dimensions, and a panel is not the only panel on the screen.
+     */
+    protected boolean inBody(double mouseX, double mouseY, int bodyTop, int bodyHeight) {
+        return !folded()
+                && mouseX >= this.x && mouseX < this.x + this.width
+                && mouseY >= bodyTop && mouseY < bodyTop + bodyHeight;
+    }
+
     public abstract void layout(Canvas canvas);
 
     protected void drawFrame(Paint paint) {

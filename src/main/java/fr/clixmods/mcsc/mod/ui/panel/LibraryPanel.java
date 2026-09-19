@@ -729,11 +729,7 @@ public class LibraryPanel extends Panel {
 
     @Override
     public boolean scroll(double mouseX, double mouseY, double amount) {
-        // The horizontal test is not redundant: without it this list took the wheel
-        // from anything at the same height as its body — which is the whole middle
-        // column, so the scene could never be zoomed.
-        if (folded() || !contains(mouseX, mouseY)
-                || mouseY < this.bodyTop || mouseY > this.bodyTop + this.bodyHeight) {
+        if (!inBody(mouseX, mouseY, this.bodyTop, this.bodyHeight)) {
             return false;
         }
         return this.scroll.scroll(amount);

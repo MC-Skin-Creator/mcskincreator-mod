@@ -476,11 +476,16 @@ public class ScenePanel extends Element {
                     Palette.VOID);
         }
 
+        // A menu open over the screen owns the pointer, so the figure is handed one far
+        // enough away to look ahead: a model following a cursor that is aiming at a
+        // dropdown is the same fall-through bug as a row lighting up underneath it.
+        int gazeX = paint.blocked() ? Integer.MIN_VALUE / 2 : paint.mouseX();
+        int gazeY = paint.blocked() ? Integer.MIN_VALUE / 2 : paint.mouseY();
         switch (this.view) {
-            case MODEL -> this.figure.draw(canvas, shot, paint.mouseX(), paint.mouseY(), delta);
+            case MODEL -> this.figure.draw(canvas, shot, gazeX, gazeY, delta);
             case TEXTURE -> drawTexture(canvas, this.x, this.viewport[1], this.width, this.viewport[3]);
             case BOTH -> {
-                this.figure.draw(canvas, shot, paint.mouseX(), paint.mouseY(), delta);
+                this.figure.draw(canvas, shot, gazeX, gazeY, delta);
                 int half = this.width / 2;
                 canvas.fill(this.x + half, this.viewport[1], 1, this.viewport[3], Palette.RULE);
                 drawTexture(canvas, this.x + half, this.viewport[1], this.width - half, this.viewport[3]);
@@ -533,6 +538,9 @@ public class ScenePanel extends Element {
         return played / 1000.0F;
     }
 
+    /** How many texture pixels one square of the checker behind the sheet covers. */
+    private static final int CHECKER_TEXELS = 8;
+
     /** The 64x64 sheet itself, on a transparency checker, at a whole scale. */
     private void drawTexture(Canvas canvas, int left, int top, int width, int height) {
         if (!this.preview.hasTexture()) {
@@ -543,9 +551,13 @@ public class ScenePanel extends Element {
                 (height - Metrics.PAD * 2) / size));
         int drawnX = left + (width - size * scale) / 2;
         int drawnY = top + (height - size * scale) / 2;
-        Surface.checker(canvas, drawnX, drawnY, size * scale, size * scale);
+        // The frame first, then what it frames: the sheet was being blitted twice, once
+        // under the slot and once over it, which is one whole texture a frame for nothing.
         Surface.slot(canvas, drawnX - Metrics.SLOT_INSET, drawnY - Metrics.SLOT_INSET,
                 size * scale + Metrics.SLOT_INSET * 2, size * scale + Metrics.SLOT_INSET * 2);
+        // Eight texture pixels to a square, so the checker zooms with the sheet instead
+        // of turning into thousands of little ones behind it.
+        Surface.checker(canvas, drawnX, drawnY, size * scale, size * scale, CHECKER_TEXELS * scale);
         canvas.blit(this.preview.texture(), drawnX, drawnY, size * scale, size * scale,
                 0, 0, size, size, size, size);
     }
