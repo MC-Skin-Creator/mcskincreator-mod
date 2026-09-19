@@ -39,8 +39,10 @@ import fr.clixmods.mcsc.mod.remote.ItemCredit;
 import fr.clixmods.mcsc.mod.remote.McscApi;
 import fr.clixmods.mcsc.mod.remote.SavedSkin;
 import fr.clixmods.mcsc.mod.remote.SearchResults;
+import fr.clixmods.mcsc.mod.scene.GameCamera;
 import fr.clixmods.mcsc.mod.skin.AppliedSkin;
 import fr.clixmods.mcsc.mod.skin.CategorySprites;
+import fr.clixmods.mcsc.mod.skin.Highlight;
 import fr.clixmods.mcsc.mod.skin.ReadyMadeSkins;
 import fr.clixmods.mcsc.mod.skin.PreviewSkin;
 import fr.clixmods.mcsc.mod.skin.ProjectJson;
@@ -167,6 +169,33 @@ public class SkinCreatorScreen extends Screen {
     /** The scale this screen draws at, which is its own rather than the player's. */
     private final EditorScale scale = new EditorScale();
 
+    /**
+     * The pulse that says where the layer under the pointer sits on the figure.
+     *
+     * <p>It flashes over the composed sheet, so it needs one: while the server has not
+     * answered for the current stack there is nothing to flash over, and pointing at a
+     * row names the layer in the corner without lighting it up. That lasts as long as
+     * the debounce and no longer.
+     */
+    private final Highlight highlight = new Highlight();
+
+    /** Whether the sheet on the model is currently a flashed one, and so owes a reset. */
+    private boolean highlighting;
+
+    /**
+     * Whether a library element is being shown on the model instead.
+     *
+     * <p>The two hovers are one pointer and cannot both be wanted, but they can overlap
+     * in time: leaving a layer row starts a fade, and the pointer may be on a thumbnail
+     * before it ends. Without this the dying flash would paint over the element for the
+     * length of the fade and then put the stack back, losing the preview that was asked
+     * for.
+     */
+    private boolean showingItem;
+
+    /** The sheet the character in the world is wearing, so it is not re-uploaded. */
+    private byte[] previewWorn;
+
     private ModalWindow window;
     private Element focused;
     private Element pressed;
@@ -244,6 +273,7 @@ public class SkinCreatorScreen extends Screen {
             this.library.createSearch(this::queueSearch);
             this.library.setEmptyMessage(this::libraryMessage);
             this.scene = new ScenePanel(this.preview, new PlayerFigure(this.preview),
+                    new GameCamera(Minecraft.getInstance()),
                     this::relayout, () -> this.hoveredLabel);
             this.layers = new LayersPanel(this.project, () -> catalog, this.sprites::get,
                     this.history, this::relayout, this::revealLibrary, this::openImport,
@@ -322,22 +352,74 @@ public class SkinCreatorScreen extends Screen {
     private void previewItem(ItemTile tile) {
         if (tile == null) {
             this.hoveredLabel = null;
+            this.showingItem = false;
             showTopLocally();
             return;
         }
         this.hoveredLabel = tile.label();
+        this.showingItem = true;
+        // This hover owns the model now, so a layer pulse still fading out is dropped
+        // rather than left to paint over the element and then reset the texture.
+        this.highlight.drop();
+        this.highlighting = false;
         show(this.sprites.get(tile.category().id()), tile.item().atlasIndex(this.project.isSlim()));
     }
 
-    /** Pointing at a layer shows it on the model, so you can tell which one it is. */
+    /**
+     * Pointing at a layer makes it pulse on the figure, so you can tell where it is.
+     *
+     * <p>It used to put that layer on the model <em>on its own</em>, which answers the
+     * wrong question — it shows what the layer is and hides where it is, and a layer
+     * something else covers showed up as the whole figure disappearing. The site flashes
+     * the layer's texels over the stack instead, and so does this: see {@link Highlight}.
+     */
     private void peekLayer(Layer layer) {
         if (layer == null) {
             this.hoveredLabel = null;
-            showTopLocally();
+            this.highlight.hide(System.currentTimeMillis());
             return;
         }
         this.hoveredLabel = layer.name();
-        show(this.sprites.get(layer.categoryId()), layer.atlasIndex(this.project.isSlim()));
+        this.highlight.show(layer, System.currentTimeMillis());
+    }
+
+    /**
+     * Puts this frame's flash on the preview texture, or takes the last one off.
+     *
+     * <p>Called once a frame while the pulse is up, because the pulse is a pulse: the
+     * sheet is rebuilt and rewritten into the texture already there rather than a new
+     * one being registered sixty times a second.
+     */
+    private void applyHighlight(long now) {
+        if (this.showingItem) {
+            return;
+        }
+        Layer layer = this.highlight.layer();
+        if (layer != null && !this.project.layers().contains(layer)) {
+            // A deleted layer's row will never report the pointer leaving it, so
+            // nothing else would ever turn this off.
+            this.highlight.drop();
+            layer = null;
+        }
+
+        if (layer != null && this.composed != null && this.highlight.active(now)) {
+            byte[] flashed = this.highlight.over(this.composed, layerBuffer(layer), now);
+            if (flashed != this.composed) {
+                this.preview.refresh(flashed);
+                this.highlighting = true;
+                return;
+            }
+        }
+        if (this.highlighting) {
+            this.highlighting = false;
+            showTopLocally();
+        }
+    }
+
+    /** The layer's own 64x64, straight out of the atlas its category arrived in. */
+    private byte[] layerBuffer(Layer layer) {
+        CategorySprites sprites = this.sprites.get(layer.categoryId());
+        return sprites == null ? null : sprites.buffer(layer.atlasIndex(this.project.isSlim()));
     }
 
     /**
@@ -386,6 +468,8 @@ public class SkinCreatorScreen extends Screen {
     @Override
     public void tick() {
         super.tick();
+        this.scene.tick();
+        syncWorldPreview();
 
         if (this.shownRevision != this.project.revision()) {
             this.shownRevision = this.project.revision();
@@ -426,6 +510,40 @@ public class SkinCreatorScreen extends Screen {
             if (this.window != null) {
                 relayout();
             }
+        }
+    }
+
+    /**
+     * Puts the edit on the real character while an in-game camera is looking at them.
+     *
+     * <p>Only then: the two cameras that show the world are the only reason to dress the
+     * character in something that has not been applied. Under the workshop camera there
+     * is nothing to see it on, so nothing is overridden and the player in the world —
+     * behind the editor, where a passing mob can still see them — stays as they were.
+     *
+     * <p>Sends only what the server composed, and only when it changes, which is at most
+     * once per stack rather than once per frame.
+     */
+    private void syncWorldPreview() {
+        boolean wanted = this.scene.showsWorld() && this.composed != null
+                && this.minecraft != null && this.minecraft.player != null;
+        if (!wanted) {
+            AppliedSkin.stopPreviewing();
+            this.previewWorn = null;
+            return;
+        }
+        if (this.previewWorn == this.composed) {
+            return;
+        }
+        try {
+            AppliedSkin.preview(this.minecraft.player.getUUID(), this.composed,
+                    this.project.model());
+            this.previewWorn = this.composed;
+        } catch (IOException | RuntimeException cause) {
+            // The scene still shows the skin; only the character in the world does not.
+            MCSkinCreatorClient.LOGGER.warn("Wearing the edited skin in the world failed",
+                    cause);
+            this.previewWorn = this.composed;
         }
     }
 
@@ -1292,6 +1410,34 @@ public class SkinCreatorScreen extends Screen {
 
     // ------------------------------------------------------------------ drawing
 
+    /**
+     * Vanilla's backdrop, except when the point is to see through it.
+     *
+     * <p>Vanilla draws a blurred copy of what is behind a screen and then the tiled menu
+     * background over it. That is the ground the editor stands on and it stays — a
+     * resource pack chose it. It is fatal, though, to a camera that is looking <em>at</em>
+     * what is behind: the in-game view came out blurred and then hidden altogether. So
+     * the one case where it is skipped is the one where the world is the picture.
+     *
+     * <p>The name is the one 26.x gave it, so the override is versioned rather than
+     * shared.
+     */
+    //? if >=26.1 {
+    /*@Override
+    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+        if (this.chrome == null || !this.chrome.scene().showsWorld()) {
+            super.extractBackground(graphics, mouseX, mouseY, delta);
+        }
+    }
+    *///?} else {
+    @Override
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
+        if (this.chrome == null || !this.chrome.scene().showsWorld()) {
+            super.renderBackground(graphics, mouseX, mouseY, delta);
+        }
+    }
+    //?}
+
     //? if >=26.1 {
     /*@Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
@@ -1308,6 +1454,7 @@ public class SkinCreatorScreen extends Screen {
 
     private void paint(Canvas canvas, int mouseX, int mouseY, float delta) {
         Paint paint = new Paint(canvas, mouseX, mouseY, System.currentTimeMillis(), this.focused);
+        applyHighlight(paint.time());
 
         this.chrome.draw(paint, delta);
 
@@ -1494,7 +1641,12 @@ public class SkinCreatorScreen extends Screen {
         if (this.library.visible() && this.library.scroll(mouseX, mouseY, scrollY)) {
             return true;
         }
-        return this.layers.visible() && this.layers.scroll(mouseX, mouseY, scrollY);
+        if (this.layers.visible() && this.layers.scroll(mouseX, mouseY, scrollY)) {
+            return true;
+        }
+        // Last, so a list under the pointer keeps its own wheel: the scene is the
+        // whole middle column, and it would otherwise swallow every scroll over it.
+        return this.scene.scroll(mouseX, mouseY, scrollY);
     }
 
     @Override
@@ -1617,9 +1769,22 @@ public class SkinCreatorScreen extends Screen {
         this.focused = ring.get(Math.floorMod(index + direction, ring.size()));
     }
 
+    /**
+     * True, so a single-player game stops while a skin is being edited.
+     *
+     * <p>It used to be false, which nobody noticed while the scene was a figure on a
+     * flat panel — and which became obvious the moment a camera looked at the real
+     * world: mobs closing in behind the editor. Somebody choosing a hat is not playing,
+     * and the pause is not theirs to lose.
+     *
+     * <p>Screens tick either way, so nothing in here stops with it: the composition
+     * debounce, the search and the camera all keep running. What does stop is the
+     * character's own animation, which is why the first-person swing plays out on a
+     * server and stands still at home.
+     */
     @Override
     public boolean isPauseScreen() {
-        return false;
+        return true;
     }
 
     @Override
@@ -1627,6 +1792,12 @@ public class SkinCreatorScreen extends Screen {
         super.removed();
         this.scale.restore(this.minecraft);
         this.closed = true;
+        // Before anything else: a mod that leaves a player in third person after its
+        // window closes has broken their game, not their preview.
+        if (this.scene != null) {
+            this.scene.release();
+        }
+        AppliedSkin.stopPreviewing();
         this.preview.close();
         if (this.modelSprites != null) {
             this.modelSprites.close();

@@ -7,41 +7,51 @@
  */
 package fr.clixmods.mcsc.mod.ui;
 
+import fr.clixmods.mcsc.mod.scene.SceneShot;
+
 /**
  * The player standing in the scene.
  *
- * <p>An interface for the same reason {@link Canvas} is one: {@link PlayerFigure}
- * renders the game's own player, which needs a running game to exist at all, and the
- * preview tool in the tests stands something else in its place. Everything the scene
- * does around the figure — where the bar goes, how big the portrait may be, what the
- * dock holds — is then laid out and looked at without one.
+ * <p>An interface for the same reason {@link Canvas} is one: {@link PlayerFigure} renders
+ * the game's own player, which needs a running game to exist at all, and the preview tool
+ * in the tests stands something else in its place. Everything the scene does around the
+ * figure — where the bar goes, how big the portrait may be, what the dock holds — is then
+ * laid out and looked at without one.
+ *
+ * <p>Three methods, and it used to be six: the other four carried the turn, because the
+ * figure was vanilla's player widget and the widget owned its own rotation. The scene has
+ * a camera now, and a camera is not the figure's to keep — so the turn, the tilt, the
+ * zoom and the pan live in {@code ScenePanel}, and arrive here as a {@link SceneShot}.
+ * What is left is what this seam was always for: somewhere to draw, and something to draw
+ * that does not need a GPU.
  */
 public interface Figure {
     /**
      * Says where the figure goes and how big it may be.
      *
-     * <p>Called on every layout, which is to say on every pick. A figure that is
-     * already the right size keeps whichever way it was turned; one that is not is
-     * built again, which is also what puts it back facing forward.
+     * <p>Called on every layout, which is to say on every pick.
      *
      * @param width zero when there is no room for a figure at all
      */
     void place(int x, int y, int width, int height);
 
-    /** Puts the figure back the way it started, facing forward. */
-    void reset();
-
-    void draw(Canvas canvas, int mouseX, int mouseY, float delta);
+    /**
+     * Says how far the figure may paint, which is wider than where it stands.
+     *
+     * <p>{@link #place} decides the figure's size, so that it is the same at a given zoom
+     * whatever else is on screen; this decides only where the painting stops. They were
+     * one rectangle once, and zooming in then cut the head off in mid-air — the figure
+     * grew past a box sized for it at rest. The stage is everything below the top bar,
+     * columns included, because the columns are painted after the figure and cover what
+     * spills under them.
+     */
+    void stage(int x, int y, int width, int height);
 
     /**
-     * The figure turns under the mouse, so it is handed the gesture itself.
+     * Draws the figure as the scene currently wants it.
      *
-     * @return true when the press landed on the figure and started a turn
+     * <p>{@code shot} may say the game is drawing the character itself, in which case the
+     * honest answer is to draw nothing.
      */
-    boolean press(double mouseX, double mouseY, int button);
-
-    /** Turning is by how far the mouse moved, not by where it ended up. */
-    void drag(double mouseX, double mouseY, double dragX, double dragY, int button);
-
-    void release(double mouseX, double mouseY, int button);
+    void draw(Canvas canvas, SceneShot shot, int mouseX, int mouseY, float delta);
 }

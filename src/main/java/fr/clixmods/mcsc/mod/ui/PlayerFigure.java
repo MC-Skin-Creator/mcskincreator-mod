@@ -7,28 +7,37 @@
  */
 package fr.clixmods.mcsc.mod.ui;
 
-import java.util.Arrays;
-
+import fr.clixmods.mcsc.mod.scene.PosedPlayer;
+import fr.clixmods.mcsc.mod.scene.SceneShot;
 import fr.clixmods.mcsc.mod.skin.PreviewSkin;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.PlayerSkinWidget;
-import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.input.MouseButtonInfo;
 
 /**
  * The game's own player, drawn in the scene.
  *
- * <p>Nothing here renders a figure: {@link PlayerSkinWidget} already draws a player,
- * already turns under the mouse, and already follows the classic or slim model of the
- * skin it is handed. The mod only supplies the skin, and this is the whole of what it
- * takes to hang that widget in the middle of an interface the mod paints itself.
+ * <p>Nothing here renders a figure: the game does, through the same picture-in-picture
+ * path its inventory portrait goes through. The mod fills in a render state — a skin and
+ * a situation — and hands it over; what comes back has the game's overlay layer, the
+ * game's animation and the right proportions for a classic or a slim skin.
+ *
+ * <p>It used to be vanilla's {@code PlayerSkinWidget}, which turns under the mouse and
+ * does nothing else. The scene wanted a zoom, a pan and a pose, and none of the three is
+ * something that widget can be asked for.
+ *
+ * <p>Two of the three cameras draw nothing here at all: they let the game draw the real
+ * character, in the real world, and this figure's whole job is then to keep out of the
+ * way.
  */
 public final class PlayerFigure implements Figure {
     private final PreviewSkin preview;
 
-    private PlayerSkinWidget widget;
-    /** The bounds the current widget was built for, so it is only rebuilt when they move. */
-    private int[] bounds = {0, 0, 0, 0};
+    private int x;
+    private int y;
+    private int width;
+    private int height;
+    private int stageX;
+    private int stageY;
+    private int stageWidth;
+    private int stageHeight;
 
     public PlayerFigure(PreviewSkin preview) {
         this.preview = preview;
@@ -36,59 +45,27 @@ public final class PlayerFigure implements Figure {
 
     @Override
     public void place(int x, int y, int width, int height) {
-        if (width <= 0 || height <= 0) {
-            this.widget = null;
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+    }
+
+    @Override
+    public void stage(int x, int y, int width, int height) {
+        this.stageX = x;
+        this.stageY = y;
+        this.stageWidth = width;
+        this.stageHeight = height;
+    }
+
+    @Override
+    public void draw(Canvas canvas, SceneShot shot, int mouseX, int mouseY, float delta) {
+        if (shot.drawnByTheGame() || this.width <= 0 || this.height <= 0) {
             return;
         }
-
-        // The widget carries the figure's rotation, and layout runs on every pick. Only
-        // a change of size or position builds a new one, so stacking an element does not
-        // quietly spin the player back to facing forward.
-        int[] wanted = {x, y, width, height};
-        if (this.widget == null || !Arrays.equals(this.bounds, wanted)) {
-            Minecraft client = Minecraft.getInstance();
-            this.widget = new PlayerSkinWidget(width, height,
-                    client.getEntityModels(), this.preview::playerSkin);
-            this.bounds = wanted;
-        }
-        this.widget.setX(x);
-        this.widget.setY(y);
-    }
-
-    /** Throws the widget away, which is what puts the figure back facing forward. */
-    @Override
-    public void reset() {
-        this.widget = null;
-    }
-
-    @Override
-    public void draw(Canvas canvas, int mouseX, int mouseY, float delta) {
-        if (this.widget != null) {
-            canvas.widget(this.widget, mouseX, mouseY, delta);
-        }
-    }
-
-    @Override
-    public boolean press(double mouseX, double mouseY, int button) {
-        return this.widget != null && button == 0
-                && this.widget.mouseClicked(event(mouseX, mouseY, button), false);
-    }
-
-    @Override
-    public void drag(double mouseX, double mouseY, double dragX, double dragY, int button) {
-        if (this.widget != null) {
-            this.widget.mouseDragged(event(mouseX, mouseY, button), dragX, dragY);
-        }
-    }
-
-    @Override
-    public void release(double mouseX, double mouseY, int button) {
-        if (this.widget != null) {
-            this.widget.mouseReleased(event(mouseX, mouseY, button));
-        }
-    }
-
-    private static MouseButtonEvent event(double mouseX, double mouseY, int button) {
-        return new MouseButtonEvent(mouseX, mouseY, new MouseButtonInfo(button, 0));
+        PosedPlayer.draw(canvas, this.preview.playerSkin(), shot.pose(), shot.playing(),
+                shot.seconds(), shot.eye(), this.x, this.y, this.width, this.height,
+                this.stageX, this.stageY, this.stageWidth, this.stageHeight);
     }
 }

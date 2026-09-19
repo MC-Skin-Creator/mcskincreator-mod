@@ -10,8 +10,11 @@ package fr.clixmods.mcsc.mod.ui;
 import java.util.List;
 
 import net.minecraft.client.gui.components.Renderable;
+import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 /**
  * The one drawing surface the whole interface is painted through.
@@ -119,6 +122,33 @@ public interface Canvas {
      * strips over it and the panels beside it.
      */
     void widget(Renderable widget, int mouseX, int mouseY, float delta);
+
+    /**
+     * Draws an entity in a rectangle, from a render state the caller has filled in.
+     *
+     * <p>This is the game's own picture-in-picture path — the one the inventory portrait
+     * goes through — and it is what lets the scene have a camera at all: {@code scale}
+     * is the zoom, {@code translation} the pan, and the two quaternions the tilt. The
+     * figure's own turn is not here, it is {@code bodyRot} and {@code yRot} on the
+     * state, exactly as vanilla's inventory does it.
+     *
+     * <p>Whatever draws the state is chosen from the state itself, so a hand-built
+     * {@code AvatarRenderState} is drawn by the game's player renderer — with its
+     * animation, its overlay layer and its slim or classic proportions. The mod supplies
+     * a pose and a skin; none of the rendering is its own.
+     *
+     * @param scale               pixels per block, so the zoom
+     * @param translation         offset in blocks, applied <em>before</em> the rotation
+     *                            and so unaffected by it: positive x is right on screen
+     *                            and positive y is <em>down</em>, which is why vanilla
+     *                            centres a figure by translating it half its height
+     *                            down and letting the flip stand it back up
+     * @param rotation            the model's own orientation, flip included
+     * @param overrideCameraAngle where the light comes from — vanilla passes the tilt
+     */
+    void entity(EntityRenderState state, float scale, Vector3f translation,
+                Quaternionf rotation, Quaternionf overrideCameraAngle,
+                int x, int y, int width, int height);
 
     /**
      * Clips to a rectangle until the matching {@link #popScissor()}.

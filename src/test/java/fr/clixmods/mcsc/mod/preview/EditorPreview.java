@@ -18,6 +18,7 @@ import fr.clixmods.mcsc.mod.catalog.CatalogText;
 import fr.clixmods.mcsc.mod.catalog.ThumbCrop;
 import fr.clixmods.mcsc.mod.project.History;
 import fr.clixmods.mcsc.mod.project.SkinProject;
+import fr.clixmods.mcsc.mod.scene.GameCamera;
 import fr.clixmods.mcsc.mod.skin.PreviewSkin;
 import fr.clixmods.mcsc.mod.style.Tiles;
 import fr.clixmods.mcsc.mod.ui.Canvas;
@@ -74,8 +75,8 @@ public final class EditorPreview {
         this.library.createSearch(query -> { });
         this.library.setEmptyMessage(
                 () -> Component.translatable("library.mcskincreator.empty"));
-        this.scene = new ScenePanel(this.preview, new PreviewFigure(), this::invalidate,
-                () -> null);
+        this.scene = new ScenePanel(this.preview, new PreviewFigure(), new GameCamera(null),
+                this::invalidate, () -> null);
         this.layers = new LayersPanel(this.project, () -> this.catalog, id -> null, this.history,
                 this::invalidate, () -> { }, () -> { }, layer -> { });
         this.chrome = new EditorChrome(this.topBar, this.library, this.scene, this.layers,

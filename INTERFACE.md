@@ -200,12 +200,68 @@ out of sight.
 
 ## Where the pictures come from
 
-Nothing here renders a player. The model in the scene is the game's own
-`PlayerSkinWidget` — it already draws a player, already turns under the mouse, and
-already follows the classic or slim model of the skin it is handed. The mod only
-supplies the skin.
+Nothing here renders a player. The figure in the scene is drawn by the game, through
+the same picture-in-picture path the inventory portrait goes through: the mod fills in
+an `AvatarRenderState` — a skin and a situation — and hands it over
+(`Canvas.entity`, `scene/PosedPlayer`). What comes back is the game's own player
+rendering, with its overlay layer, its animation and its classic or slim proportions.
 
-The scene does not build it, though: it is handed a [`Figure`](src/main/java/fr/clixmods/mcsc/mod/ui/Figure.java)
+That path is what gives the scene a camera and an animation chooser, and it replaced
+vanilla's `PlayerSkinWidget`, which turns under the mouse and does nothing else. The
+widget is still what the panel on the vanilla menus uses (`SkinPanel`), where turning
+is all that is wanted.
+
+**The animations are named in the game's terms, not the site's.** The site had to
+write its ten out by hand — limb angles, cycle lengths, a coordinate change and a
+test measuring which arm ends up inside the skull. Here walking is a walk speed and
+crouching is a boolean, and the game animates it: `scene/ScenePose` sets fields the
+player model already reads. Which is also why the list is shorter. The site's wave
+and T-pose are not in the game's player model, and reaching them would mean driving
+the model's parts directly — the one route that is not the same call on both
+Minecraft targets — so they are absent rather than dead, like everything else whose
+target is empty.
+
+**Under a camera that shows the world, the editor is a layer over the game.** The
+screen paints no backdrop — and overrides vanilla's, which blurs what is behind and
+then covers it with the opaque menu background — and both side panels fold themselves
+away, because the game draws the first-person arm exactly where the layers panel sat.
+The player's own fold choice comes back with them. The game's HUD goes too, and not
+through the game's own flag: that flag takes the held hand with it, so the hotbar is
+left undrawn for the frame instead (`scene/HiddenHud`, `mixin/GuiMixin`) and the
+setting the player owns is not touched.
+
+**Both world cameras borrow the game's own** (`scene/GameCamera`, public API, given
+back on the way out), and both leave it pointed at the player,
+because the level renderer draws your own character only while they *are* the camera
+entity. Third person works because the camera is detached, not because it is somewhere
+else; going round the character is therefore done by turning them, and their body is
+pinned so they keep facing the way they were. That is real game state, saved and put
+back. See `DECISIONS.md`, "The local player is only drawn when they are the camera".
+
+**The backdrop is a separate question from the camera.** `scene/SceneBackdrop` puts
+either the editor's own dark (`Palette.VOID`, the site's own scene colour, and the one
+ground the editor paints for itself) or the live world behind the workshop figure — which is
+how the animations and the zoom stay available with a landscape behind them, since the
+in-game view shows the real character and a real character cannot be posed. It is a
+preference, never serialised.
+
+A backdrop is **behind**, not **around**: the figure is a GUI element drawn after the
+world, so it takes no world lighting and no shader pack. The view that puts the
+character in the world is the in-game one — and it animates there too, because
+`AvatarRendererMixin` poses the real character as the game extracts them. So the
+animation chooser belongs to both views, and only the first-person one is without it.
+The world backdrop also borrows the camera, for the opposite reason to the other two —
+first person plus the game's own HUD flag is how the game is asked to draw the world and
+nothing else, neither the character nor their hand. It is the one place that flag is
+still the right tool.
+
+**The figure's size and the figure's clipping are two rectangles, not one.** How big it
+is at a given zoom comes from a portrait box sized to the scene; how far it may paint is
+everything below the top bar, columns included. They were one rectangle, and zooming in
+then cut the head off in mid-air against an edge with nothing on it. The columns are
+painted after the figure, so what spills under them is covered rather than seen.
+
+The scene does not build the figure, though: it is handed a [`Figure`](src/main/java/fr/clixmods/mcsc/mod/ui/Figure.java)
 and works out how much room it may have. `PlayerFigure` is the game's one; the preview
 stands a labelled box in its place, which is the only reason the scene's own layout
 can be looked at at all.
@@ -248,6 +304,10 @@ body.
 - Don't say the same thing twice in two empty states. With no layers there is nothing
   to select either, and both sentences landed in the same place.
 - Don't put the preview behind anything.
+- Don't show a layer by hiding the others. Pointing at a layer row makes that layer
+  **pulse over the composed stack** (`skin/Highlight`); it used to put the layer on the
+  model on its own, which showed what the layer was and hid where it was — and turned a
+  covered or switched-off layer into the figure disappearing.
 - Don't fill an empty category — an empty category is not shown at all, and a control
   whose target is empty disappears instead of opening onto nothing.
 - Don't make anything clickable that is not visible. Layer actions and scrolled-away

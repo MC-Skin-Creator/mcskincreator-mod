@@ -52,6 +52,9 @@ public final class EditorChrome {
     private Drawer drawer = Drawer.NONE;
     private PixelButton libraryTab;
     private PixelButton layersTab;
+    private boolean overlaid;
+    private boolean foldedLibrary;
+    private boolean foldedLayers;
 
     public EditorChrome(TopBar topBar, LibraryPanel library, ScenePanel scene, LayersPanel layers,
                         Runnable relayout) {
@@ -96,6 +99,7 @@ public final class EditorChrome {
     public void layout(Canvas canvas, int width, int height) {
         this.width = width;
         this.height = height;
+        foldForTheWorld();
 
         this.topBar.setBounds(0, 0, width, Metrics.TOP_BAR_HEIGHT);
         this.topBar.layout(canvas);
@@ -120,6 +124,12 @@ public final class EditorChrome {
         } else {
             layoutDrawers(canvas, top);
         }
+
+        // The figure may paint over everything below the top bar, not only over the
+        // column it stands in: zoomed in, a head that stopped at the library's edge was
+        // simply cut off in mid-air. The columns are painted after it, so what spills
+        // under them is covered rather than seen.
+        this.scene.setStage(0, top, width, height - top);
 
         this.library.layout(canvas);
         this.layers.layout(canvas);
@@ -206,7 +216,8 @@ public final class EditorChrome {
      *
      * <p>The ground is the game's own: the panorama behind a menu, the world behind a
      * pause screen. Painting over it would be replacing something the player's resource
-     * pack may well have chosen.
+     * pack may well have chosen. The scene paints its own over its own rectangle, but
+     * only when the backdrop chooser says to — that is the player asking.
      */
     public void draw(Paint paint, float delta) {
         this.topBar.draw(paint);
@@ -218,6 +229,29 @@ public final class EditorChrome {
             this.layers.draw(paint);
         }
         drawTabs(paint);
+    }
+
+    /**
+     * Gets the columns out of the way when the game is drawing the character.
+     *
+     * <p>A camera looking at the world needs the window, not a third of it: the game
+     * draws the first-person arm low and to the right, which is exactly where the layers
+     * column was. The fold is this screen's, not the player's, so their own choice is
+     * remembered on the way in and given back on the way out.
+     */
+    private void foldForTheWorld() {
+        boolean overlay = this.scene.overlaysGame();
+        if (overlay == this.overlaid) {
+            return;
+        }
+        this.overlaid = overlay;
+        if (overlay) {
+            this.foldedLibrary = this.library.folded();
+            this.foldedLayers = this.layers.folded();
+            this.drawer = Drawer.NONE;
+        }
+        this.library.setFolded(overlay || this.foldedLibrary);
+        this.layers.setFolded(overlay || this.foldedLayers);
     }
 
     private void drawTabs(Paint paint) {

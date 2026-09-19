@@ -229,12 +229,12 @@ one is not decoration — hovering exists with a mouse and not with a controller
 the site reveals real functionality on hover, so whatever holds the focus draws as
 whatever is hovered.
 
-**The interface owns almost no pixels of its own.** The model is vanilla's
-`PlayerSkinWidget`, the thumbnails are folded out of the category atlases the API
-already serves, and the stack being edited is composed by the server. One texture is
-drawn from nothing: the stone grain under the panels, from deterministic noise, because
-a tile generated from a function cannot go out of step with the palette it is tinted by
-and a PNG of the same thing can.
+**The interface owns almost no pixels of its own.** The figure is drawn by the game
+from a render state the mod fills in, the thumbnails are folded out of the category
+atlases the API already serves, and the stack being edited is composed by the server. One
+texture is drawn from nothing: the stone grain under the panels, from deterministic
+noise, because a tile generated from a function cannot go out of step with the palette
+it is tinted by and a PNG of the same thing can.
 
 The one exception is the pictures of the ready-made stacks — the starter models and
 the outfits — which the mod stacks and folds itself (`Composite`, `ReadyMadeSkins`).
@@ -249,6 +249,194 @@ The layer stack is the mod's, and it follows the server's format rather than
 inventing a second one: the project validator is the authority on what a project is,
 and two representations of the same thing would drift. `ProjectJson` writes it in one
 method for that reason.
+
+### The figure goes through the entity route, not the skin route
+
+The game offers two ways to put a player in a GUI, and only one of them is the same
+call on both targets. Checked with `javap` against both jars:
+
+| | 1.21.11 | 26.2 |
+|---|---|---|
+| entity | `GuiGraphics#submitEntityRenderState(EntityRenderState, float, Vector3f, Quaternionf, Quaternionf, int, int, int, int)` | `GuiGraphicsExtractor#entity(…, Vector3fc, Quaternionfc, Quaternionfc, …)` |
+| skin | `submitSkinRenderState(PlayerModel, …)` | `skin(Model.Simple, …)` |
+
+The skin route changes the *type* of its first parameter — a `PlayerModel` is not a
+`Model.Simple` — which is a real incompatibility rather than a rename. The entity
+route differs only in the method name, so it costs one versioned comment in `Canvas`
+and nothing anywhere else. It is also the more capable of the two: the scale is the
+zoom, the translation is the pan, the quaternions are the tilt, and the animation
+comes off the render state instead of having to be applied to a model by hand.
+
+Two facts read out of the game rather than assumed, both of which the design rests on:
+
+- **an `AvatarRenderState` is dispatched on its skin**, not on an entity type
+  (`EntityRenderDispatcher#getRenderer`), and the skin's model type is what picks the
+  classic or the slim renderer. So the figure can be drawn with no entity at all,
+  which is what the title screen has;
+- **a plain `new AvatarRenderState()` is already usable**: full-bright light, scale
+  one, standing pose, empty hands, every overlay shown. That is why a fresh one is
+  built each frame instead of one being kept and reset — a kept state is a list of
+  fields to remember to clear, and the one forgotten leaves the last pose's crouch on
+  the next pose.
+
+The camera numbers themselves are vanilla's, from
+`InventoryScreen#renderEntityInInventoryFollowsMouse`, down to the signs: the figure's
+turn is `bodyRot` in degrees, the tilt is a quaternion multiplied into the base flip,
+and the translation is applied *before* the rotation and so is unaffected by it —
+positive y is down on screen. Every one of those is a chance to send the figure off
+the side of the panel, and none of them can be checked in a screenshot.
+
+### The local player is only drawn when they are the camera
+
+The in-game view was first built the obvious way: borrow the game's camera, fly a
+client-side marker around the character, let the game render the world. It showed an
+empty world. The reason is a rule in `LevelRenderer.renderLevel`, and it is not
+negotiable through any setting:
+
+```java
+if (entity instanceof LocalPlayer && camera.entity() != entity) continue;
+```
+
+**Your own character is drawn only while they are the camera entity.** Put the camera
+anywhere else and they are skipped — and a camera that *is* them is either inside their
+head (first person) or locked to vanilla's fixed third-person distance. Reaching past
+that means injecting into the entity loop of the largest method in the renderer, which
+is exactly the kind of second mixin this file argues against.
+
+What this rules out is a *free* camera, not third person. Third person renders the
+character because the camera is **detached**, not because it has moved: the camera entity
+is still the player. So the in-game view is the game's own third person, and going round
+the character is done by turning their view — the camera sits behind wherever they look —
+with their body pinned so they keep facing the way they were. That is real game state:
+yaw, pitch and body yaw are saved on the way in and put back on the way out, and in
+multiplayer other people see the character turn. There is no zoom, because vanilla fixes
+its own third-person distance and exposes no way to change it.
+
+Compositing the figure over the world was tried in between, and it is why
+`scene/SceneBackdrop` exists rather than being deleted: it is the right answer to a
+different question. The in-game view shows the **real** character, which cannot be posed;
+putting the live world *behind the workshop figure* is what keeps the animations, the
+zoom and the pan available with a landscape behind them.
+
+Two things had to stop painting over the world for this to be visible at all, and both
+were hiding it completely rather than partly:
+
+- **vanilla's screen backdrop.** `Screen.renderBackground` blurs what is behind and then
+  lays the opaque tiled menu background over it. `SkinCreatorScreen` now overrides it to
+  draw nothing — the editor has always painted its own backdrop, so the only thing lost
+  is the blur;
+- **the editor's own panels.** The first-person arm is drawn low and to the right, which
+  is where the layers panel sat. Both side panels fold themselves away under a camera
+  that overlays the game, and the player's own fold choice is put back on the way out.
+  A game *backdrop* does not fold them: that is scenery, and taking the catalogue off
+  the screen in the middle of picking from it would be a poor trade;
+- **the game's own HUD.** The hotbar, the hearts and the crosshair are drawn over the
+  world whether or not a screen is open. Hidden while a world camera holds, put back on
+  release. The flag moved between the targets — `Options.hideGui` on 1.21.11,
+  `Gui.hud.toggle()` behind `isHidden()` on 26.2 — and both are public, so it stays a
+  rename rather than a reason for a mixin.
+
+  **But one flag covers the HUD and the hand.** Both targets guard the
+  `ItemInHandRenderer` call with the same boolean they guard the HUD with — read out of
+  the bytecode of `GameRenderer.renderItemInHand` on both jars, not assumed. So hiding
+  the HUD in the first-person view hid the arm, the one thing that view exists for, and
+  the first version shipped keeping the HUD instead, because the alternative was keeping
+  no arm.
+
+  **That was the wrong half to give up**, and it is what `GuiMixin` is for. The flag is
+  a setting the player owns — it is F1 — and it is now only used where the hand is
+  unwanted too: a world backdrop, where it is exactly how the arm is got rid of.
+  Everywhere else the drawing is skipped for the frame instead, which is the half of
+  that flag the editor actually wanted. The two targets draw the HUD through different
+  names but from the same class, so it stays one mixin with a versioned injection: 1.21.11
+  cancels `Gui.render`, which is the HUD and nothing else, and 26.2 forces the first
+  boolean of `Gui.extractRenderState` to false, because that one gates the HUD while the
+  second gates the screen — cancelling there would take the editor with it.
+
+### The head cannot be tilted away from the camera
+
+The in-game orbit turns the character's view, and the head has to stay put while it does
+— a head that swivels to follow the camera is the one thing that makes the view read as
+a bug. Yaw is easy: pin `yHeadRot` and `yBodyRot` to where they were, and re-pin them
+every tick, because a tick pulls the head back towards the view and the body after it.
+
+Pitch is not, and cannot be: **the camera's pitch and the head's pitch are the same
+field.** The camera reads `Entity.xRot` through `getViewXRot`; the model reads it off the
+render state. Tilting one tilts the other. So the pitch is held level and the orbit is
+horizontal only — a vertical drag does nothing in that view. The workshop camera, which
+owns its own angles, keeps its tilt.
+
+### The second mixin: posing a character who is in the world
+
+The in-game view draws the real character inside the world, and that is exactly why the
+animation chooser could not reach it: the workshop figure is a render state the mod
+builds, and a character in the world is a render state the game extracts from a live
+entity. There is nothing to hand over.
+
+Two ways in, and they are not close. **Animating the entity** is real game state: written
+every frame, sent to the server, seen by everybody on it, and left behind if the client
+goes down between setting it and putting it back — somebody permanently crouched in
+their own save. **Taking the render state on its way out** changes a picture, on one
+client, for as long as one window is open; nothing leaves the machine and nothing
+survives the window closing.
+
+So `mixin/AvatarRendererMixin` injects at the return of
+`AvatarRenderer#extractRenderState`, reads `scene/WorldPose`, and applies the pose when
+the avatar being drawn is the one the editor is looking at. It clears the animation
+fields first, because a state filled in from an entity arrives carrying whatever that
+entity was really doing.
+
+It pays for itself twice over: it is also what fixed the head. On the entity the camera's
+pitch and the head's pitch are the same field, so tilting the view tilted the head — the
+one thing that view must not do. On the render state they are two fields, so the head is
+simply pinned and the vertical orbit came back.
+
+Three things were checked rather than assumed, and the third is the one a future mixin
+should copy: the method is public with the same signature on both targets (so no
+Stonecutter directive, the repository's own test of whether a mixin is the right answer);
+it has **three** overloads, so the injection spells out the full descriptor; and the
+remap was read out of both built jars, where `extractRenderState(…Avatar;…F)V` comes out
+as `method_62604(Lnet/minecraft/class_11890;Lnet/minecraft/class_10055;F)V` on 1.21.11 —
+Loom rewrites the parameter types, not only the name.
+
+### What a backdrop is, and what it is not
+
+The world behind the workshop figure is a **backdrop**: the game draws the world, and the
+figure is a GUI element drawn over it, after the world pass and after any shader pack has
+had its say. It will not take world lighting, world shadows or shader effects, and
+nothing short of rendering it inside the level pass would change that. The view that puts
+the character *in* the world, shaders included, is the in-game one — which is the whole
+reason both exist, and which now animates too, through the mixin above.
+
+### The editor pauses a single-player game
+
+`isPauseScreen()` returned false, which nobody noticed while the scene was a figure on a
+flat panel. It became obvious the moment a camera looked at the real world: mobs closing
+in behind the editor while a hat was being chosen. Somebody editing a skin is not
+playing, and the pause is not theirs to lose.
+
+Screens tick regardless of the pause (checked against `Minecraft.tick`, where the
+`screen.tick()` call sits outside the pause guard), so the composition debounce, the
+search and the camera all keep running. What does stop is the character's own animation
+— which is why the first-person swing plays out on a server and stands still at home.
+That is the right way round: nobody wants to be eaten for the sake of a wave.
+
+### Wearing the edit in the world, and why that is not level 1
+
+The two in-game cameras are only worth having if the character is wearing what is
+being drawn, and nothing else can put it there: the profile the client joined with
+still describes the old skin. So `AppliedSkin` carries a second override beside the
+one that follows an upload — the editor's own preview, on the local player, on this
+client, for as long as the editor is open, through the same door and so through the
+existing mixin.
+
+It is a slice of level 1 above, which this file says is not built, and the warning
+there still stands: a local override looks exactly like a real skin change. What
+disarms it here is the scope, and the scope is the whole design — it lasts the window,
+it is dropped in the screen's teardown so the game closing the editor ends it too,
+nothing is sent anywhere, and nobody else sees it. It must not grow: a fitting room
+that outlives its window is issue #11 and wants the interface work issue #11
+describes.
 
 ## 8. Everything the mod asks of the site goes through `/api/v1`
 

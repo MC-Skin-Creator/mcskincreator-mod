@@ -17,7 +17,10 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.network.chat.Component;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import net.minecraft.resources.Identifier;
 
 /**
@@ -234,6 +237,26 @@ public final class GameCanvas implements Canvas {
         /*widget.extractRenderState(this.graphics, mouseX, mouseY, delta);
         *///?} else {
         widget.render(this.graphics, mouseX, mouseY, delta);
+        //?}
+    }
+
+    /**
+     * The game's own picture-in-picture path, the one the inventory portrait goes
+     * through. 26.x renamed it along with everything else that draws.
+     */
+    @Override
+    public void entity(EntityRenderState state, float scale, Vector3f translation,
+                       Quaternionf rotation, Quaternionf overrideCameraAngle,
+                       int x, int y, int width, int height) {
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+        //? if >=26.1 {
+        /*this.graphics.entity(state, scale, translation, rotation, overrideCameraAngle,
+                x, y, x + width, y + height);
+        *///?} else {
+        this.graphics.submitEntityRenderState(state, scale, translation, rotation,
+                overrideCameraAngle, x, y, x + width, y + height);
         //?}
     }
 

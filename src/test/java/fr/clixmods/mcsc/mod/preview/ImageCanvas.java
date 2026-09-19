@@ -17,8 +17,11 @@ import com.google.gson.JsonObject;
 
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import net.minecraft.client.gui.components.Renderable;
+import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 /**
  * The {@link Canvas} that paints into an image instead of onto the game.
@@ -303,6 +306,18 @@ public final class ImageCanvas implements Canvas {
      */
     @Override
     public void widget(Renderable widget, int mouseX, int mouseY, float delta) {
+    }
+
+    /**
+     * Nothing, like {@link #widget}: a render state is drawn by the game's entity
+     * renderers, which want a GPU. The preview stands a flat shape in the figure's place
+     * instead — see {@code PreviewFigure} — so the layout around it can still be looked
+     * at.
+     */
+    @Override
+    public void entity(EntityRenderState state, float scale, Vector3f translation,
+                       Quaternionf rotation, Quaternionf overrideCameraAngle,
+                       int x, int y, int width, int height) {
     }
 
     @Override
