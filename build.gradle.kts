@@ -18,10 +18,11 @@ val requiredJava: JavaVersion = when {
 
 repositories {
     // The texture engine lives on GitHub Packages, which asks for a token even for a
-    // public package. A contributor passes one on the command line or in
-    // ~/.gradle/gradle.properties (gpr.user / gpr.token); CI hands over the run's own
-    // GITHUB_ACTOR and GITHUB_TOKEN. The repository is scoped to the engine's group,
-    // so no other dependency is ever looked up here - and so a missing token fails on
+    // public package. A contributor puts one in ~/.gradle/gradle.properties as
+    // gpr.user / gpr.token; CI passes the run's own actor and GITHUB_TOKEN under the
+    // same two names. GITHUB_ACTOR and GITHUB_TOKEN are read as a fallback, for a
+    // shell that exports them. The repository is scoped to the engine's group, so no
+    // other dependency is ever looked up here - and so missing credentials fail on
     // that one line rather than on everything.
     maven("https://maven.pkg.github.com/MC-Skin-Creator/mcskincreator-engine") {
         name = "mcscEngine"

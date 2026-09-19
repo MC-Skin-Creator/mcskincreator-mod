@@ -349,9 +349,11 @@ gpr.user=your-github-account
 gpr.token=ghp_…
 ```
 
-`GITHUB_ACTOR` and `GITHUB_TOKEN` are read as a fallback, which is what CI uses.
-Without either, the build fails on **401** while resolving `mcsc-engine` — not on a
-compile error. The repository declaration is scoped to `fr.clixmods.mcsc`, so
+CI passes the same two under `-Pgpr.user` / `-Pgpr.token`, from `github.actor` and
+the run's `GITHUB_TOKEN`; `GITHUB_ACTOR` and `GITHUB_TOKEN` are read as a fallback,
+for a shell that exports them. Without credentials the build fails on **401** while
+resolving `mcsc-engine` — never on a compile error, which is worth knowing because
+the message says nothing about a token. The repository declaration is scoped to `fr.clixmods.mcsc`, so
 nothing else is ever looked up there.
 
 ## Adding a Minecraft version
