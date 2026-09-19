@@ -11,6 +11,7 @@ import java.util.function.Consumer;
 
 import fr.clixmods.mcsc.mod.style.Metrics;
 import fr.clixmods.mcsc.mod.style.Palette;
+import fr.clixmods.mcsc.mod.style.Surface;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
 import fr.clixmods.mcsc.mod.ui.Paint;
@@ -20,10 +21,10 @@ import org.lwjgl.glfw.GLFW;
 /**
  * A text field.
  *
- * <p>Its border is light where everything else's is black, and that is deliberate:
- * it is the one thing that tells a field you can type into from a slot you cannot.
- * Focus turns that border gold rather than adding a second one, because no state in
- * this interface is announced by a coloured border.
+ * <p>The game's own field sprite, which already tells a box you can type into from a
+ * slot you cannot, and already has a lit variant for the one holding the cursor. The
+ * site draws its own and turns the border gold; there is nothing to gain by copying
+ * that when the player already knows this one.
  *
  * <p>While it has the focus it reports {@link #capturesTyping()}, and the screen
  * holds back every shortcut. Someone typing "band" into the search box is not asking
@@ -83,22 +84,18 @@ public class TextInput extends Element {
         }
         Canvas canvas = paint.canvas();
         boolean lit = this.focused || paint.focused() == this;
-        int border = lit ? Palette.GOLD : Palette.FIELD_BORDER;
+        Surface.field(canvas, this.x, this.y, this.width, this.height, lit);
 
-        canvas.fill(this.x, this.y, this.width, this.height, border);
-        canvas.fill(this.x + Metrics.OUTLINE, this.y + Metrics.OUTLINE,
-                this.width - Metrics.OUTLINE * 2, this.height - Metrics.OUTLINE * 2, Palette.FIELD);
-
-        int textX = this.x + Metrics.OUTLINE + Metrics.ui(8);
+        int textX = this.x + Metrics.FIELD_INSET + Metrics.PAD_TIGHT;
         int textY = this.y + (this.height - canvas.lineHeight()) / 2;
-        int room = this.width - (textX - this.x) - Metrics.ui(8) - Metrics.OUTLINE;
+        int room = this.width - (textX - this.x) - Metrics.PAD_TIGHT - Metrics.FIELD_INSET;
 
         if (this.value.isEmpty() && !lit) {
             // Placeholder text carries no shadow: it is not content, and a shadow would
             // make it look like content that happens to be grey.
-            canvas.textFlat(this.placeholder, textX, textY, Palette.FIELD_PLACEHOLDER);
+            canvas.textFlat(this.placeholder, textX, textY, Palette.INK_FAINT);
         } else {
-            String shown = canvas.font().plainSubstrByWidth(this.value, room);
+            String shown = canvas.trimToWidth(this.value, room);
             canvas.text(Component.literal(shown), textX, textY, Palette.INK);
             if (this.focused && (paint.time() / 500L) % 2L == 0L) {
                 int caret = textX + canvas.textWidth(shown.substring(0, Math.min(this.cursor, shown.length())));

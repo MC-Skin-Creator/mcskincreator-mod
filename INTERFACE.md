@@ -1,91 +1,191 @@
 # Interface
 
-The mod reproduces the interface of [MC Skin Creator](https://mcskincreator.app/)
-inside the game. The site already imitates Minecraft, so nothing here is being
-"adapted to the Minecraft style" — the work runs the other way, bringing an
-interface that came from the game back into it.
+The mod brings the [MC Skin Creator](https://mcskincreator.app/) editor into the game.
+What it takes from the site is both the **arrangement** — three zones, a fixed row of
+category tabs, the stack grouped by region, the gestures — and the **paint**: four
+materials, one accent colour, a black outline on everything.
 
-Where a site rule and a vanilla widget disagree, the widget wins on mechanics
-(font size, GUI scale, focus) and the site wins on identity (palette, bevels,
-the green of an active state, layout).
+What it takes from Minecraft is what Minecraft is right about: its font, its GUI scale,
+its widget mechanics, and the player model in the scene.
+
+Drawing the editor with the game's own interface sprites instead was tried, and is the
+one thing in here that was reverted rather than refined. A nine-sliced pop-up plate is
+built for a dialogue box; stretched down a full-height column it is a broad light frame
+around a dark well. The tab sprite has no bottom edge, because it is drawn to sit on
+whatever it opens. And with every control the same grey there was nothing on the screen
+to tell a chosen thing from an unchosen one. The site's own look is already a Minecraft
+look — it is where these materials come from — and it is built for a workbench.
+
+## Looking at it
+
+**This screen can be rendered without the game**, and that is the single most useful
+thing in this file. `./gradlew :1.21.11:test` writes `build/ui-preview/` — the whole
+editor at the five sizes the game gives it, magnified to the size a player sees, plus
+a sheet of every sprite it is made of at every height it is used at.
+
+Nothing about it is a mock-up. The panels, the widgets and the arithmetic are the real
+ones; the font is read out of the Minecraft jar, with advances computed the way
+`BitmapProvider` computes them, so a label is exactly as wide as the game will draw
+it; the sprites are the game's, nine-sliced from their own metadata. Only what needs a
+running client is stood in for — the player figure, the thumbnail sheets, the mark.
+
+That is what [`Canvas`](src/main/java/fr/clixmods/mcsc/mod/ui/Canvas.java) is an
+interface for, and what [`EditorChrome`](src/main/java/fr/clixmods/mcsc/mod/ui/EditorChrome.java)
+is separate from the screen for. Keep it that way: a panel that reaches for
+`Minecraft.getInstance()` takes the whole screen out of the preview with it, and a
+screen nobody can see is a screen nobody checks. The three mistakes that did the most
+visible damage to this interface — content drawn under its own panel's frame, a strip
+of tabs with nothing to stand on, settings that wanted more room than the column had —
+were all found by looking at a picture, and none of them had been found by reading the
+code.
+
+`EditorGeometryTest` is the other half of it: it lays the editor out at every width
+from 200 to 900 and asserts that nothing lands outside the screen, outside its own
+panel, or with no size at all.
 
 ## The four materials
 
-Every surface is one of four, and there is no fifth. An element that fits none of
-them is an element that was designed wrong, so [`Surface`](src/main/java/fr/clixmods/mcsc/mod/style/Surface.java)
-offers no escape hatch for one.
+Every surface is one of four, and there is no fifth. An element that fits none of them
+is an element that was designed wrong, so
+[`Surface`](src/main/java/fr/clixmods/mcsc/mod/style/Surface.java) offers no escape
+hatch for one.
 
 | Material | Used for | Fill | Bevel |
 |---|---|---|---|
-| Stone panel | windows, side panels, notifications, dropdowns | `#2e2e34` + grain | light top-left |
-| Slot | thumbnails, layer rows, category tabs, framed areas | `#1b1b20` | inverted — carved in |
+| Stone panel | columns, windows, notifications, dropdowns | `#2e2e34` + grain | light top-left |
+| Slot | thumbnails, layer rows, category tabs, rails | `#1b1b20` | inverted — carved in |
 | Button | every action | `#63636b` | light top-left |
-| Dark surface | tool strips, scene background | `#26262b` / `#18181c` / `#101014` | none, or the panel's |
+| Dark surface | the header strip, tool strips | `#26262b` / `#18181c` / `#101014` | none |
 
-Green `#3c8527` is the active state and the primary action. Red `#a03b31` is
-failure and destruction. Gold `#fcfc54` is hover. The whole palette is in
-[`Palette`](src/main/java/fr/clixmods/mcsc/mod/style/Palette.java), transcribed
-from the site and derived from nothing.
+Green `#3c8527` is the active state and the primary action. Red `#a03b31` is failure
+and destruction. Gold `#fcfc54` is hover ink, on every material.
 
-The palette stays dark from end to end. On the site that began as a workaround —
-browsers in forced dark mode re-invert light backgrounds — and it no longer has
-that reason here, but it has become the identity of the product. A light,
-inventory-coloured panel would be more faithful to the game and less faithful to
-the site.
+Every one of those values is a custom property in the site's own stylesheet, transcribed
+into [`Palette`](src/main/java/fr/clixmods/mcsc/mod/style/Palette.java) and derived from
+nothing. Nothing else in the source tree names a colour.
 
-## Drawing rules
+### Drawing rules
 
-- Nothing is rounded, nothing is gradient, nothing animates.
+- Nothing is rounded, nothing is a gradient, nothing animates.
 - One pure black outline, 2 px, on every framed element.
 - The bevel is drawn **inside** that outline, over 2 px, never on the border.
-- Pressing inverts the bevel and drops the content one pixel. That is the entire
+- Pressing inverts the bevel and drops the content one pixel. That is the whole of the
   press feedback.
-- Text over a panel carries the game's own 1 px shadow. Text laid on the scene is
-  ringed in black on all four sides instead — a shadow is enough over a flat
-  colour and not enough over a figure.
-- Images and icons are drawn at whole scales only. An icon designed at 16 px is
-  shown at 16 or at 32, never at 24.
-- **No emoji, anywhere, not even as a stop-gap.** An emoji is drawn by whatever
-  font the machine has: its shape, colour and size change from device to device,
-  and it is round and smoothed in the middle of an interface that is square.
-  Icons are 16x16 pixel drawings with an outline laid on automatically around the
-  silhouette — see [`Icons`](src/main/java/fr/clixmods/mcsc/mod/ui/Icons.java),
-  which writes them as rows of characters so a drawing can be reviewed in a diff.
+- The grain is one 64 px greyscale tile, generated from seeded noise and multiplied by
+  the fill, so every material speckles without a second asset and without ever going
+  out of step with the palette.
 - State never travels by border. The border is black; colour goes in the fill, the
   bevel, or a band down the left flank.
 
+## What the game still supplies
+
+The font, the GUI scale, the player model, and the mechanics of focus and input. Not a
+surface.
+
+Where the game has an idiom worth borrowing, it is borrowed — as an idea rather than
+as a picture:
+
+- **the mark** is `assets/mcskincreator/icon.png`, the icon the mod already ships and
+  the game's mod list already shows — there is one MC Skin Creator logo, and a second
+  one drawn for this screen would drift from it;
+- **a category tab** shows the category's own first element, which is a truer picture
+  of what is inside than an icon and costs nothing: those pixels are already on the
+  graphics card for the grid below;
+- **an element's provenance** is on the right mouse button, where the game puts a
+  second action, rather than behind a badge that only appears on hover;
+- **a layer's visibility** is a tick box, because that is what it is: a slot with a
+  green core, since at the size a layer row can spare a drawn tick is four pixels of
+  noise and the colour is legible across the column;
+- **a caret** — the triangle on a dropdown — is drawn from the palette, because the
+  game's only arrow is a page-turn arrow, 23 by 13 pixels of near-white that swamps a
+  control this size and says "next" rather than "more";
+- **a notification's outcome** is a coloured band down its flank. This is the one
+  colour of the mod's own left in the interface, and it exists because the game has
+  nothing that says "this worked" in a panel.
+
+
+
 ## Scale
 
-The site is laid out around a 12 px font; the game's is 8 px. Every spacing and
-every line height is therefore two thirds of its reference value, rounded, with a
-floor of 2 — `Metrics.ui(int)`, and nothing does that conversion anywhere else.
+**The editor takes its own GUI scale.** It is a workbench, not a menu: three columns,
+a grid of thumbnails, a stack of layers and four settings at once, and at the scale
+most people play at it would get 640 by 360 pixels to do that in. The game's font is 8
+of those — a ninth of the height of a layer row — so everything around it has to be
+big too, and the result reads as an interface designed for a phone.
 
-Two things deliberately do not shrink:
+The font is the floor and it cannot be lowered: it is a bitmap, and half a pixel of it
+is a broken letter rather than a smaller one. Drawing the editor two thirds the size
+inside the player's scale would mangle every glyph on screen. So
+[`EditorScale`](src/main/java/fr/clixmods/mcsc/mod/ui/EditorScale.java) asks the window
+for the whole scale nearest to **960 by 540** — what a 1080p window gives at a scale of
+2, and the size this interface is laid out for — and gives the player's own back the
+moment the screen closes. It is their setting, so it is restored in `removed()`, which
+the game calls however the screen ends, and re-applied on every layout, because a
+window resize makes the game recompute it from the options.
 
-- the 2 px bevel and the 2 px outline, which are the graphic identity itself and
-  stop reading as anything at 1 px;
-- boxes sized by an icon. A category tab holds a 16 px icon at exactly x2, so it
-  stays 38 px wide whatever the font does.
+The site is laid out around a 12 px font; the game's is 8 px. Every spacing and line
+height is two thirds of its reference value — `Metrics.ui(int)`, and nothing does
+that conversion anywhere else.
 
-The floor of 2 is not cosmetic either: a 1 px gap between two dark surfaces is
-invisible, so anything that rounded to 1 would silently merge the two elements it
-was meant to separate.
+**A width is not a spacing, and converting one that way is the trap this interface
+already fell into.** The site's library is 300 px wide, which `ui()` turns into 200 —
+and 200 is wrong, because the site has some 1900 px to spend and the game, at a GUI
+scale of 3, has about 640. Two columns of 200 ate two thirds of the screen and left
+the model a strip. What carries over is the **share**: a side column is about a fifth
+of the width, within bounds that keep it readable at one end and from sprawling at the
+other. That is `Metrics.columnWidth(int)`.
+
+What is **not** converted at all is anything the game already has an opinion about. A
+button is 20 px tall because that is what a Minecraft button is. The insets in
+`Metrics` are the borders of the sprites above, so a label sits clear of the frame the
+sprite draws.
+
+**Three gaps and one control height.** The gaps are the site's 8, 6 and 3 converted:
+6, 4 and 2. The height is 20, which is its `padding: 5px 10px` over an 11 px line. A
+row holding a 14 px tab beside a 16 px button beside a 20 px one is the whole of why
+nothing used to line up.
+
+**A panel's contents start at its frame, not at its edge.** `popup/background` carries
+a six pixel border, so anything laid out closer than that is drawn *under* the frame:
+the last letter of a value, the count beside a heading, the flank of a tab.
+`Panel.contentLeft()` and `contentRight()` name that box once, and nothing measures
+from `x` and `width` itself.
+
+**A tab is part of a tab bar.** The game's tab sprite has no bottom border, because it
+is drawn to sit on the thing it opens. One floating in the middle of a column reads as
+a bracket, and a row of them that wraps is not a tab bar at all — it is a grid of
+boxes. So a tab strip ends flush on a rule, and a strip that will not fit on one row
+becomes a dropdown instead of wrapping.
+
+Images are drawn at whole scales only, and the nine-sliced sprites are scaled by the
+game, which knows where their borders are — so the mod never stretches a corner.
+
+Everything gives way before the column does: the element grid drops from three
+thumbnails to two rather than splitting the width into ones too small to tell apart, a
+button cuts its own label rather than drawing past its sprite, and a layer row too
+narrow for both actions keeps the one that removes and drops the one that duplicates —
+and drops its click target with it.
 
 ## Layout
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│ TOP BAR   mark · beta · tools                                │
+│ TOP BAR   mark · beta · tools      dimmed band, ruled off     │
 ├────────────┬──────────────────────────────┬──────────────────┤
 │ LIBRARY    │ SCENE                        │ LAYERS           │
-│ 200 px     │ everything left over         │ 212 px           │
+│ ~1/5       │ everything left over         │ ~1/5             │
 └────────────┴──────────────────────────────┴──────────────────┘
 ```
 
-Three columns while the width allows it; below that the side columns become
-drawers driven by a tab bar at the bottom, and the drawer lands under the scene in
-portrait and beside it in landscape. The GUI scale replaces the site's breakpoints,
-and the threshold is measured in interface pixels rather than screen pixels.
+The top bar is a band rather than a panel. `popup/background` at twenty pixels tall is
+frame all the way through, and the strip came out as one light slab with the controls
+sunk into it; what sits across the top of a screen in this game is a dimmed ground
+with a rule under it.
+
+Three columns while the width allows it; below that the side columns become drawers
+driven by a tab bar at the bottom, and the drawer lands under the scene in portrait
+and beside it in landscape. The GUI scale replaces the site's breakpoints, and the
+threshold is measured in interface pixels rather than screen pixels.
 
 **The scene never disappears.** The model has to stay visible while an element is
 being chosen or a layer adjusted — that is what one is there to look at. The site
@@ -93,25 +193,10 @@ tried two other arrangements and dropped both: stacking the three panels left th
 preview 21 px, and swapping them through a single slot made the model vanish the
 moment the library opened.
 
-Either side column folds to 27 px through a ghost button in its header, and a
-folded header keeps **only** that button. An earlier arrangement kept the title as
-well, the header overflowed, and the button that would have brought the panel back
-was the part pushed out of sight.
-
-## Traps already paid for
-
-- Don't put the preview behind anything.
-- Don't fill an empty category — an empty category is not shown at all, and a
-  control whose target is empty disappears instead of opening onto nothing.
-- Don't stack two marks in the same corner of a thumbnail.
-- Don't make anything clickable that is not visible. Layer actions are out of
-  reach at rest, not merely invisible: that is how people delete a layer by
-  clicking a cross they never saw.
-- Don't announce a state with a coloured border.
-- Don't let a folded panel lose the button that unfolds it.
-- Never write to the display. The state changes and the display follows, through
-  `SkinProject.revision()`; a mutation that forgot to bump it would leave the
-  preview a step behind with no error anywhere.
+Either side column folds through a ghost button in its header, and a folded header
+keeps **only** that button. An earlier arrangement kept the title as well, the header
+overflowed, and the button that would have brought the panel back was the part pushed
+out of sight.
 
 ## Where the pictures come from
 
@@ -119,6 +204,11 @@ Nothing here renders a player. The model in the scene is the game's own
 `PlayerSkinWidget` — it already draws a player, already turns under the mouse, and
 already follows the classic or slim model of the skin it is handed. The mod only
 supplies the skin.
+
+The scene does not build it, though: it is handed a [`Figure`](src/main/java/fr/clixmods/mcsc/mod/ui/Figure.java)
+and works out how much room it may have. `PlayerFigure` is the game's one; the preview
+stands a labelled box in its place, which is the only reason the scene's own layout
+can be looked at at all.
 
 Thumbnails are cheaper still: a category's atlas arrives as raw 64x64 skins, and
 `FrontSprite` folds each one into the 16x32 front view the site's slots show. One
@@ -142,6 +232,39 @@ An outfit is clothes and nothing else, so its picture is stood on a body taken f
 the catalogue's own skin category. The site names one outright and the catalogue no
 longer carries it, which is exactly what a hardcoded id gets you — a silently empty
 body.
+
+## Traps already paid for
+
+- Don't lay a panel's contents out from its edge; lay them out from its frame.
+- Don't float a tab. It is drawn to sit on what it opens, and it has no bottom edge.
+- Don't wrap a row of tabs onto a second row. Collapse it to a dropdown.
+- Don't let the settings scroll. The list moves, they stay: a slider that can scroll
+  out from under a drag is a slider nobody can use. What makes that safe is the
+  editor's own scale, and a band clipped to itself so it can never reach into the list
+  the way it once did.
+- Don't make a tab of something that opens nothing. The model chooser was a pair of
+  tabs with no body under them — one drawn as a black box, the other as an open frame,
+  and neither making sense. It is one control that says what the model is.
+- Don't say the same thing twice in two empty states. With no layers there is nothing
+  to select either, and both sentences landed in the same place.
+- Don't put the preview behind anything.
+- Don't fill an empty category — an empty category is not shown at all, and a control
+  whose target is empty disappears instead of opening onto nothing.
+- Don't make anything clickable that is not visible. Layer actions and scrolled-away
+  tiles are out of reach at rest, not merely invisible: that is how people delete a
+  layer by clicking a cross they never saw.
+- Don't name a colour outside `Palette`, and don't add one that is not a line of the
+  site's stylesheet. Four materials and three tones is the whole system.
+- Don't let a folded panel lose the button that unfolds it.
+- Don't lay a backdrop after what sits on it. The scene's corner boxes were drawn
+  after their own controls once, and the dock spent a release looking like an empty
+  frame.
+- Don't trust a layout you have only read. The two side panels can be laid out with no
+  game running — `Font` and `Language` are both subclassable — and doing so found a
+  button wider than its own panel in a single run.
+- Never write to the display. The state changes and the display follows, through
+  `SkinProject.revision()`; a mutation that forgot to bump it would leave the preview
+  a step behind with no error anywhere.
 
 ## What is not built yet
 

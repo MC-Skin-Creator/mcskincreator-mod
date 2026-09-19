@@ -38,6 +38,9 @@ public abstract class Panel extends Element {
     protected Panel(String titleKey, boolean foldsLeft) {
         this.titleKey = titleKey;
         this.foldsLeft = foldsLeft;
+        // A band is clicked — its rail is dragged — but it is never a stop on the focus
+        // ring: Tab walks the controls inside it, not the column they sit in.
+        setFocusable(false);
     }
 
     public boolean folded() {
@@ -52,10 +55,15 @@ public abstract class Panel extends Element {
         this.folded = !this.folded;
     }
 
-    /** The arrow the fold button shows: pointing the way the panel would go. */
+    /**
+     * The chevron the fold button shows, pointing the way the panel would go.
+     *
+     * <p>Drawn in the game's own font. Vanilla's page arrow is the only arrow it
+     * ships, and at 23 by 13 pixels of near-white it swamps a header this size — the
+     * font's chevron is the same typeface as everything else on the row.
+     */
     public Component foldLabel() {
-        boolean pointsLeft = this.folded != this.foldsLeft;
-        return Component.literal(pointsLeft ? "<" : ">");
+        return Component.literal(this.folded != this.foldsLeft ? "<" : ">");
     }
 
     public String foldTooltipKey() {
@@ -63,7 +71,29 @@ public abstract class Panel extends Element {
     }
 
     protected int headerHeight(Canvas canvas) {
-        return canvas.lineHeight() + Metrics.PAD * 2;
+        return canvas.lineHeight() + Metrics.PANEL_INSET + Metrics.PAD_TIGHT;
+    }
+
+    /**
+     * The left edge of everything the panel puts inside itself.
+     *
+     * <p>Named once, here, because the panel sprite carries a six pixel border and
+     * anything laid out closer than that to the panel's own edge is drawn <em>under</em>
+     * its frame. That is not a subtle mistake — it is what was clipping the last letter
+     * off every value in the inspector — but it is an invisible one until something
+     * long enough reaches the edge.
+     */
+    protected int contentLeft() {
+        return this.x + Metrics.PANEL_INSET;
+    }
+
+    /** The right edge of the same box: the frame, and not a pixel past it. */
+    protected int contentRight() {
+        return this.x + this.width - Metrics.PANEL_INSET;
+    }
+
+    protected int contentWidth() {
+        return Math.max(0, contentRight() - contentLeft());
     }
 
     /** The children the screen walks for focus and hit testing, in that order. */
@@ -87,15 +117,15 @@ public abstract class Panel extends Element {
         Canvas canvas = paint.canvas();
         Surface.panel(canvas, this.x, this.y, this.width, this.height);
 
-        int header = headerHeight(canvas);
-        Surface.flat(canvas, this.x + Metrics.OUTLINE, this.y + Metrics.OUTLINE,
-                this.width - Metrics.OUTLINE * 2, header - Metrics.OUTLINE, Palette.PANEL_HEADER);
-
-        if (!this.folded) {
-            String title = Component.translatable(this.titleKey).getString().toUpperCase(Locale.ROOT);
-            canvas.textTracked(title, this.x + Metrics.PAD,
-                    this.y + (header - canvas.lineHeight()) / 2,
-                    Palette.INK_MUTED, Metrics.TITLE_TRACKING);
+        if (this.folded) {
+            return;
         }
+
+        // A heading and a rule under it, which is how the game titles its own lists.
+        int header = headerHeight(canvas);
+        String title = Component.translatable(this.titleKey).getString().toUpperCase(Locale.ROOT);
+        canvas.textTracked(title, contentLeft(),
+                this.y + Metrics.PANEL_INSET, Palette.INK, Metrics.TITLE_TRACKING);
+        Surface.rule(canvas, contentLeft(), this.y + header - Metrics.PAD_TIGHT, contentWidth());
     }
 }

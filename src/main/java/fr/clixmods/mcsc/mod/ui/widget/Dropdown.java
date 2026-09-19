@@ -23,10 +23,10 @@ import org.lwjgl.glfw.GLFW;
  * A closed dropdown is a button with a pixel arrow; an open one is a menu of our own
  * making.
  *
- * <p>Never the system's menu. Minecraft has none to borrow, but the reason holds
- * anyway: a menu drawn by anything other than this interface would arrive with its
- * own font, its own corners and its own idea of a highlight, in the middle of a
- * screen that has spent every pixel agreeing on those three things.
+ * <p>Minecraft has no dropdown to borrow, so this is assembled out of the parts it
+ * does have: the button sprite when closed, the page arrow for the marker, and the
+ * panel the game puts behind its own pop-ups for the open menu. Nothing is drawn that
+ * the game does not already draw somewhere.
  *
  * <p>It is fully navigable from the keyboard — arrows, Home, End, Enter, Escape — and
  * Escape closes the menu and stops there. Closing the window underneath as well is
@@ -35,8 +35,8 @@ import org.lwjgl.glfw.GLFW;
  * @param <T> what the options stand for
  */
 public class Dropdown<T> extends Element {
-    /** The arrow, eight pixels across, drawn rather than typed. */
-    private static final int ARROW = 8;
+    /** {@code select { padding-right: 22px }} — the room the caret is given. */
+    private static final int ARROW = Metrics.CARET_ROOM;
 
     private final List<T> options;
     private final java.util.function.Function<T, Component> naming;
@@ -62,7 +62,7 @@ public class Dropdown<T> extends Element {
     }
 
     private int rowHeight(Canvas canvas) {
-        return canvas.lineHeight() + Metrics.BUTTON_PAD_Y * 2;
+        return canvas.lineHeight() + Metrics.PAD_TIGHT * 2;
     }
 
     @Override
@@ -73,25 +73,21 @@ public class Dropdown<T> extends Element {
         Canvas canvas = paint.canvas();
         boolean hot = paint.hot(this) || this.open;
         Surface.button(canvas, this.x, this.y, this.width, this.height,
-                Surface.Tone.NEUTRAL, hot, false);
+                hot ? Surface.State.HOVERED : Surface.State.NORMAL);
 
-        int inset = Metrics.OUTLINE + Metrics.BUTTON_PAD_X;
-        int room = this.width - inset - ARROW - Metrics.PAD_TIGHT - Metrics.OUTLINE;
+        int inset = Metrics.BUTTON_INSET + Metrics.PAD_HAIR;
+        int room = this.width - inset - ARROW;
         Component current = this.naming.apply(this.read.get());
         canvas.text(Component.literal(fr.clixmods.mcsc.mod.ui.Marquee.cut(
                         canvas, current.getString(), room)),
                 this.x + inset, this.y + (this.height - canvas.lineHeight()) / 2,
-                hot ? Palette.GOLD : Palette.INK);
+                hot ? Palette.INK_HOVERED : Palette.INK);
 
-        drawArrow(canvas, this.x + this.width - Metrics.OUTLINE - Metrics.PAD_TIGHT - ARROW,
-                this.y + (this.height - ARROW / 2) / 2, hot ? Palette.GOLD : Palette.INK);
-    }
-
-    /** A triangle made of rows of pixels, so it stays square at any GUI scale. */
-    private static void drawArrow(Canvas canvas, int x, int y, int color) {
-        for (int row = 0; row < ARROW / 2; row++) {
-            canvas.fill(x + row, y + row, ARROW - row * 2, 1, color);
-        }
+        Surface.caret(canvas,
+                this.x + this.width - Metrics.BUTTON_INSET - Metrics.PAD_HAIR
+                        - (ARROW + Metrics.CARET_WIDTH) / 2,
+                this.y + (this.height - Metrics.CARET_HEIGHT) / 2,
+                hot ? Palette.INK_HOVERED : Palette.INK);
     }
 
     @Override
@@ -107,34 +103,32 @@ public class Dropdown<T> extends Element {
         Canvas canvas = paint.canvas();
         int row = rowHeight(canvas);
         int top = menuTop(canvas);
-        int height = this.options.size() * row + Metrics.OUTLINE * 2;
+        int inset = Metrics.PANEL_INSET;
+        int height = this.options.size() * row + inset * 2;
 
-        // A hard four pixel shadow, offset down and right. No blur: there is nothing
-        // soft anywhere in this interface.
-        canvas.fill(this.x + Metrics.ui(6), top + Metrics.ui(6), this.width, height,
-                Palette.withAlpha(Palette.OUTLINE, 140));
+        // A hard shadow, offset down and right. No blur: the game has none anywhere.
+        canvas.fill(this.x + Metrics.PAD_TIGHT, top + Metrics.PAD_TIGHT,
+                this.width, height, Palette.SHADOW);
         Surface.panel(canvas, this.x, top, this.width, height);
 
         for (int index = 0; index < this.options.size(); index++) {
             T option = this.options.get(index);
-            int rowY = top + Metrics.OUTLINE + index * row;
+            int rowY = top + inset + index * row;
             boolean usable = this.available.test(option);
             boolean current = option.equals(this.read.get());
             boolean lit = usable && (index == this.highlighted
                     || paint.over(this.x, rowY, this.width, row));
 
-            if (current) {
-                canvas.fill(this.x + Metrics.OUTLINE, rowY,
-                        this.width - Metrics.OUTLINE * 2, row, Palette.GREEN);
-            } else if (lit) {
-                canvas.fill(this.x + Metrics.OUTLINE, rowY,
-                        this.width - Metrics.OUTLINE * 2, row, Palette.PANEL_SUB);
+            // The chosen row is the game's selected tab; a row under the pointer takes
+            // the plain one. Neither needs a colour the game does not use.
+            if (current || lit) {
+                Surface.tab(canvas, this.x + inset, rowY,
+                        this.width - inset * 2, row, current, lit);
             }
 
-            int ink = !usable ? Palette.INK_FAINT : lit && !current ? Palette.GOLD : Palette.INK;
-            canvas.text(this.naming.apply(option),
-                    this.x + Metrics.OUTLINE + Metrics.BUTTON_PAD_X,
-                    rowY + Metrics.BUTTON_PAD_Y, ink);
+            int ink = !usable ? Palette.INK_FAINT : lit ? Palette.INK_HOVERED : Palette.INK;
+            canvas.text(this.naming.apply(option), this.x + inset + Metrics.PAD_TIGHT,
+                    rowY + (row - canvas.lineHeight()) / 2, ink);
         }
     }
 
@@ -149,7 +143,7 @@ public class Dropdown<T> extends Element {
      * it hangs above it rather than off the bottom of the screen.
      */
     private int menuTop(Canvas canvas) {
-        int height = this.options.size() * rowHeight(canvas) + Metrics.OUTLINE * 2;
+        int height = this.options.size() * rowHeight(canvas) + Metrics.PANEL_INSET * 2;
         int below = this.y + this.height;
         return below + height > this.screenHeight ? this.y - height : below;
     }
@@ -188,7 +182,7 @@ public class Dropdown<T> extends Element {
             return false;
         }
         int row = rowHeight(canvas);
-        int top = menuTop(canvas) + Metrics.OUTLINE;
+        int top = menuTop(canvas) + Metrics.PANEL_INSET;
         int index = (int) ((mouseY - top) / row);
         if (mouseX >= this.x && mouseX < this.x + this.width
                 && index >= 0 && index < this.options.size()) {

@@ -13,9 +13,10 @@ here, immediately, without restarting the game. The upload is the only thing the
 does that leaves your machine, it happens once per press of a button, and it never
 happens on its own.
 
-The screen is the site's, in the game — the same materials, the same palette, the
-same gestures, the same three zones. The rules it follows are in
-[`INTERFACE.md`](INTERFACE.md).
+The screen takes its arrangement from the site — the same three zones, the same
+gestures — and its paint from Minecraft: every surface on it is one of the game's own
+interface sprites, so a resource pack that restyles the game restyles this screen too.
+The rules it follows are in [`INTERFACE.md`](INTERFACE.md).
 
 What is in:
 

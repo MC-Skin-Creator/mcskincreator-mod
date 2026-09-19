@@ -18,13 +18,10 @@ import fr.clixmods.mcsc.mod.style.Palette;
 import fr.clixmods.mcsc.mod.style.Surface;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
+import fr.clixmods.mcsc.mod.ui.Figure;
 import fr.clixmods.mcsc.mod.ui.Paint;
 import fr.clixmods.mcsc.mod.ui.widget.Dropdown;
 import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.PlayerSkinWidget;
-import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.network.chat.Component;
 
 /**
@@ -35,12 +32,11 @@ import net.minecraft.network.chat.Component;
  * swapping them through a single slot made the model vanish the moment the library
  * opened. Whatever the width, the scene shrinks and stays.
  *
- * <p>The model is the game's own {@link PlayerSkinWidget}: it already renders a
- * player, already turns under the mouse, and already follows the classic or slim
- * model of the skin it is handed. It is drawn from here rather than added to the
- * screen as a widget, so that it lands in the middle of this interface's own paint
- * order — under the tool strips that float over it, and beside rather than beneath the
- * two panels.
+ * <p>The figure itself is not this panel's: it is handed one, and only works out how
+ * much room it may have. In the game that is the vanilla player widget, drawn from
+ * here rather than added to the screen so that it lands in the middle of this
+ * interface's own paint order — under the tool strips that float over it, and beside
+ * rather than beneath the two panels.
  *
  * <p>The settings bar floats over the view when the model has the scene to itself,
  * lets the pointer through everywhere but its own controls, and rings its labels in
@@ -74,19 +70,19 @@ public class ScenePanel extends Element {
     private static final int PORTRAIT_HEIGHT = 120;
 
     private final PreviewSkin preview;
+    private final Figure figure;
     private final Runnable relayout;
     private final Supplier<Component> hoveredLabel;
     private final List<Element> controls = new ArrayList<>();
 
     private View view = View.MODEL;
-    private PlayerSkinWidget model;
-    /** The bounds the current widget was built for, so it is only rebuilt when they move. */
-    private int[] modelBounds = {0, 0, 0, 0};
     private int[] dock = {0, 0, 0, 0};
     private int[] viewport = {0, 0, 0, 0};
 
-    public ScenePanel(PreviewSkin preview, Runnable relayout, Supplier<Component> hoveredLabel) {
+    public ScenePanel(PreviewSkin preview, Figure figure, Runnable relayout,
+                      Supplier<Component> hoveredLabel) {
         this.preview = preview;
+        this.figure = figure;
         this.relayout = relayout;
         this.hoveredLabel = hoveredLabel;
     }
@@ -99,15 +95,10 @@ public class ScenePanel extends Element {
         return this.controls;
     }
 
-    /** True while the model has the scene to itself, which is when the bar floats. */
-    private boolean barFloats() {
-        return this.view == View.MODEL;
-    }
-
     public void layout(Canvas canvas) {
         this.controls.clear();
 
-        int barHeight = Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD_TIGHT * 2;
+        int barHeight = Metrics.TAB_HEIGHT + Metrics.PAD_TIGHT;
         int cursorX = this.x + Metrics.PAD_TIGHT;
         int barY = this.y + Metrics.PAD_TIGHT;
 
@@ -115,7 +106,7 @@ public class ScenePanel extends Element {
         int segmentedWidth = 0;
         for (View candidate : View.values()) {
             PixelButton button = new PixelButton(Component.translatable(candidate.labelKey()),
-                    PixelButton.Style.NORMAL, () -> {
+                    PixelButton.Style.TAB, () -> {
                         this.view = candidate;
                         this.relayout.run();
                     });
@@ -131,7 +122,7 @@ public class ScenePanel extends Element {
         // runs past the edge of its strip is a control nobody can reach.
         if (segmentedWidth + Metrics.ui(90) <= this.width) {
             for (PixelButton button : viewButtons) {
-                button.setBounds(cursorX, barY, button.width(), Metrics.BUTTON_HEIGHT_COMPACT);
+                button.setBounds(cursorX, barY, button.width(), Metrics.TAB_HEIGHT);
                 this.controls.add(button);
                 cursorX += button.width() + Metrics.SEGMENT_GAP;
             }
@@ -145,12 +136,12 @@ public class ScenePanel extends Element {
                     },
                     candidate -> true);
             int chooserWidth = Math.min(Metrics.ui(150), Math.max(1, this.width - Metrics.PAD_TIGHT * 2));
-            chooser.setBounds(cursorX, barY, chooserWidth, Metrics.BUTTON_HEIGHT_COMPACT);
+            chooser.setBounds(cursorX, barY, chooserWidth, Metrics.TAB_HEIGHT);
             chooser.inScreen(this.y + this.height);
             this.controls.add(chooser);
         }
 
-        int viewTop = barFloats() ? this.y : this.y + barHeight;
+        int viewTop = this.y + barHeight;
         int viewHeight = Math.max(0, this.height - (viewTop - this.y));
         this.viewport = new int[] {this.x, viewTop, this.width, viewHeight};
 
@@ -168,30 +159,16 @@ public class ScenePanel extends Element {
         int space = this.view == View.BOTH ? this.width / 2 : this.width;
         int inset = Metrics.PAD;
         int usableWidth = Math.max(0, space - inset * 2);
-        int usableHeight = Math.max(0, viewHeight - inset * 2);
+        int usableHeight = (int) Math.max(0, (viewHeight - inset * 2) * Metrics.SCENE_MODEL_SHARE);
 
         int height = Math.min(usableHeight, usableWidth * PORTRAIT_HEIGHT / Math.max(1, PORTRAIT_WIDTH));
         int width = height * PORTRAIT_WIDTH / PORTRAIT_HEIGHT;
         if (width <= 0 || height <= 0) {
-            this.model = null;
+            this.figure.place(this.x, viewTop, 0, 0);
             return;
         }
-
-        int left = this.x + (space - width) / 2;
-        int top = viewTop + (viewHeight - height) / 2;
-        int[] wanted = {left, top, width, height};
-
-        // The widget carries the figure's rotation, and layout runs on every pick. Only
-        // a change of size or position builds a new one, so stacking an element does
-        // not quietly spin the player back to facing forward.
-        if (this.model == null || !java.util.Arrays.equals(this.modelBounds, wanted)) {
-            Minecraft client = Minecraft.getInstance();
-            this.model = new PlayerSkinWidget(width, height,
-                    client.getEntityModels(), this.preview::playerSkin);
-            this.modelBounds = wanted;
-        }
-        this.model.setX(left);
-        this.model.setY(top);
+        this.figure.place(this.x + (space - width) / 2, viewTop + (viewHeight - height) / 2,
+                width, height);
     }
 
     /**
@@ -209,20 +186,19 @@ public class ScenePanel extends Element {
         recentre.fit(canvas);
         recentre.withTooltip(Component.translatable("gui.mcskincreator.recentre.tooltip"));
 
-        int dockWidth = recentre.width() + Metrics.PAD * 2;
-        int dockHeight = Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD * 2;
+        int dockWidth = recentre.width() + Metrics.PANEL_INSET * 2;
+        int dockHeight = Metrics.TAB_HEIGHT + Metrics.PANEL_INSET * 2;
         int dockX = this.x + this.width - Metrics.PAD_TIGHT - dockWidth;
         int dockY = this.y + this.height - Metrics.PAD_TIGHT - dockHeight;
 
-        recentre.setBounds(dockX + Metrics.PAD, dockY + Metrics.PAD,
-                recentre.width(), Metrics.BUTTON_HEIGHT_COMPACT);
+        recentre.setBounds(dockX + Metrics.PANEL_INSET, dockY + Metrics.PANEL_INSET,
+                recentre.width(), Metrics.TAB_HEIGHT);
         this.controls.add(recentre);
         this.dock = new int[] {dockX, dockY, dockWidth, dockHeight};
     }
 
-    /** Throws the widget away, which is what puts the figure back facing forward. */
     private void recentre() {
-        this.model = null;
+        this.figure.reset();
         this.relayout.run();
     }
 
@@ -233,7 +209,6 @@ public class ScenePanel extends Element {
 
     public void draw(Paint paint, float delta) {
         Canvas canvas = paint.canvas();
-        Surface.dark(canvas, this.x, this.y, this.width, this.height, Palette.EMPTY);
 
         switch (this.view) {
             case MODEL -> drawModel(canvas, paint, delta);
@@ -241,28 +216,30 @@ public class ScenePanel extends Element {
             case BOTH -> {
                 drawModel(canvas, paint, delta);
                 int half = this.width / 2;
-                canvas.fill(this.x + half, this.viewport[1], Metrics.OUTLINE, this.viewport[3],
-                        Palette.OUTLINE);
+                canvas.fill(this.x + half, this.viewport[1], 1, this.viewport[3], Palette.RULE);
                 drawTexture(canvas, this.x + half, this.viewport[1], this.width - half, this.viewport[3]);
             }
         }
 
-        if (!barFloats()) {
-            Surface.dark(canvas, this.x, this.y, this.width,
-                    Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD_TIGHT * 2, Palette.DARK);
-        }
+        // The view chooser is a tab bar, so it sits on a rule rather than floating over
+        // the figure. Floating it was the site's idea and it cost more than it gave: a
+        // strip with nothing under it reads as three loose boxes, and it was over the
+        // one thing on this screen worth looking at.
+        Surface.rule(canvas, this.x, this.y + Metrics.TAB_HEIGHT + Metrics.PAD_TIGHT, this.width);
+
+        // The two corner boxes are backdrops, so they go down before what sits on
+        // them. Drawing them afterwards is what left the dock looking like an empty
+        // frame: the panel was covering its own button.
+        drawDock(canvas);
+        drawCorner(canvas);
+
         for (Element control : this.controls) {
             control.draw(paint);
         }
-
-        drawDock(canvas);
-        drawCorner(canvas);
     }
 
     private void drawModel(Canvas canvas, Paint paint, float delta) {
-        if (this.model != null) {
-            canvas.widget(this.model, paint.mouseX(), paint.mouseY(), delta);
-        }
+        this.figure.draw(canvas, paint.mouseX(), paint.mouseY(), delta);
     }
 
     /** The 64x64 sheet itself, on a transparency checker, at a whole scale. */
@@ -278,14 +255,14 @@ public class ScenePanel extends Element {
         Surface.checker(canvas, drawnX, drawnY, size * scale, size * scale);
         canvas.blit(this.preview.texture(), drawnX, drawnY, size * scale, size * scale,
                 0, 0, size, size, size, size);
-        Surface.outline(canvas, drawnX - Metrics.OUTLINE, drawnY - Metrics.OUTLINE,
-                size * scale + Metrics.OUTLINE * 2, size * scale + Metrics.OUTLINE * 2);
+        Surface.slot(canvas, drawnX - Metrics.SLOT_INSET, drawnY - Metrics.SLOT_INSET,
+                size * scale + Metrics.SLOT_INSET * 2, size * scale + Metrics.SLOT_INSET * 2);
+        canvas.blit(this.preview.texture(), drawnX, drawnY, size * scale, size * scale,
+                0, 0, size, size, size, size);
     }
 
     private void drawDock(Canvas canvas) {
-        Surface.dark(canvas, this.dock[0], this.dock[1], this.dock[2], this.dock[3], Palette.DARK);
-        Surface.bevel(canvas, this.dock[0], this.dock[1], this.dock[2], this.dock[3],
-                Palette.PANEL_TOP, Palette.PANEL_BOTTOM, Palette.PANEL_MID, Metrics.BEVEL);
+        Surface.panel(canvas, this.dock[0], this.dock[1], this.dock[2], this.dock[3]);
     }
 
     /**
@@ -302,25 +279,23 @@ public class ScenePanel extends Element {
         }
         lines.add(Component.translatable("gesture.mcskincreator.turn"));
 
-        int lineHeight = canvas.lineHeight() + Metrics.PAD_TIGHT;
-        int boxHeight = lines.size() * lineHeight + Metrics.PAD_TIGHT;
+        int lineHeight = canvas.lineHeight() + 1;
+        int boxHeight = lines.size() * lineHeight + Metrics.PANEL_INSET * 2 - 1;
         int boxWidth = 0;
         for (Component line : lines) {
             boxWidth = Math.max(boxWidth, canvas.textWidth(line));
         }
-        boxWidth += Metrics.PAD * 2;
+        boxWidth += Metrics.PANEL_INSET * 2;
 
         int boxX = this.x + Metrics.PAD_TIGHT;
         int boxY = this.y + this.height - Metrics.PAD_TIGHT - boxHeight;
-        Surface.dark(canvas, boxX, boxY, boxWidth, boxHeight, Palette.DARK);
-        Surface.bevel(canvas, boxX, boxY, boxWidth, boxHeight,
-                Palette.PANEL_TOP, Palette.PANEL_BOTTOM, Palette.PANEL_MID, Metrics.BEVEL);
+        Surface.panel(canvas, boxX, boxY, boxWidth, boxHeight);
 
         for (int index = 0; index < lines.size(); index++) {
             boolean isLabel = hovered != null && index == 0;
-            canvas.textRinged(lines.get(index), boxX + Metrics.PAD,
-                    boxY + Metrics.PAD_TIGHT + index * lineHeight,
-                    isLabel ? Palette.GOLD : Palette.INK_MUTED);
+            canvas.textRinged(lines.get(index), boxX + Metrics.PANEL_INSET,
+                    boxY + Metrics.PANEL_INSET + index * lineHeight,
+                    isLabel ? Palette.INK_HOVERED : Palette.INK_MUTED);
         }
     }
 
@@ -328,27 +303,16 @@ public class ScenePanel extends Element {
     public boolean mouseDown(double mouseX, double mouseY, int button) {
         // The floating bar lets the pointer through everywhere but its own controls,
         // so a drag that starts on the scene behind it still reaches the figure.
-        return this.model != null && button == 0 && contains(mouseX, mouseY)
-                && this.model.mouseClicked(mouseEvent(mouseX, mouseY, button), false);
+        return contains(mouseX, mouseY) && this.figure.press(mouseX, mouseY, button);
     }
 
     @Override
     public void mouseDrag(double mouseX, double mouseY, double dragX, double dragY, int button) {
-        if (this.model != null) {
-            // The figure turns by how far the mouse moved, so the deltas are what
-            // matter here rather than where the pointer ended up.
-            this.model.mouseDragged(mouseEvent(mouseX, mouseY, button), dragX, dragY);
-        }
+        this.figure.drag(mouseX, mouseY, dragX, dragY, button);
     }
 
     @Override
     public void mouseUp(double mouseX, double mouseY, int button) {
-        if (this.model != null) {
-            this.model.mouseReleased(mouseEvent(mouseX, mouseY, button));
-        }
-    }
-
-    private static MouseButtonEvent mouseEvent(double mouseX, double mouseY, int button) {
-        return new MouseButtonEvent(mouseX, mouseY, new MouseButtonInfo(button, 0));
+        this.figure.release(mouseX, mouseY, button);
     }
 }

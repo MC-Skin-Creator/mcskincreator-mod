@@ -49,10 +49,14 @@ src/main/java/fr/clixmods/mcsc/mod/
 ├── mixin/                     the one mixin: the applied skin, worn before Mojang propagates it
 ├── style/                     the design system: palette, metrics, the four materials, the grain
 └── ui/
-    ├── Canvas.java            the drawing surface, and the only file the interface versions
+    ├── Canvas.java            the drawing surface, as an interface: everything paints through it
+    ├── GameCanvas.java        the implementation that paints on the game, and the only file the interface versions
     ├── ScreenCompat.java      the two call renames outside drawing
     ├── Element.java, Paint.java   the widget base and the per-frame context
-    ├── SkinCreatorScreen.java the editor: layout, focus, shortcuts, requests, window routing
+    ├── EditorChrome.java      where the four zones go: columns, drawers, paint order, hit list
+    ├── EditorScale.java       the GUI scale this screen takes for itself, and gives back
+    ├── SkinCreatorScreen.java the editor: project, catalogue, requests, windows, input
+    ├── Figure.java, PlayerFigure.java   the player in the scene, and the game's way of drawing one
     ├── MenuButtons.java, SkinPanel.java   the entry on the vanilla menus
     ├── widget/                button, tabs, tile, field, slider, checkbox, dropdown, layer row
     ├── panel/                 top bar, library, scene, layers
@@ -69,9 +73,22 @@ need no game, though they do resolve against the target's Minecraft jar for
 `Component` and `PlayerModelType`. Nothing that draws is tested: that is what
 running the game is for.
 
-The interface has its own rules — the four materials, the palette, the scale
-conversion, what is deliberately not built — in [`INTERFACE.md`](INTERFACE.md). Read
-it before changing anything that draws.
+The interface has its own rules — the four materials, the palette, the scale it takes
+for itself, what is deliberately not built — in [`INTERFACE.md`](INTERFACE.md). **Read
+it before changing anything that draws**: the short version is that every surface is
+one of four materials in `style/Surface.java`, every colour is a line of the site's own
+stylesheet transcribed into `style/Palette.java`, and naming a colour anywhere else is
+the one thing not to do.
+
+**The editor can be rendered without the game.** `./gradlew :1.21.11:test` writes
+`build/ui-preview/`: the whole screen at the sizes a window actually produces, in
+French because that is the language the mod speaks longest, drawn with the real font
+read out of the Minecraft jar on the test classpath. `materials.png` beside it is every
+material at every height it is used at. Look at it before and after changing anything that
+draws — it is the only way to see this screen in this repository, and it is faster than
+a client either way. `src/test/java/fr/clixmods/mcsc/mod/preview/` is how it works, and
+what keeps it working is that nothing in `ui/` reaches for `Minecraft.getInstance()`:
+the scene is handed a `Figure`, the top bar is handed its mark.
 
 ## Stonecutter architecture
 

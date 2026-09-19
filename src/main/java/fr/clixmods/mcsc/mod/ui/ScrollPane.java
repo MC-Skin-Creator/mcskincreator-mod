@@ -8,7 +8,6 @@
 package fr.clixmods.mcsc.mod.ui;
 
 import fr.clixmods.mcsc.mod.style.Metrics;
-import fr.clixmods.mcsc.mod.style.Palette;
 import fr.clixmods.mcsc.mod.style.Surface;
 
 /**
@@ -19,6 +18,9 @@ import fr.clixmods.mcsc.mod.style.Surface;
  * it to whatever the content turned out to be tall, and draws the rail — a carved
  * groove with a handle in button material, like every other track in the interface.
  *
+ * <p>The rail is a carved groove with a handle in button material, like every other
+ * track in the interface.
+ *
  * <p>It is not a widget. It has no bounds of its own and takes no focus: it belongs
  * to the band that scrolls, and that band decides where it sits.
  */
@@ -28,13 +30,18 @@ public final class ScrollPane {
      * is anything to scroll — a gutter that appears with the rail would shuffle every
      * tile sideways the moment a category grew by one element.
      */
-    public static final int BAR_WIDTH = Metrics.ui(9);
+    public static final int BAR_WIDTH = Metrics.RAIL_WIDTH;
     private static final int STEP = Metrics.ui(24);
 
     private int offset;
     private int contentHeight;
     private int viewportHeight;
     private boolean draggingBar;
+    /**
+     * Where inside the handle the press landed, so that dragging moves the handle with
+     * the pointer instead of snapping its middle under it.
+     */
+    private int grabWithinHandle;
 
     /** Tells the pane how much there is to scroll through, and clamps the offset. */
     public void setContent(int contentHeight, int viewportHeight) {
@@ -75,13 +82,9 @@ public final class ScrollPane {
             return;
         }
         int x = right - BAR_WIDTH;
-        Surface.slot(canvas, x, top, BAR_WIDTH, height, Palette.FIELD);
-
-        int inner = height - Metrics.OUTLINE * 2;
-        int handle = Math.max(Metrics.ui(18), inner * this.viewportHeight / Math.max(1, this.contentHeight));
-        int travel = inner - handle;
-        int handleY = top + Metrics.OUTLINE + (travel * this.offset / Math.max(1, maxOffset()));
-        Surface.button(canvas, x, handleY, BAR_WIDTH, handle, Surface.Tone.NEUTRAL, false, false);
+        Surface.slot(canvas, x, top, BAR_WIDTH, height);
+        Surface.button(canvas, x, handleY(top, height), BAR_WIDTH, handleHeight(height),
+                Surface.Tone.NEUTRAL, this.draggingBar, false);
     }
 
     /** @return true when the press landed on the rail and started a drag */
@@ -94,6 +97,17 @@ public final class ScrollPane {
             return false;
         }
         this.draggingBar = true;
+
+        // Taking hold of the handle keeps it where it was taken hold of: pressing its
+        // lower edge and moving down by ten pixels moves the handle by ten pixels.
+        // Pressing the rail above or below it is the other gesture — the handle jumps
+        // to the pointer, and is then dragged from its middle.
+        int handle = handleHeight(height);
+        int handleY = handleY(top, height);
+        this.grabWithinHandle = mouseY >= handleY && mouseY < handleY + handle
+                ? (int) (mouseY - handleY)
+                : handle / 2;
+
         dragTo(mouseY, top, height);
         return true;
     }
@@ -108,11 +122,31 @@ public final class ScrollPane {
         this.draggingBar = false;
     }
 
+    /** True from the press on the rail until the release, wherever the pointer went. */
+    public boolean draggingBar() {
+        return this.draggingBar;
+    }
+
     private void dragTo(double mouseY, int top, int height) {
-        int inner = height - Metrics.OUTLINE * 2;
-        int handle = Math.max(Metrics.ui(18), inner * this.viewportHeight / Math.max(1, this.contentHeight));
-        int travel = Math.max(1, inner - handle);
-        double along = (mouseY - top - Metrics.OUTLINE - handle / 2.0) / travel;
+        int travel = Math.max(1, height - handleHeight(height));
+        double along = (mouseY - top - this.grabWithinHandle) / travel;
         this.offset = Math.max(0, Math.min(maxOffset(), (int) Math.round(along * maxOffset())));
+    }
+
+    /**
+     * The handle is as tall a share of the rail as the viewport is of the content, down
+     * to a floor that stays big enough to aim at — and never taller than the rail.
+     *
+     * <p>The handle travels the whole height of the rail, outline included: both are
+     * drawn with the same frame, so a handle at the top sits flush in the groove.
+     */
+    private int handleHeight(int height) {
+        int share = height * this.viewportHeight / Math.max(1, this.contentHeight);
+        return Math.min(height, Math.max(Metrics.ui(18), share));
+    }
+
+    private int handleY(int top, int height) {
+        int travel = Math.max(0, height - handleHeight(height));
+        return top + travel * this.offset / Math.max(1, maxOffset());
     }
 }

@@ -39,6 +39,11 @@ public final class Tiles {
     private Tiles() {
     }
 
+    /** The tile's name, which the preview answers with a grain of its own. */
+    public static Identifier texture() {
+        return GRAIN;
+    }
+
     /** Builds and registers the tile on first use. Safe to call every frame. */
     public static void ensureRegistered(Minecraft client) {
         if (registered) {
@@ -79,7 +84,7 @@ public final class Tiles {
      * <p>Kept near white on purpose: the tile is a multiplier, so anything darker
      * would drag every material away from the palette it is supposed to be.
      */
-    private static int shade(int x, int y) {
+    public static int shade(int x, int y) {
         int hash = x * 374761393 + y * 668265263;
         hash = (hash ^ (hash >>> 13)) * 1274126177;
         hash ^= hash >>> 16;
@@ -91,7 +96,7 @@ public final class Tiles {
         };
     }
 
-    private static int grey(int level) {
+    public static int grey(int level) {
         return 0xFF000000 | (level << 16) | (level << 8) | level;
     }
 }

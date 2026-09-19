@@ -10,6 +10,7 @@ package fr.clixmods.mcsc.mod.ui.panel;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 
 import fr.clixmods.mcsc.mod.project.History;
 import fr.clixmods.mcsc.mod.style.Metrics;
@@ -17,18 +18,17 @@ import fr.clixmods.mcsc.mod.style.Palette;
 import fr.clixmods.mcsc.mod.style.Surface;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
-import fr.clixmods.mcsc.mod.ui.Icons;
 import fr.clixmods.mcsc.mod.ui.Paint;
 import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 
 /**
  * The strip across the top: the mark, the beta badge, and the tools.
  *
- * <p>Export is the only green button up here, because it is the only thing this bar
- * is really for. When the window is too narrow for everything, the order changes
- * rather than the buttons wrapping: export, then undo and redo, go first — those are
- * the ones nobody should have to hunt for.
+ * <p>When the window is too narrow for everything, the order changes rather than the
+ * buttons wrapping: export, then undo and redo, go first — those are the ones nobody
+ * should have to hunt for.
  *
  * <p>Two of the site's controls are deliberately absent. The random outfit has nothing
  * behind it yet, and a button whose target is empty disappears instead of opening onto
@@ -37,7 +37,21 @@ import net.minecraft.network.chat.Component;
  * the language is the game's, and the mod follows it.
  */
 public class TopBar extends Element {
+    /**
+     * The mark's picture: its texture and the size of the file it came from.
+     *
+     * <p>The icon ships far larger than the 16 pixels it is drawn at, so whatever draws
+     * it has to sample the whole image rather than a corner of it — which means the bar
+     * needs the source size along with the texture.
+     */
+    public record Mark(Identifier texture, int size) {
+    }
+
+    /** The mark, drawn from the icon the mod already ships. */
+    private static final int LOGO_SIZE = 16;
+
     private final History history;
+    private final Supplier<Mark> logo;
     private final Runnable onNew;
     private final Runnable onModels;
     private final Runnable onExport;
@@ -48,9 +62,16 @@ public class TopBar extends Element {
     private final List<Element> children = new ArrayList<>();
     private final List<Integer> separators = new ArrayList<>();
 
-    public TopBar(History history, Runnable onNew, Runnable onModels, BooleanSupplier hasModels,
-                  Runnable onExport, Runnable onSkins, Runnable onAbout) {
+    /**
+     * @param logo the mark to draw, or null for none. Asked for rather than looked up,
+     *             so that the bar can be laid out and painted where there is no game to
+     *             look it up in.
+     */
+    public TopBar(History history, Supplier<Mark> logo, Runnable onNew, Runnable onModels,
+                  BooleanSupplier hasModels, Runnable onExport, Runnable onSkins,
+                  Runnable onAbout) {
         this.history = history;
+        this.logo = logo;
         this.onNew = onNew;
         this.onModels = onModels;
         this.hasModels = hasModels;
@@ -68,11 +89,11 @@ public class TopBar extends Element {
         this.children.clear();
         this.separators.clear();
 
-        Brand brand = new Brand(this.onAbout);
+        Brand brand = new Brand(this.logo, this.onAbout);
         brand.fit(canvas);
         int buttonY = this.y + (this.height - Metrics.BUTTON_HEIGHT_COMPACT) / 2;
-        brand.setBounds(this.x + Metrics.PAD_TIGHT, this.y + (this.height - Icons.SIZE) / 2,
-                brand.width(), Icons.SIZE);
+        brand.setBounds(this.x + Metrics.PAD_TIGHT, this.y + (this.height - LOGO_SIZE) / 2,
+                brand.width(), LOGO_SIZE);
         this.children.add(brand);
 
         int cursorX = brand.x() + brand.width() + Metrics.PAD_TIGHT;
@@ -148,29 +169,31 @@ public class TopBar extends Element {
     }
 
     private int betaWidth(Canvas canvas) {
-        return canvas.textWidth(Component.translatable("gui.mcskincreator.beta")) + Metrics.PAD;
+        return canvas.textWidth(Component.translatable("gui.mcskincreator.beta"))
+                + Metrics.SLOT_INSET * 2;
     }
 
     @Override
     public void draw(Paint paint) {
         Canvas canvas = paint.canvas();
-        Surface.dark(canvas, this.x, this.y, this.width, this.height, Palette.DARK);
+        // The site's header strip: one flat dark band, ruled off from the columns that
+        // hang under it. Not the panel material — a panel's frame at this height is
+        // frame all the way through.
+        Surface.flat(canvas, this.x, this.y, this.width, this.height, Palette.PANEL_HEADER);
+        canvas.fill(this.x, this.y + this.height - 1, this.width, 1, Palette.OUTLINE);
 
         Element brand = this.children.get(0);
+        int badgeHeight = canvas.lineHeight() + Metrics.SLOT_INSET * 2;
         int badgeX = brand.x() + brand.width() + Metrics.PAD_TIGHT;
-        int badgeY = this.y + (this.height - canvas.lineHeight() - Metrics.PAD_TIGHT) / 2;
-        Surface.slot(canvas, badgeX, badgeY, betaWidth(canvas),
-                canvas.lineHeight() + Metrics.PAD_TIGHT, Palette.SLOT);
+        int badgeY = this.y + (this.height - badgeHeight) / 2;
+        Surface.slot(canvas, badgeX, badgeY, betaWidth(canvas), badgeHeight);
         canvas.textFlat(Component.translatable("gui.mcskincreator.beta"),
-                badgeX + Metrics.PAD_TIGHT, badgeY + Metrics.PAD_TIGHT / 2, Palette.GOLD);
+                badgeX + Metrics.SLOT_INSET, badgeY + Metrics.SLOT_INSET, Palette.INK_MUTED);
 
-        // A separator is a black rule with a light reflection down its right side —
-        // the same two-tone trick the bevels use, at one pixel.
+        // A separator is the hairline the game rules its own headings with, stood on end.
         for (int separatorX : this.separators) {
-            canvas.fill(separatorX, this.y + Metrics.PAD_TIGHT, Metrics.OUTLINE,
-                    this.height - Metrics.PAD_TIGHT * 2, Palette.OUTLINE);
-            canvas.fill(separatorX + Metrics.OUTLINE, this.y + Metrics.PAD_TIGHT, 1,
-                    this.height - Metrics.PAD_TIGHT * 2, Palette.PANEL_MID);
+            canvas.fill(separatorX, this.y + Metrics.PAD_TIGHT, 1,
+                    this.height - Metrics.PAD_TIGHT * 2, Palette.RULE);
         }
 
         for (Element child : this.children) {
@@ -179,20 +202,24 @@ public class TopBar extends Element {
     }
 
     /**
-     * The mark: the logo and the product name, together one button that opens About.
+     * The mark: the mod's own icon and the product name, together one button that opens
+     * About.
      *
-     * <p>It carries no material and no bevel — it is not meant to look like a button —
-     * but it lights up gold like everything else you can press.
+     * <p>The icon is the one in {@code assets/mcskincreator/icon.png} — the same mark
+     * the game's mod list shows. There is no second logo drawn for this screen, because
+     * there is no second MC Skin Creator.
      */
     private static final class Brand extends Element {
+        private final Supplier<Mark> logo;
         private final Runnable action;
 
-        private Brand(Runnable action) {
+        private Brand(Supplier<Mark> logo, Runnable action) {
+            this.logo = logo;
             this.action = action;
         }
 
         void fit(Canvas canvas) {
-            this.width = Icons.SIZE + Metrics.PAD_TIGHT
+            this.width = LOGO_SIZE + Metrics.PAD_TIGHT
                     + canvas.textWidth(Component.translatable("gui.mcskincreator.brand"));
         }
 
@@ -200,11 +227,19 @@ public class TopBar extends Element {
         public void draw(Paint paint) {
             Canvas canvas = paint.canvas();
             boolean hot = paint.hot(this);
-            Icons.draw(canvas, "logo", this.x, this.y, 1);
+
+            Mark mark = this.logo.get();
+            if (mark != null && mark.texture() != null && mark.size() > 0) {
+                // The whole icon, scaled down to the mark: the file is 128 px and the
+                // mark is 16, so the source rectangle is the image, not a corner of it.
+                int source = mark.size();
+                canvas.blit(mark.texture(), this.x, this.y, LOGO_SIZE, LOGO_SIZE,
+                        0.0F, 0.0F, source, source, source, source);
+            }
             canvas.text(Component.translatable("gui.mcskincreator.brand"),
-                    this.x + Icons.SIZE + Metrics.PAD_TIGHT,
-                    this.y + (Icons.SIZE - canvas.lineHeight()) / 2,
-                    hot ? Palette.GOLD : Palette.INK);
+                    this.x + LOGO_SIZE + Metrics.PAD_TIGHT,
+                    this.y + (LOGO_SIZE - canvas.lineHeight()) / 2,
+                    hot ? Palette.INK_HOVERED : Palette.INK);
         }
 
         @Override

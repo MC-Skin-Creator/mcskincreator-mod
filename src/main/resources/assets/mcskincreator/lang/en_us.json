@@ -60,6 +60,7 @@
   "gui.mcskincreator.confirm": "Confirm",
   "gui.mcskincreator.name_placeholder": "skin name",
   "gui.mcskincreator.warning": "Worth knowing",
+  "gui.mcskincreator.provenance_hint": "Right-click: where this element comes from",
   "footer.mcskincreator.about": "About",
   "footer.mcskincreator.credits": "Credits",
   "footer.mcskincreator.beta": "Beta",

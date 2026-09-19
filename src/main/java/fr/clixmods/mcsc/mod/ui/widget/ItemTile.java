@@ -28,6 +28,7 @@ import net.minecraft.network.chat.Component;
  * An element of the catalogue, in an inventory slot: the most used brick of the whole
  * interface.
  *
+
  * <p>Two marks can appear on it and they take opposite corners on purpose. Already in
  * the stack is a small green square, top right. Where it came from is an "i", top
  * left, and only while the tile is pointed at or focused — and it swallows its own
@@ -38,11 +39,6 @@ import net.minecraft.network.chat.Component;
  * one work each, and there is nothing to open for a set of them.
  */
 public class ItemTile extends Element {
-    /** The green "already used" mark, 7 site pixels square. */
-    private static final int USED_MARK = Metrics.ui(7);
-    /** The provenance mark, 15 site pixels square. */
-    private static final int INFO_MARK = Metrics.ui(15);
-
     private final CatalogCategory category;
     private final CatalogItem item;
     private final Component label;
@@ -85,7 +81,8 @@ public class ItemTile extends Element {
 
     /** The height a tile needs: its render area, its label, and the padding around both. */
     public static int heightFor(Canvas canvas, int renderHeight) {
-        return Metrics.OUTLINE * 2 + Metrics.PAD_TIGHT * 2 + renderHeight + canvas.lineHeight();
+        return Metrics.SLOT_INSET * 2 + Metrics.THUMB_PAD * 2 + renderHeight
+                + Metrics.THUMB_PAD + canvas.lineHeight();
     }
 
     @Override
@@ -103,14 +100,14 @@ public class ItemTile extends Element {
             this.onHover.accept(hot ? this : null);
         }
 
-        Surface.slot(canvas, this.x, this.y, this.width, this.height,
-                hot ? Palette.SLOT_HOVER : Palette.SLOT);
+        Surface.slot(canvas, this.x, this.y, this.width, this.height);
 
-        int inset = Metrics.OUTLINE + Metrics.PAD_TIGHT;
+        int inset = Metrics.SLOT_INSET + Metrics.THUMB_PAD;
         int boxX = this.x + inset;
         int boxY = this.y + inset;
         int boxWidth = this.width - inset * 2;
-        int boxHeight = this.height - inset * 2 - canvas.lineHeight();
+        int boxHeight = this.height - inset - Metrics.SLOT_INSET
+                - Metrics.THUMB_PAD - canvas.lineHeight();
 
         // The checker says "transparent here", so an element with holes does not read
         // as an element with black in it.
@@ -118,35 +115,43 @@ public class ItemTile extends Element {
         Thumbnail.draw(canvas, this.sprites.get(), this.item.atlasIndex(this.slim.get()),
                 this.category.thumbCrop(this.item), boxX, boxY, boxWidth, boxHeight);
 
-        int labelY = boxY + boxHeight + Metrics.PAD_TIGHT;
+        int labelY = boxY + boxHeight + Metrics.THUMB_PAD;
         this.marquee.draw(paint, this.label, boxX, labelY, boxWidth,
-                hot ? Palette.GOLD : Palette.INK_DIM, hot);
+                hot ? Palette.INK_HOVERED : Palette.INK_MUTED, hot);
 
-        if (this.used.test(this.item)) {
-            int markX = this.x + this.width - Metrics.OUTLINE - USED_MARK - 1;
-            int markY = this.y + Metrics.OUTLINE + 1;
-            canvas.fill(markX - 1, markY - 1, USED_MARK + 2, USED_MARK + 2, Palette.OUTLINE);
-            canvas.fill(markX, markY, USED_MARK, USED_MARK, Palette.GREEN_LIGHT);
+        if (hot) {
+            Surface.slotHighlight(canvas, this.x, this.y, this.width, this.height);
         }
 
+        // Already in the stack: a small square, top right, in the site's lime.
+        if (this.used.test(this.item)) {
+            int markX = this.x + this.width - Metrics.SLOT_INSET - Metrics.THUMB_MARK;
+            int markY = this.y + Metrics.SLOT_INSET;
+            canvas.fill(markX - 1, markY - 1, Metrics.THUMB_MARK + 2, Metrics.THUMB_MARK + 2,
+                    Palette.OUTLINE);
+            canvas.fill(markX, markY, Metrics.THUMB_MARK, Metrics.THUMB_MARK, Palette.LIME);
+        }
+
+        // Where it came from: an "i", top left, and only while the tile is pointed at.
         if (hot && this.onInfo != null) {
             int[] mark = infoBounds();
             canvas.fill(mark[0], mark[1], mark[2], mark[3], Palette.OUTLINE);
             canvas.fill(mark[0] + 1, mark[1] + 1, mark[2] - 2, mark[3] - 2, Palette.PANEL_SUB);
             canvas.textCentered(Component.literal("i"), mark[0] + mark[2] / 2,
-                    mark[1] + (mark[3] - canvas.lineHeight()) / 2 + 1, Palette.GOLD);
+                    mark[1] + (mark[3] - canvas.lineHeight()) / 2 + 1, Palette.INK_HOVERED);
         }
     }
 
     private int[] infoBounds() {
+        int size = Metrics.INFO_MARK;
         return new int[] {
-            this.x + Metrics.OUTLINE + 1, this.y + Metrics.OUTLINE + 1, INFO_MARK, INFO_MARK,
+            this.x + Metrics.SLOT_INSET, this.y + Metrics.SLOT_INSET, size, size,
         };
     }
 
     @Override
     public boolean mouseDown(double mouseX, double mouseY, int button) {
-        if (button != 0 || !contains(mouseX, mouseY)) {
+        if (!contains(mouseX, mouseY)) {
             return false;
         }
         int[] mark = infoBounds();
@@ -158,7 +163,7 @@ public class ItemTile extends Element {
             this.onInfo.accept(this);
             return true;
         }
-        return activate();
+        return button == 0 && activate();
     }
 
     @Override
@@ -169,6 +174,6 @@ public class ItemTile extends Element {
 
     @Override
     public List<Component> tooltip() {
-        return List.of(this.label);
+        return List.of(this.label, Component.translatable("gui.mcskincreator.provenance_hint"));
     }
 }

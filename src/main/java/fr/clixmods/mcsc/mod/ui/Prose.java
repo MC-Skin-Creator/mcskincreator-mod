@@ -24,8 +24,8 @@ import net.minecraft.network.chat.Component;
  * height and the drawing to disagree, and they disagree invisibly — as a paragraph
  * clipped by one row.
  *
- * <p>A note is a slot with a gold band down its left flank and a gold heading, never a
- * coloured border: state never travels by border in this interface.
+ * <p>A note is a slot with a band down its left flank and a heading of its own, never
+ * a coloured border: state never travels by border in this interface.
  */
 public final class Prose {
     private Prose() {
@@ -66,13 +66,13 @@ public final class Prose {
     /** Draws the framed note: the band, the heading, then the rows. */
     public static void drawNote(Canvas canvas, int x, int y, int width, List<String> rows) {
         int height = noteHeight(canvas, rows.size());
-        Surface.slot(canvas, x, y, width, height, Palette.SLOT);
-        canvas.fill(x + Metrics.OUTLINE, y + Metrics.OUTLINE,
-                Metrics.BAND, height - Metrics.OUTLINE * 2, Palette.GOLD);
+        Surface.slot(canvas, x, y, width, height);
+        canvas.fill(x + Metrics.SLOT_INSET, y + Metrics.SLOT_INSET,
+                Metrics.BAND, height - Metrics.SLOT_INSET * 2, Palette.INK_HOVERED);
 
         int textX = x + Metrics.BAND + Metrics.PAD;
         canvas.text(Component.translatable("gui.mcskincreator.warning"),
-                textX, y + Metrics.PAD_TIGHT, Palette.GOLD);
+                textX, y + Metrics.PAD_TIGHT, Palette.INK_HOVERED);
 
         int rowY = y + Metrics.PAD_TIGHT + canvas.lineHeight() + Metrics.PAD_TIGHT;
         for (String row : rows) {
