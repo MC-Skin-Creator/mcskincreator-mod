@@ -1411,14 +1411,13 @@ public class SkinCreatorScreen extends Screen {
     // ------------------------------------------------------------------ drawing
 
     /**
-     * Nothing. The editor paints its own backdrop, and vanilla's is in the way.
+     * Vanilla's backdrop, except when the point is to see through it.
      *
-     * <p>Vanilla draws a blurred copy of what is behind a screen and then the opaque
-     * tiled menu background over it — which is fine for a menu and fatal for a camera
-     * that is looking <em>at</em> what is behind: the in-game view came out blurred and
-     * then hidden altogether. Under the other cameras this costs nothing either, since
-     * {@link #paint} lays down an opaque fill of its own; skipping it just saves the
-     * blur.
+     * <p>Vanilla draws a blurred copy of what is behind a screen and then the tiled menu
+     * background over it. That is the ground the editor stands on and it stays — a
+     * resource pack chose it. It is fatal, though, to a camera that is looking <em>at</em>
+     * what is behind: the in-game view came out blurred and then hidden altogether. So
+     * the one case where it is skipped is the one where the world is the picture.
      *
      * <p>The name is the one 26.x gave it, so the override is versioned rather than
      * shared.
@@ -1426,10 +1425,16 @@ public class SkinCreatorScreen extends Screen {
     //? if >=26.1 {
     /*@Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+        if (this.chrome == null || !this.chrome.scene().showsWorld()) {
+            super.extractBackground(graphics, mouseX, mouseY, delta);
+        }
     }
     *///?} else {
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
+        if (this.chrome == null || !this.chrome.scene().showsWorld()) {
+            super.renderBackground(graphics, mouseX, mouseY, delta);
+        }
     }
     //?}
 

@@ -26,7 +26,7 @@ package fr.clixmods.mcsc.mod.scene;
  * while the grass was showing does not remember the grass.
  */
 public enum SceneBackdrop {
-    /** The editor's own dark. Always available, and what the title screen gets. */
+    /** The screen's usual ground, dimmed by the game. Always available, and the default. */
     PANEL("panel", false),
 
     /** The world, live, straight through the editor. */

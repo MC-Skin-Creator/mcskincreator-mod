@@ -36,12 +36,11 @@ import net.minecraft.world.entity.Entity;
  * another side. It is real game state, so it is saved and put back, and in multiplayer
  * other people will see the character turn.
  *
- * <p><strong>The orbit is horizontal only</strong>, and that is the game's doing rather
- * than a corner cut: the camera's pitch and the head's pitch are the same field
- * ({@code Entity.xRot} — the camera reads it through {@code getViewXRot}, the model
- * through the render state). Tilting the view therefore tilts the head, and a head that
- * follows the camera is exactly what this view must not do. So the pitch is held level
- * and a vertical drag does nothing.
+ * <p>The entity's own yaw and pitch are the only things written here, because they are
+ * the only things the camera reads. How the character <em>looks</em> — head, body, pose —
+ * is decided on the render state instead, by {@code AvatarRendererMixin}. That split is
+ * what lets the view tilt without the head tilting with it: on the entity the camera's
+ * pitch and the head's pitch are one field, and on the render state they are two.
  *
  * <p><strong>Hiding the HUD hides the hand.</strong> One flag covers both — 1.21.11
  * checks {@code Options.hideGui} and 26.2 {@code GuiRenderState.isHudHidden}, each
@@ -63,6 +62,9 @@ import net.minecraft.world.entity.Entity;
 public final class GameCamera {
     private static final float DEGREES_PER_PIXEL = 0.35F;
 
+    /** Short of straight up and down, where the camera flips over the character. */
+    private static final float PITCH_LIMIT = 85.0F;
+
     private final Minecraft client;
 
     private CameraType borrowedType;
@@ -80,13 +82,23 @@ public final class GameCamera {
     /** The view currently held, so ticking can keep re-pinning what the game moves. */
     private CameraMode held = CameraMode.WORKSHOP;
 
+    /**
+     * @param client the running game, or {@code null} where there is none — the preview
+     *               tool lays this panel out with no game at all, and a camera with
+     *               nothing to borrow simply reports itself unavailable
+     */
     public GameCamera(Minecraft client) {
         this.client = client;
     }
 
     /** Whether there is a world and a character to look at, and so whether to offer them. */
     public boolean available() {
-        return this.client.level != null && this.client.player != null;
+        return this.client != null && this.client.level != null && this.client.player != null;
+    }
+
+    /** The character, or null when there is no game to have one. */
+    private LocalPlayer player() {
+        return this.client == null ? null : this.client.player;
     }
 
     /**
@@ -108,7 +120,7 @@ public final class GameCamera {
             return;
         }
 
-        LocalPlayer player = this.client.player;
+        LocalPlayer player = player();
         if (!this.holding) {
             this.borrowedType = this.client.options.getCameraType();
             this.borrowedEntity = this.client.getCameraEntity();
@@ -129,32 +141,32 @@ public final class GameCamera {
         // Everywhere but first person, where the same flag would take the arm away.
         hideHud(mode != CameraMode.FIRST_PERSON);
 
-        if (mode == CameraMode.IN_GAME) {
-            hold();
-        }
+    }
+
+    /** Which way the character is held facing, for whoever draws them. */
+    public float bodyYaw() {
+        return this.pinnedBodyYaw;
     }
 
     /**
-     * Re-pins what the game would otherwise move.
+     * Tells the world renderer what the real character should be doing.
      *
-     * <p>Called every tick while the in-game view holds. A tick lerps the head towards
-     * the view and drags the body after it once the two are far enough apart, so pinning
-     * once at the start lasts exactly until the next tick — which is every tick on a
-     * server, where the editor does not pause anything.
+     * <p>Pushed every frame rather than on every change, because the animation clock
+     * moves every frame anyway. The world is drawn before the editor is, so what the
+     * renderer reads is one frame old — sixteen milliseconds of a walk cycle, which is
+     * not a thing anybody can see.
+     *
+     * <p>It lives here rather than in the panel because this is the only class that
+     * holds the running game, and the panel has to be able to lay itself out without
+     * one.
      */
-    public void hold() {
-        LocalPlayer player = this.client.player;
-        if (!this.holding || player == null || this.held != CameraMode.IN_GAME) {
+    public void poseInWorld(ScenePose pose, boolean playing, float seconds) {
+        LocalPlayer player = player();
+        if (this.held != CameraMode.IN_GAME || player == null) {
+            WorldPose.clear();
             return;
         }
-        player.setXRot(0);
-        player.xRotO = 0;
-        player.yBodyRot = this.pinnedBodyYaw;
-        player.yBodyRotO = this.pinnedBodyYaw;
-        // The head is pinned to the body, not to the view: the camera is what goes
-        // round, and the character is meant to stand there and be looked at.
-        player.yHeadRot = this.pinnedBodyYaw;
-        player.yHeadRotO = this.pinnedBodyYaw;
+        WorldPose.show(player.getUUID(), pose, playing, seconds, this.pinnedBodyYaw);
     }
 
     /**
@@ -165,21 +177,22 @@ public final class GameCamera {
      * looked at exactly where it was.
      */
     public void turn(CameraMode mode, double dragX, double dragY) {
-        LocalPlayer player = this.client.player;
+        LocalPlayer player = player();
         if (!this.holding || player == null || mode != CameraMode.IN_GAME) {
             return;
         }
-        // Horizontal only. The vertical drag is dropped on purpose: see the note on
-        // xRot above — tilting the camera is tilting the head.
         float yaw = player.getYRot() + (float) dragX * DEGREES_PER_PIXEL;
+        float pitch = SceneCamera.clamp(player.getXRot() + (float) dragY * DEGREES_PER_PIXEL,
+                -PITCH_LIMIT, PITCH_LIMIT);
         player.setYRot(yaw);
         player.yRotO = yaw;
-        hold();
+        player.setXRot(pitch);
+        player.xRotO = pitch;
     }
 
     /** Faces the character exactly the way they were when the editor opened. */
     public void recentre() {
-        LocalPlayer player = this.client.player;
+        LocalPlayer player = player();
         if (!this.holding || player == null) {
             return;
         }
@@ -198,6 +211,7 @@ public final class GameCamera {
      * when nothing was borrowed, and safe to call twice.
      */
     public void release() {
+        WorldPose.clear();
         if (!this.holding) {
             return;
         }
@@ -224,7 +238,7 @@ public final class GameCamera {
      * important of the two — nobody wants to be eaten while choosing a hat.
      */
     public void swing() {
-        LocalPlayer player = this.client.player;
+        LocalPlayer player = player();
         if (player != null) {
             // MAIN_HAND, not a side: the game already knows which arm that is, so a
             // left-handed player's left arm swings.

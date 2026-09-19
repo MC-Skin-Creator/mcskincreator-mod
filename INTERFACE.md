@@ -243,7 +243,9 @@ preference, never serialised.
 
 A backdrop is **behind**, not **around**: the figure is a GUI element drawn after the
 world, so it takes no world lighting and no shader pack. The view that puts the
-character in the world is the in-game one. The world backdrop also borrows the camera,
+character in the world is the in-game one — and it animates there too, because the
+second mixin poses the real character as the game extracts them. So the animation
+chooser belongs to both views, and only the first-person one is without it. The world backdrop also borrows the camera,
 for the opposite reason to the other two — first person and no HUD is how the game is
 asked to draw the world and nothing else, neither the character nor their hand.
 

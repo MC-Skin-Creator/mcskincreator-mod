@@ -93,7 +93,7 @@
   "gesture.mcskincreator.turn": "Glisser pour tourner",
   "gesture.mcskincreator.pan": "Clic droit pour déplacer",
   "gesture.mcskincreator.zoom": "Molette pour zoomer",
-  "gesture.mcskincreator.orbit_flat": "Glisser de côté pour tourner autour",
+  "gesture.mcskincreator.orbit": "Glisser pour tourner autour",
   "gesture.mcskincreator.first_person": "Le jeu dessine votre bras",
   "layer.mcskincreator.subtitle": "%s · %s%%",
   "empty.mcskincreator.layers": "Aucun calque — choisissez un élément à gauche",

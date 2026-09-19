@@ -50,7 +50,8 @@ src/main/java/fr/clixmods/mcsc/mod/
 │                               the game draws from, and the game camera the two world
 │                               views borrow
 ├── account/                   the Mojang upload, and the only code that holds the session token
-├── mixin/                     the one mixin: the applied skin, worn before Mojang propagates it
+├── mixin/                     the two mixins: the skin worn before Mojang propagates it,
+│                               and the character posed in the world for the in-game view
 ├── style/                     the design system: palette, metrics, the four materials, the grain
 └── ui/
     ├── Canvas.java            the drawing surface, as an interface: everything paints through it
@@ -223,16 +224,35 @@ the entity route".
 
 ## Mixins
 
-There is **one**, and the bar for a second is high: everything else the mod does, it
-does through public API. `mixin/AbstractClientPlayerMixin` takes the return of
-`AbstractClientPlayer#getSkin` so the player wears the skin they just applied without
-restarting the game. Every other way in is private on at least one target —
-`SkinManager#registerTextures` is package-private on 1.21.11 and private on 26.2,
-`PlayerInfo#skinLookup` is private on both, all checked with `javap`.
+There are **two**, and the bar for a third is the same one both of these cleared: there
+is no public way in, and the alternative is worse. Everything else the mod does, it does
+through public API.
 
-It covers what is drawn from a player **entity**, and only that. A menu has no player
-entity: `SkinPanel` asks `SkinManager#createLookup` for a supplier, so it takes the
-same override through `AppliedSkin.over(…)`, which wraps that supplier. Anything else
+**`mixin/AbstractClientPlayerMixin`** takes the return of `AbstractClientPlayer#getSkin`
+so the player wears the skin they just applied without restarting the game. Every other
+way in is private on at least one target — `SkinManager#registerTextures` is
+package-private on 1.21.11 and private on 26.2, `PlayerInfo#skinLookup` is private on
+both, all checked with `javap`.
+
+**`mixin/AvatarRendererMixin`** takes the return of
+`AvatarRenderer#extractRenderState` and poses the local player for the editor's in-game
+view. That view draws the *real* character inside the world — which is what puts them
+under the world's light and under a shader pack — and a character in the world is drawn
+from a live entity, so there is nothing the mod can hand over instead. The alternative
+was animating the entity itself: real game state, sent to the server, seen by everyone,
+and left behind by a crash. This changes a picture, on one client, while one window is
+open. It also gives the view a head that stays still, which the camera could not: on the
+entity the camera's pitch and the head's pitch are one field (`Entity.xRot`), and on the
+render state they are two.
+
+That class has **three** overloads of `extractRenderState`, so the injection spells out
+the full descriptor — without it Mixin has nothing to choose by. What the mod wants drawn
+is left in `scene/WorldPose`, read on every avatar of every frame, so the miss costs a
+volatile read and a comparison.
+
+**The skin mixin covers what is drawn from a player entity, and only that.** A menu has
+no player entity: `SkinPanel` asks `SkinManager#createLookup` for a supplier, so it takes
+the same override through `AppliedSkin.over(…)`, which wraps that supplier. Anything else
 that comes to draw the local player's skin needs one door or the other — the mixin is
 not a catch-all, and forgetting this is how the title screen kept showing the old skin
 after the rest of the game had moved on.
@@ -241,16 +261,20 @@ Two things about the setup are worth knowing before touching it:
 
 - **No refmap, and none is needed.** Loom rewrites the annotation itself when it remaps
   the jar: `method = "getSkin"` comes out as `method_52814` in the 1.21.11 jar and
-  stays `getSkin` in the 26.2 one, which ships unobfuscated. Verified by unzipping both
-  jars, not assumed. If you add a mixin, check the same way rather than trusting it.
+  stays `getSkin` in the 26.2 one, which ships unobfuscated. **Descriptors are remapped
+  too** — `AvatarRendererMixin`'s spelled-out
+  `extractRenderState(Lnet/minecraft/world/entity/Avatar;…AvatarRenderState;F)V` comes
+  out as `method_62604(Lnet/minecraft/class_11890;Lnet/minecraft/class_10055;F)V`.
+  Verified by unzipping both jars, not assumed. If you add a mixin, check the same way
+  rather than trusting it.
 - **`compatibilityLevel` is expanded, not written.** `mcskincreator.mixins.json` says
   `JAVA_${java}` and `processResources` fills it in per target, because the mixin
   classes are Java 21 bytecode on one target and Java 25 on the other and Mixin checks
   the class file version against that level. A hardcoded level is wrong on one of them.
 
-`getSkin` has the same signature on both targets, so the mixin itself carries no
-Stonecutter directive. One that needed one would be an argument for solving the problem
-another way.
+Both targets expose `getSkin` and `extractRenderState` with the same signature, so
+neither mixin carries a Stonecutter directive. One that needed one would be an argument
+for solving the problem another way.
 
 ## Dependencies
 

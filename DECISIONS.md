@@ -356,6 +356,39 @@ render state. Tilting one tilts the other. So the pitch is held level and the or
 horizontal only — a vertical drag does nothing in that view. The workshop camera, which
 owns its own angles, keeps its tilt.
 
+### The second mixin: posing a character who is in the world
+
+The in-game view draws the real character inside the world, and that is exactly why the
+animation chooser could not reach it: the workshop figure is a render state the mod
+builds, and a character in the world is a render state the game extracts from a live
+entity. There is nothing to hand over.
+
+Two ways in, and they are not close. **Animating the entity** is real game state: written
+every frame, sent to the server, seen by everybody on it, and left behind if the client
+goes down between setting it and putting it back — somebody permanently crouched in
+their own save. **Taking the render state on its way out** changes a picture, on one
+client, for as long as one window is open; nothing leaves the machine and nothing
+survives the window closing.
+
+So `mixin/AvatarRendererMixin` injects at the return of
+`AvatarRenderer#extractRenderState`, reads `scene/WorldPose`, and applies the pose when
+the avatar being drawn is the one the editor is looking at. It clears the animation
+fields first, because a state filled in from an entity arrives carrying whatever that
+entity was really doing.
+
+It pays for itself twice over: it is also what fixed the head. On the entity the camera's
+pitch and the head's pitch are the same field, so tilting the view tilted the head — the
+one thing that view must not do. On the render state they are two fields, so the head is
+simply pinned and the vertical orbit came back.
+
+Three things were checked rather than assumed, and the third is the one a future mixin
+should copy: the method is public with the same signature on both targets (so no
+Stonecutter directive, the repository's own test of whether a mixin is the right answer);
+it has **three** overloads, so the injection spells out the full descriptor; and the
+remap was read out of both built jars, where `extractRenderState(…Avatar;…F)V` comes out
+as `method_62604(Lnet/minecraft/class_11890;Lnet/minecraft/class_10055;F)V` on 1.21.11 —
+Loom rewrites the parameter types, not only the name.
+
 ### What a backdrop is, and what it is not
 
 The world behind the workshop figure is a **backdrop**: the game draws the world, and the
@@ -363,7 +396,7 @@ figure is a GUI element drawn over it, after the world pass and after any shader
 had its say. It will not take world lighting, world shadows or shader effects, and
 nothing short of rendering it inside the level pass would change that. The view that puts
 the character *in* the world, shaders included, is the in-game one — which is the whole
-reason both exist.
+reason both exist, and which now animates too, through the mixin above.
 
 ### The editor pauses a single-player game
 

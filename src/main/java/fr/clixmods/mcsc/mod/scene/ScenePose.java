@@ -151,6 +151,30 @@ public enum ScenePose {
     }
 
     /**
+     * Wipes every field {@link #apply} can set, so a pose is what the figure does rather
+     * than what it does <em>on top of</em> whatever it was doing.
+     *
+     * <p>Only needed where the state was filled in from a live entity — the workshop
+     * builds a fresh one, which starts clean. The list is here, beside the one that sets
+     * them, because two lists of the same fields in two files drift apart and the way it
+     * shows is a character who crouches during a swim.
+     */
+    public static void reset(AvatarRenderState state) {
+        state.walkAnimationSpeed = 0;
+        state.walkAnimationPos = 0;
+        state.attackTime = 0;
+        state.swimAmount = 0;
+        state.isCrouching = false;
+        state.isVisuallySwimming = false;
+        state.isInWater = false;
+        state.isPassenger = false;
+        state.isFallFlying = false;
+        state.fallFlyingTimeInTicks = 0;
+        state.bedOrientation = null;
+        state.pose = Pose.STANDING;
+    }
+
+    /**
      * The walk cycle.
      *
      * <p>{@code walkAnimationPos} is what the game advances by {@code limbSwingAmount}

@@ -17,7 +17,6 @@ import fr.clixmods.mcsc.mod.scene.SceneBackdrop;
 import fr.clixmods.mcsc.mod.scene.SceneCamera;
 import fr.clixmods.mcsc.mod.scene.SceneShot;
 import fr.clixmods.mcsc.mod.scene.ScenePose;
-import fr.clixmods.mcsc.mod.scene.WorldPose;
 import fr.clixmods.mcsc.mod.skin.FrontSprite;
 import fr.clixmods.mcsc.mod.skin.PreviewSkin;
 import fr.clixmods.mcsc.mod.style.Metrics;
@@ -156,17 +155,12 @@ public class ScenePanel extends Element {
             this.backdrop = SceneBackdrop.PANEL;
             this.gameCamera.take(this.cameraMode, false);
             this.relayout.run();
-            return;
         }
-        // A tick pulls the head back towards the view and the body after it, so what was
-        // pinned has to be pinned again.
-        this.gameCamera.hold();
     }
 
     /** Gives the game its camera back, and the character their own movements. */
     public void release() {
         this.gameCamera.release();
-        WorldPose.clear();
     }
 
     public void layout(Canvas canvas) {
@@ -456,7 +450,7 @@ public class ScenePanel extends Element {
 
     public void draw(Paint paint, float delta) {
         Canvas canvas = paint.canvas();
-        syncWorldPose(paint.time());
+        this.gameCamera.poseInWorld(this.pose, this.playing, animationSeconds(paint.time()));
         SceneShot shot = shot(paint.time());
 
         switch (this.view) {
@@ -493,21 +487,15 @@ public class ScenePanel extends Element {
     }
 
     /**
-     * Tells the world renderer what the real character should be doing.
+     * Whether shift is down, which is the keyboard's way of asking to pan.
      *
-     * <p>Pushed every frame rather than on every change, because the animation clock
-     * moves every frame anyway. The world is drawn before this screen is, so what the
-     * renderer reads is one frame old — sixteen milliseconds of a walk cycle, which is
-     * not a thing anybody can see.
+     * <p>The one thing here that has to ask the game directly: a modifier is not part of
+     * a mouse event. It tolerates there being no game, because the preview tool lays this
+     * panel out without one — and a drag it never sends cannot want shift.
      */
-    private void syncWorldPose(long now) {
-        LocalPlayer player = Minecraft.getInstance().player;
-        if (this.cameraMode != CameraMode.IN_GAME || player == null) {
-            WorldPose.clear();
-            return;
-        }
-        WorldPose.show(player.getUUID(), this.pose, this.playing, animationSeconds(now),
-                this.gameCamera.bodyYaw());
+    private boolean shiftHeld() {
+        Minecraft client = Minecraft.getInstance();
+        return client != null && client.hasShiftDown();
     }
 
     /** How far into the animation we are: time spent playing, and none spent stopped. */
@@ -590,7 +578,7 @@ public class ScenePanel extends Element {
         return switch (this.cameraMode) {
             case WORKSHOP -> List.of("gesture.mcskincreator.turn", "gesture.mcskincreator.pan",
                     "gesture.mcskincreator.zoom");
-            case IN_GAME -> List.of("gesture.mcskincreator.orbit_flat");
+            case IN_GAME -> List.of("gesture.mcskincreator.orbit");
             case FIRST_PERSON -> List.of("gesture.mcskincreator.first_person");
         };
     }
@@ -606,7 +594,7 @@ public class ScenePanel extends Element {
         this.dragging = true;
         // The right button pans, and so does shift with the left: the site offers both
         // because a trackpad has no comfortable right-drag.
-        this.panning = button == 1 || Minecraft.getInstance().hasShiftDown();
+        this.panning = button == 1 || shiftHeld();
         return true;
     }
 

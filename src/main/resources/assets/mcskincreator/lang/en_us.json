@@ -93,7 +93,7 @@
   "gesture.mcskincreator.turn": "Drag to turn",
   "gesture.mcskincreator.pan": "Right-drag to move",
   "gesture.mcskincreator.zoom": "Scroll to zoom",
-  "gesture.mcskincreator.orbit_flat": "Drag sideways to go round",
+  "gesture.mcskincreator.orbit": "Drag to go round",
   "gesture.mcskincreator.first_person": "The game is drawing your arm",
   "layer.mcskincreator.subtitle": "%s · %s%%",
   "empty.mcskincreator.layers": "No layers yet — choose an element on the left",
