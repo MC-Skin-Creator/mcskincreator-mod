@@ -239,7 +239,7 @@ public class LayersPanel extends Panel {
         }
         // The rule that separates the band from the list is part of the band, or the
         // band's own clip cuts it off.
-        int heading = Metrics.PAD_TIGHT + canvas.lineHeight() + Metrics.PAD;
+        int heading = 1 + Metrics.PAD_TIGHT + canvas.lineHeight() + Metrics.PAD;
         if (this.project.selected() == null) {
             return heading + canvas.lineHeight() + Metrics.PAD;
         }
@@ -254,7 +254,8 @@ public class LayersPanel extends Panel {
             // Nothing to set, so nothing is laid out: the band says why in its own place.
             return;
         }
-        int cursorY = this.settingsTop + Metrics.PAD_TIGHT + canvas.lineHeight() + Metrics.PAD;
+        int cursorY = this.settingsTop + 1 + Metrics.PAD_TIGHT
+                + canvas.lineHeight() + Metrics.PAD;
         int width = right - left;
 
         cursorY = addSlider(canvas, left, cursorY, width, "opacity", 0, 100,
@@ -400,7 +401,12 @@ public class LayersPanel extends Panel {
         Canvas canvas = paint.canvas();
         Layer layer = this.project.selected();
         if (layer == null) {
-            Surface.rule(canvas, left, top, Math.max(0, right - left));
+        // The list runs under this band rather than stopping at it, so the band needs a
+        // hard edge. A row cut off by a grey hairline alone reads as a broken row; cut
+        // off by black, it reads as a row that carries on underneath.
+        canvas.fill(this.x + Metrics.OUTLINE, top, this.width - Metrics.OUTLINE * 2, 1,
+                Palette.OUTLINE);
+            Surface.rule(canvas, left, top + 1, Math.max(0, right - left));
             canvas.textWrapped(Component.translatable("empty.mcskincreator.inspector"),
                     left, top + Metrics.PAD, Math.max(1, right - left), Palette.INK_MUTED);
             return;
@@ -408,9 +414,14 @@ public class LayersPanel extends Panel {
 
         // Ruled off from the list above it: these settings belong to one row of that
         // list, and without a line the heading reads as one more group of it.
-        Surface.rule(canvas, left, top, Math.max(0, right - left));
+        // The list runs under this band rather than stopping at it, so the band needs a
+        // hard edge. A row cut off by a grey hairline alone reads as a broken row; cut
+        // off by black, it reads as a row that carries on underneath.
+        canvas.fill(this.x + Metrics.OUTLINE, top, this.width - Metrics.OUTLINE * 2, 1,
+                Palette.OUTLINE);
+        Surface.rule(canvas, left, top + 1, Math.max(0, right - left));
 
-        int titleY = top + Metrics.PAD_TIGHT;
+        int titleY = top + 1 + Metrics.PAD_TIGHT;
         String title = Component.translatable("gui.mcskincreator.settings").getString()
                 .toUpperCase(Locale.ROOT);
         canvas.textTracked(title, left, titleY, Palette.INK, Metrics.TITLE_TRACKING);

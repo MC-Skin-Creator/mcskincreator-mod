@@ -15,9 +15,9 @@ import net.minecraft.client.Minecraft;
  *
  * <p>This screen is a workbench, not a menu. A menu needs six buttons legible from the
  * sofa; this needs three columns, a grid of thumbnails, a stack of layers and four
- * settings at once, and at the GUI scale most people play at it gets 640 by 360 pixels
- * to do that in. The game's font is 8 of those pixels tall — a ninth of the height of
- * a layer row — so everything around it has to be big too, and the result reads as an
+ * settings at once, and at the scale most people play at it gets 480 by 270 pixels to
+ * do that in. The game's font is 8 of those pixels tall — a tenth of the height of a
+ * layer row — so everything around it has to be big too, and the result reads as an
  * interface designed for a phone.
  *
  * <p>The font is the floor here and it cannot be lowered: it is a bitmap, and half a
@@ -26,16 +26,42 @@ import net.minecraft.client.Minecraft;
  * on screen. The only way to fit more interface into the same window is to give the
  * whole window a smaller scale, which is what this does.
  *
- * <p>So the editor asks for the whole scale that comes nearest to laying it out in
- * {@value #TARGET_WIDTH} by {@value #TARGET_HEIGHT} — the size it is designed for, and
- * what a 1080p window gives at a scale of 2 — and puts the player's own scale back the
- * moment the screen closes.
+ * <h2>Why it asks for a number of rows and not a number of pixels</h2>
+ *
+ * <p>The first version of this asked for the largest whole scale that still left the
+ * editor 1280 by 720, and that was the wrong question. A 1080p window can hold 1280 by
+ * 720 at a scale of <em>one</em> — so that is what it was given, and one game pixel
+ * became one screen pixel. The editor was laid out correctly and drawn a third of the
+ * size it should have been: every label four screen pixels tall, on a 24 inch monitor.
+ * Fitting is not the constraint. <strong>How big a pixel ends up</strong> is.
+ *
+ * <p>So the question asked here is the other way round: of the scales this window can
+ * carry, which one leaves the editor nearest {@value #DESIGN_ROWS} rows of its own
+ * pixels? More rows than that is not more room, it is the same layout drawn smaller —
+ * and past a point, drawn too small to read. Fewer is the layout folding its columns
+ * into drawers, which it knows how to do.
+ *
+ * <p>Height decides it alone. Width only ever varies the amount of scene between the
+ * two columns, and the layout handles a narrow one; height is what the stack of layers
+ * and the grid of thumbnails are actually competing for.
+ *
+ * <table border="1">
+ *   <caption>What that comes to, on the windows people have</caption>
+ *   <tr><th>window</th><th>scale</th><th>the editor's own pixels</th></tr>
+ *   <tr><td>1280 x 720</td><td>2</td><td>640 x 360</td></tr>
+ *   <tr><td>1366 x 768</td><td>2</td><td>683 x 384</td></tr>
+ *   <tr><td>1600 x 900</td><td>2</td><td>800 x 450</td></tr>
+ *   <tr><td>1920 x 1080</td><td>2</td><td>960 x 540</td></tr>
+ *   <tr><td>1920 x 1200</td><td>2</td><td>960 x 600</td></tr>
+ *   <tr><td>2560 x 1440</td><td>3</td><td>853 x 480</td></tr>
+ *   <tr><td>3840 x 2160</td><td>4</td><td>960 x 540</td></tr>
+ * </table>
  *
  * <p>It is the player's setting, so three rules come with taking it:
  *
  * <ul>
- *   <li>never by more than one step at a time in practice, and never above what the
- *       window can carry — {@link Window#calculateScale} says what that is;</li>
+ *   <li>never above what the window can carry — {@link Window#calculateScale} says what
+ *       that is, and it is the game's own idea of what this window can hold;</li>
  *   <li>always restored, in {@code removed()}, which the game calls whenever this
  *       screen goes away for any reason;</li>
  *   <li>re-applied on every layout, because a window resize makes the game recompute
@@ -44,15 +70,14 @@ import net.minecraft.client.Minecraft;
  */
 public final class EditorScale {
     /**
-     * The interface the editor is laid out for.
+     * The number of its own rows the editor is laid out for.
      *
-     * <p>The site lays out in about 1900 pixels around an 11 px font. The game's font
-     * is 8, so the same arrangement at the same proportions needs {@code 1900 * 8/11},
-     * which is where 1280 comes from — it is not a round number chosen for looking
-     * like one.
+     * <p>540 is a 1080p window at a scale of two, and it is the size every picture in
+     * {@code build/ui-preview/} is checked at. It is a target and not a minimum: the
+     * scale nearest it wins, so a window that cannot divide down to 540 rows gets the
+     * closest it can rather than nothing.
      */
-    public static final int TARGET_WIDTH = 1280;
-    public static final int TARGET_HEIGHT = 720;
+    public static final int DESIGN_ROWS = 540;
 
     /** The player's own scale, kept from the first time this took it. */
     private int playersOwn;
@@ -68,7 +93,7 @@ public final class EditorScale {
             return false;
         }
         Window window = client.getWindow();
-        int wanted = wanted(window);
+        int wanted = scaleFor(window.getHeight(), window.calculateScale(0, false));
         if (window.getGuiScale() == wanted) {
             return false;
         }
@@ -92,20 +117,33 @@ public final class EditorScale {
     }
 
     /**
-     * The whole scale that lands nearest the size the editor is designed for.
+     * The whole scale that leaves the editor nearest {@link #DESIGN_ROWS} rows.
      *
-     * <p>Whichever of width and height runs out first decides, so a wide short window
-     * is not handed a scale its height cannot carry. Flooring rather than rounding, so
-     * the editor never has <em>less</em> than it is laid out for: 1080p, 1440p and 4K
-     * all land on exactly 1280 by 720, at a scale of one, two and three.
+     * <p>Every scale the window can carry is tried and the nearest wins, because the
+     * answer is not monotonic in any one direction: 768 screen rows are better halved
+     * to 384 than left whole at 768, and 1200 are better halved to 600 than cut to 400.
+     * A tie goes to the larger scale — the same distance from the target, in bigger
+     * pixels.
+     *
+     * <p>Split out from the window so it can be checked against a table rather than a
+     * running game. The bug this replaces was a one-line arithmetic mistake that no
+     * test could have caught, because there was nothing to call.
+     *
+     * @param windowHeight the window's height in screen pixels
+     * @param autoScale what the game itself would pick for this window
      */
-    private static int wanted(Window window) {
-        double byWidth = window.getWidth() / (double) TARGET_WIDTH;
-        double byHeight = window.getHeight() / (double) TARGET_HEIGHT;
-        int nearest = (int) Math.floor(Math.min(byWidth, byHeight));
-        // calculateScale(0, …) is the game's own "auto": the largest scale this window
-        // can carry and still hold a menu. Going past it would be asking for a screen
-        // the game itself considers too small to draw.
-        return Math.max(1, Math.min(nearest, window.calculateScale(0, false)));
+    public static int scaleFor(int windowHeight, int autoScale) {
+        int highest = Math.max(1, autoScale);
+        int best = 1;
+        int bestDistance = Integer.MAX_VALUE;
+        for (int scale = 1; scale <= highest; scale++) {
+            int distance = Math.abs(windowHeight / scale - DESIGN_ROWS);
+            // Not strictly less: a tie is resolved in favour of the later, larger scale.
+            if (distance <= bestDistance) {
+                bestDistance = distance;
+                best = scale;
+            }
+        }
+        return best;
     }
 }

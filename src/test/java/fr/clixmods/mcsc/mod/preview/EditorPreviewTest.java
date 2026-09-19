@@ -20,6 +20,8 @@ import javax.imageio.ImageIO;
 
 import org.junit.jupiter.api.Test;
 
+import fr.clixmods.mcsc.mod.ui.EditorScale;
+
 /**
  * Renders the editor and writes the pictures out.
  *
@@ -37,38 +39,46 @@ class EditorPreviewTest {
     private static final Path OUTPUT = Paths.get("build", "ui-preview");
 
     /**
-     * The sizes this screen gives itself.
+     * The windows this screen is looked at in, and what the game says each one holds.
      *
-     * <p>The editor takes the largest whole GUI scale that still leaves it 1280 by 720,
-     * so almost every window lands on exactly that: 1080p at a scale of one, 1440p at
-     * two, 4K at three. The odd sizes are the windows whose aspect leaves them a little
-     * more, and the last is a window too small to reach the design size at all.
+     * <p>These are screen sizes, not editor sizes. {@link EditorScale#scaleFor} turns
+     * each into the scale the editor takes and the rows it gets, exactly as it does in
+     * the game, so the pictures move when that rule moves and there is no second table
+     * to keep in step with the first.
      *
-     * <p>Each is written out magnified by the scale that window uses, so the picture is
-     * the size it appears on the screen it came from — 1280x720 is written twice, once
-     * as a 1080p window shows it and once doubled, to be looked at closely.
+     * <p>Each picture is written at the window's own size, magnified by the scale that
+     * window uses. What comes out is therefore what a photograph of that screen would
+     * show, at the size it would show it — which is the whole point, because the fault
+     * these are for catching is an editor drawn too small, and an editor drawn too small
+     * looks perfectly correct when you magnify the picture of it.
      */
-    private static final int[][] SIZES = {
-        {1280, 720, 1}, {1600, 900, 1}, {1366, 768, 1}, {960, 540, 2},
+    private static final int[][] WINDOWS = {
+        {1280, 720, 3}, {1366, 768, 3}, {1600, 900, 3},
+        {1920, 1080, 4}, {2560, 1440, 6},
     };
 
     @Test
     void theEditorRendersAtEverySizeTheGameGivesIt() throws IOException {
         Files.createDirectories(OUTPUT);
-        for (int[] size : SIZES) {
-            BufferedImage image = EditorPreview.of(size[0], size[1], size[2]);
+        for (int[] window : WINDOWS) {
+            int scale = EditorScale.scaleFor(window[1], window[2]);
+            int width = window[0] / scale;
+            int height = window[1] / scale;
+            String name = window[0] + "x" + window[1];
+            BufferedImage image = EditorPreview.of(width, height, scale);
             assertNotNull(image);
-            ImageIO.write(image, "png", OUTPUT.resolve(size[0] + "x" + size[1] + ".png").toFile());
-            ImageIO.write(EditorPreview.of("en_us", size[0], size[1], size[2]), "png",
-                    OUTPUT.resolve(size[0] + "x" + size[1] + "-en.png").toFile());
+            ImageIO.write(image, "png", OUTPUT.resolve(name + ".png").toFile());
+            ImageIO.write(EditorPreview.of("en_us", width, height, scale), "png",
+                    OUTPUT.resolve(name + "-en.png").toFile());
         }
     }
 
+    /** The design size on its own, drawn four times up, to be looked at closely. */
     @Test
-    void theDesignSizeIsWrittenOutDoubledToBeLookedAt() throws IOException {
+    void theDesignSizeIsWrittenOutMagnifiedToBeLookedAt() throws IOException {
         Files.createDirectories(OUTPUT);
-        ImageIO.write(EditorPreview.of(1280, 720, 2), "png",
-                OUTPUT.resolve("1280x720@2.png").toFile());
+        ImageIO.write(EditorPreview.of(960, 540, 4), "png",
+                OUTPUT.resolve("960x540@4.png").toFile());
     }
 
     @Test
@@ -76,8 +86,8 @@ class EditorPreviewTest {
         Files.createDirectories(OUTPUT);
         BufferedImage image = new EditorPreview()
                 .withCatalog(EditorPreview.sampleCatalog())
-                .render(1280, 720, 1);
-        ImageIO.write(image, "png", OUTPUT.resolve("1280x720-empty.png").toFile());
+                .render(960, 540, 2);
+        ImageIO.write(image, "png", OUTPUT.resolve("960x540-empty.png").toFile());
     }
 
     /** The game's font is on the classpath, and its advances are the game's own. */
