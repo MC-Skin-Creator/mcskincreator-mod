@@ -50,8 +50,9 @@ src/main/java/fr/clixmods/mcsc/mod/
 │                               the game draws from, and the game camera the two world
 │                               views borrow
 ├── account/                   the Mojang upload, and the only code that holds the session token
-├── mixin/                     the two mixins: the skin worn before Mojang propagates it,
-│                               and the character posed in the world for the in-game view
+├── mixin/                     the three mixins: the skin worn before Mojang propagates it,
+│                               the character posed in the world for the in-game view,
+│                               and the HUD left undrawn while a world view is open
 ├── style/                     the design system: palette, metrics, the four materials, the grain
 └── ui/
     ├── Canvas.java            the drawing surface, as an interface: everything paints through it
@@ -201,6 +202,7 @@ and `}` are load-bearing: breaking them silently changes what a target compiles.
 | Draw an entity | `GuiGraphics#submitEntityRenderState` | `GuiGraphicsExtractor#entity` | `Canvas` |
 | Screen backdrop hook | `renderBackground(GuiGraphics, …)` | `extractBackground(GuiGraphicsExtractor, …)` | `SkinCreatorScreen` |
 | Hide the game HUD | `Options.hideGui` | `Gui.hud.toggle()` / `isHidden()` | `scene/GameCamera` |
+| Draw the HUD | `Gui#render` | `Gui#extractRenderState` | `mixin/GuiMixin` |
 
 26.x replaced immediate-mode GUI drawing with a render-state extraction pass, so
 any new drawing code will need the same treatment.
@@ -224,7 +226,7 @@ the entity route".
 
 ## Mixins
 
-There are **two**, and the bar for a third is the same one both of these cleared: there
+There are **three**, and the bar for a fourth is the same one all three cleared: there
 is no public way in, and the alternative is worse. Everything else the mod does, it does
 through public API.
 
@@ -250,6 +252,22 @@ the full descriptor — without it Mixin has nothing to choose by. What the mod 
 is left in `scene/WorldPose`, read on every avatar of every frame, so the miss costs a
 volatile read and a comparison.
 
+**`mixin/GuiMixin`** leaves the game's HUD undrawn while a world view is open. The game
+has a flag for exactly this and it cannot be used: both targets guard the
+`ItemInHandRenderer` call with the same boolean they guard the HUD with — checked in the
+bytecode of `GameRenderer.renderItemInHand` on both jars — so setting it hid the hotbar
+and the first-person arm together, and the arm is what that view is for. The flag stays
+the player's (it is F1); the drawing is skipped for the frames `scene/HiddenHud` asks
+about. `GameCamera` still uses the flag for a world backdrop, where losing the hand is
+the point.
+
+This is the one mixin that carries a Stonecutter directive, because the HUD is drawn
+under different names on the two targets — `Gui#render` against
+`Gui#extractRenderState`. The class is the same on both, which is what keeps it one
+mixin: 1.21.11 cancels the call outright, and 26.2 forces to false the first of the two
+booleans, the one that gates the HUD. Not the second: that gates the screen, so
+cancelling there would take the editor with it.
+
 **The skin mixin covers what is drawn from a player entity, and only that.** A menu has
 no player entity: `SkinPanel` asks `SkinManager#createLookup` for a supplier, so it takes
 the same override through `AppliedSkin.over(…)`, which wraps that supplier. Anything else
@@ -264,7 +282,9 @@ Two things about the setup are worth knowing before touching it:
   stays `getSkin` in the 26.2 one, which ships unobfuscated. **Descriptors are remapped
   too** — `AvatarRendererMixin`'s spelled-out
   `extractRenderState(Lnet/minecraft/world/entity/Avatar;…AvatarRenderState;F)V` comes
-  out as `method_62604(Lnet/minecraft/class_11890;Lnet/minecraft/class_10055;F)V`.
+  out as `method_62604(Lnet/minecraft/class_11890;Lnet/minecraft/class_10055;F)V`, and
+  `GuiMixin`'s `render(…GuiGraphics;…DeltaTracker;)V` as
+  `method_1753(Lnet/minecraft/class_332;Lnet/minecraft/class_9779;)V`.
   Verified by unzipping both jars, not assumed. If you add a mixin, check the same way
   rather than trusting it.
 - **`compatibilityLevel` is expanded, not written.** `mcskincreator.mixins.json` says
@@ -272,9 +292,11 @@ Two things about the setup are worth knowing before touching it:
   classes are Java 21 bytecode on one target and Java 25 on the other and Mixin checks
   the class file version against that level. A hardcoded level is wrong on one of them.
 
-Both targets expose `getSkin` and `extractRenderState` with the same signature, so
-neither mixin carries a Stonecutter directive. One that needed one would be an argument
-for solving the problem another way.
+Both targets expose `getSkin` and `AvatarRenderer#extractRenderState` with the same
+signature, so those two mixins carry no Stonecutter directive. `GuiMixin` does, and it
+is worth being uneasy about one: it means a target can be broken by an injection that
+still compiles. It is accepted here only because the class targeted is the same on both
+and the whole difference is a method name.
 
 ## Dependencies
 

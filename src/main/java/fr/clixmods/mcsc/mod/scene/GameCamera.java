@@ -42,17 +42,18 @@ import net.minecraft.world.entity.Entity;
  * what lets the view tilt without the head tilting with it: on the entity the camera's
  * pitch and the head's pitch are one field, and on the render state they are two.
  *
- * <p><strong>Hiding the HUD hides the hand.</strong> One flag covers both — 1.21.11
- * checks {@code Options.hideGui} and 26.2 {@code GuiRenderState.isHudHidden}, each
- * guarding the same {@code ItemInHandRenderer} call. So the HUD goes only where the hand
- * is unwanted anyway: third person, and a world backdrop behind the workshop figure. The
- * first-person view keeps the HUD, because the alternative is keeping no arm.
+ * <p><strong>The game's own way of hiding the HUD hides the hand.</strong> One flag
+ * covers both — 1.21.11 checks {@code Options.hideGui} and 26.2
+ * {@code GuiRenderState.isHudHidden}, each guarding the same {@code ItemInHandRenderer}
+ * call. That is exactly what a world backdrop wants and exactly what first person must
+ * not have, so the flag is kept for the backdrop and the two views go through
+ * {@link HiddenHud} and {@code GuiMixin}, which skip the drawing without touching the
+ * setting the player owns.
  *
- * <p><strong>No second mixin.</strong> Everything here is public API, checked with
- * {@code javap} on both jars: {@code Minecraft#setCameraEntity},
- * {@code Options#setCameraType}, {@code Entity#setYRot} and friends, and the one call
- * that differs between the targets — hiding the game's own HUD — is a two-line versioned
- * comment.
+ * <p>Everything else here is public API, checked with {@code javap} on both jars:
+ * {@code Minecraft#setCameraEntity}, {@code Options#setCameraType},
+ * {@code Entity#setYRot} and friends, and the one call that differs between the targets
+ * — reading and writing the game's HUD flag — is a two-line versioned comment.
  *
  * <p>What is borrowed is given back. {@link #release()} is idempotent and is called from
  * the screen's own teardown as well as on every change of camera, because a mod that
@@ -138,9 +139,23 @@ public final class GameCamera {
                 ? CameraType.THIRD_PERSON_BACK
                 : CameraType.FIRST_PERSON);
         this.client.setCameraEntity(player);
-        // Everywhere but first person, where the same flag would take the arm away.
-        hideHud(mode != CameraMode.FIRST_PERSON);
 
+        // Two ways to take the HUD away, and they are not interchangeable. The game's
+        // flag takes the held hand with it, so it is right for a backdrop — the world
+        // and nothing else — and wrong for first person, where the hand is the picture.
+        // The views that keep their hand go through the mixin instead.
+        boolean backdropOnly = !mode.takesGameCamera();
+        hideHud(backdropOnly);
+        HiddenHud.hide(!backdropOnly);
+
+        // Anything but the in-game view looks out of the character's own eyes, and the
+        // in-game view is steered by turning them: coming back to first person after an
+        // orbit would otherwise start it staring at the sky, where the hand is off the
+        // bottom of the window and the view looks broken. So the eyes go back to where
+        // they were borrowed from.
+        if (mode != CameraMode.IN_GAME) {
+            recentre();
+        }
     }
 
     /** Which way the character is held facing, for whoever draws them. */
@@ -212,6 +227,7 @@ public final class GameCamera {
      */
     public void release() {
         WorldPose.clear();
+        HiddenHud.hide(false);
         if (!this.holding) {
             return;
         }
@@ -225,6 +241,7 @@ public final class GameCamera {
         // handing back exactly what was taken.
         this.client.setCameraEntity(this.borrowedEntity);
         hideHud(this.borrowedHud);
+        HiddenHud.hide(false);
         this.borrowedType = null;
         this.borrowedEntity = null;
         this.held = CameraMode.WORKSHOP;

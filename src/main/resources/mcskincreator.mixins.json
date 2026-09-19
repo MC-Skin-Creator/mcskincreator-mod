@@ -5,7 +5,8 @@
   "compatibilityLevel": "JAVA_${java}",
   "client": [
     "AbstractClientPlayerMixin",
-    "AvatarRendererMixin"
+    "AvatarRendererMixin",
+    "GuiMixin"
   ],
   "injectors": {
     "defaultRequire": 1

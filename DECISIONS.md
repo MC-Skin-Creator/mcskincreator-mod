@@ -337,11 +337,21 @@ were hiding it completely rather than partly:
   rename rather than a reason for a mixin.
 
   **But one flag covers the HUD and the hand.** Both targets guard the
-  `ItemInHandRenderer` call with the same boolean they guard the HUD with. So hiding the
-  HUD in the first-person view hid the arm — the one thing that view exists for. The HUD
-  is therefore hidden only where the hand is unwanted anyway: third person, and a world
-  backdrop behind the workshop figure, where it is exactly how the arm is got rid of.
-  First person keeps its HUD, because the alternative is keeping no arm.
+  `ItemInHandRenderer` call with the same boolean they guard the HUD with — read out of
+  the bytecode of `GameRenderer.renderItemInHand` on both jars, not assumed. So hiding
+  the HUD in the first-person view hid the arm, the one thing that view exists for, and
+  the first version shipped keeping the HUD instead, because the alternative was keeping
+  no arm.
+
+  **That was the wrong half to give up**, and it is what `GuiMixin` is for. The flag is
+  a setting the player owns — it is F1 — and it is now only used where the hand is
+  unwanted too: a world backdrop, where it is exactly how the arm is got rid of.
+  Everywhere else the drawing is skipped for the frame instead, which is the half of
+  that flag the editor actually wanted. The two targets draw the HUD through different
+  names but from the same class, so it stays one mixin with a versioned injection: 1.21.11
+  cancels `Gui.render`, which is the HUD and nothing else, and 26.2 forces the first
+  boolean of `Gui.extractRenderState` to false, because that one gates the HUD while the
+  second gates the screen — cancelling there would take the editor with it.
 
 ### The head cannot be tilted away from the camera
 

@@ -225,10 +225,13 @@ target is empty.
 screen paints no backdrop — and overrides vanilla's, which blurs what is behind and
 then covers it with the opaque menu background — and both side panels fold themselves
 away, because the game draws the first-person arm exactly where the layers panel sat.
-The player's own fold choice comes back with them.
+The player's own fold choice comes back with them. The game's HUD goes too, and not
+through the game's own flag: that flag takes the held hand with it, so the hotbar is
+left undrawn for the frame instead (`scene/HiddenHud`, `mixin/GuiMixin`) and the
+setting the player owns is not touched.
 
 **Both world cameras borrow the game's own** (`scene/GameCamera`, public API, given
-back on the way out — no second mixin), and both leave it pointed at the player,
+back on the way out), and both leave it pointed at the player,
 because the level renderer draws your own character only while they *are* the camera
 entity. Third person works because the camera is detached, not because it is somewhere
 else; going round the character is therefore done by turning them, and their body is
@@ -243,11 +246,13 @@ preference, never serialised.
 
 A backdrop is **behind**, not **around**: the figure is a GUI element drawn after the
 world, so it takes no world lighting and no shader pack. The view that puts the
-character in the world is the in-game one — and it animates there too, because the
-second mixin poses the real character as the game extracts them. So the animation
-chooser belongs to both views, and only the first-person one is without it. The world backdrop also borrows the camera,
-for the opposite reason to the other two — first person and no HUD is how the game is
-asked to draw the world and nothing else, neither the character nor their hand.
+character in the world is the in-game one — and it animates there too, because
+`AvatarRendererMixin` poses the real character as the game extracts them. So the
+animation chooser belongs to both views, and only the first-person one is without it.
+The world backdrop also borrows the camera, for the opposite reason to the other two —
+first person plus the game's own HUD flag is how the game is asked to draw the world and
+nothing else, neither the character nor their hand. It is the one place that flag is
+still the right tool.
 
 The scene does not build the figure, though: it is handed a [`Figure`](src/main/java/fr/clixmods/mcsc/mod/ui/Figure.java)
 and works out how much room it may have. `PlayerFigure` is the game's one; the preview
