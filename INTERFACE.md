@@ -145,10 +145,14 @@ says something, and three of them is the narrowest the column may be.
 row holding a 14 px tab beside a 16 px button beside a 20 px one is the whole of why
 nothing used to line up.
 
-**What is not converted at all** is the outline and the bevel. They are 2 px on the site
-and 2 px here: they are the graphic identity itself, and at one pixel they stop reading
-as anything. A whole multiple stays whole too — a thumbnail is drawn at x1 or x2, never
-at x1.4.
+**The frame is a length too, and it converts like one.** `border: 2px solid var(--edge)`
+appears 36 times in the site's stylesheet, and the outline and bevel were 2 here as well
+on the reasoning that the frame is the graphic identity and would vanish at one pixel.
+Seen in a client it was the opposite: two and two is four pixels of frame around a
+control sixteen across, leaving eight for the glyph, and a button read as a hole with
+something at the bottom of it. Both are 1. At the even GUI scales this editor takes, one
+interface pixel is two on the screen — which is the thickness the site's frame has there
+too. A whole multiple does stay whole: a thumbnail is drawn at x1 or x2, never at x1.4.
 
 **A panel's contents start at its frame, not at its edge.** The panel material is an
 outline, a bevel and a pixel of air — `Metrics.PANEL_INSET` — so anything laid out

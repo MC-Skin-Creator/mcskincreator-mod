@@ -23,10 +23,8 @@ package fr.clixmods.mcsc.mod.style;
  * the two up is what walled this editor in: {@code ui(300)} gave the library 218 px of
  * the 960 it has, where the site gives it 300 of about 1900.
  *
- * <p>Two things are deliberately <em>not</em> converted. The outline and the bevel are
- * 2 px on the site and 2 px here: they are the graphic identity itself and stop
- * reading as anything at one pixel. And a whole multiple stays whole — a thumbnail is
- * drawn at x1 or x2, never at x1.4.
+ * <p>One thing is deliberately <em>not</em> converted: a whole multiple stays whole —
+ * a thumbnail is drawn at x1 or x2, never at x1.4.
  *
  * <p>These numbers assume the room {@link fr.clixmods.mcsc.mod.ui.EditorScale} gets
  * them: 960 by 540, which is a 1080p window at the scale that screen takes for itself.
@@ -50,14 +48,24 @@ public final class Metrics {
     /**
      * The black frame around every material, and the bevel drawn just inside it.
      *
-     * <p>Neither is converted. {@code border: 2px solid var(--edge)} appears 36 times
-     * in the site's stylesheet and is 2 px here too.
+     * <p>{@code border: 2px solid var(--edge)} appears 36 times in the site's
+     * stylesheet, and these were 2 here as well on the reasoning that the frame is the
+     * graphic identity and would stop reading at one pixel. Seen in a client, it was
+     * the opposite: two and two is four pixels of frame around a control sixteen
+     * across, which leaves eight for the glyph and makes a button look like a hole
+     * with something at the bottom of it.
+     *
+     * <p>The frame is a length like any other, so it converts like one. The site sets
+     * it in a layout whose font is 11; at {@code 8/11} that is one and a half, and a
+     * frame is either a pixel or two, never one and a half. One — and at the even GUI
+     * scales this editor takes, one interface pixel is two on the screen, which is the
+     * thickness the site's frame has there too.
      */
-    public static final int OUTLINE = 2;
-    public static final int BEVEL = 2;
+    public static final int OUTLINE = 1;
+    public static final int BEVEL = 1;
     /** A window is told from a panel by a deeper bevel and a black rim, not by a colour. */
-    public static final int WINDOW_BEVEL = 3;
-    public static final int WINDOW_RIM = 2;
+    public static final int WINDOW_BEVEL = 2;
+    public static final int WINDOW_RIM = 1;
 
     // Where a material's content starts, so a label sits clear of the frame around it.
     /** A panel's frame and bevel, and a pixel of air past them. */

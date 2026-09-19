@@ -73,7 +73,7 @@ public final class Surface {
         }
     }
 
-    /** A pure black frame, two pixels thick, drawn on the outer edge of the element. */
+    /** A pure black frame, drawn on the outer edge of the element. */
     public static void outline(Canvas canvas, int x, int y, int width, int height) {
         int thickness = Metrics.OUTLINE;
         canvas.fill(x, y, width, thickness, Palette.OUTLINE);
@@ -117,9 +117,9 @@ public final class Surface {
     }
 
     /**
-     * A window: the same stone, a three pixel bevel instead of two, and a black rim
-     * around the outside. Those two differences are what tell a window from a panel at
-     * a glance, without either one needing a colour of its own.
+     * A window: the same stone, a bevel one pixel deeper than a panel's, and a black
+     * rim around the outside. Those two differences are what tell a window from a panel
+     * at a glance, without either one needing a colour of its own.
      */
     public static void window(Canvas canvas, int x, int y, int width, int height) {
         int rim = Metrics.WINDOW_RIM;

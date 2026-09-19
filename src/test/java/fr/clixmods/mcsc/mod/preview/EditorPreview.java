@@ -127,6 +127,15 @@ public final class EditorPreview {
         return paint(width, height, scale);
     }
 
+    /** A rectangle of a picture, for looking at one control rather than a whole screen. */
+    public BufferedImage crop(BufferedImage source, int x, int y, int width, int height) {
+        int left = Math.max(0, Math.min(x, source.getWidth() - 1));
+        int top = Math.max(0, Math.min(y, source.getHeight() - 1));
+        return source.getSubimage(left, top,
+                Math.min(width, source.getWidth() - left),
+                Math.min(height, source.getHeight() - top));
+    }
+
     /** Blows a picture up by a whole factor, sampled the way the game samples it. */
     public BufferedImage magnify(BufferedImage small, int scale) {
         if (scale <= 1) {

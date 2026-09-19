@@ -73,6 +73,32 @@ class EditorPreviewTest {
         }
     }
 
+    /**
+     * The layers column on its own, blown up, because that is where the small controls
+     * are and a whole screen at screen size cannot show whether one of them works.
+     *
+     * <p>A frame, a bevel and a glyph are three or four pixels each. Looked at in a
+     * 1920 by 1080 picture they are a smudge; looked at here they are what a player
+     * leaning towards their monitor sees, which is the only way to tell a button with
+     * a border from a hole with something at the bottom of it.
+     */
+    @Test
+    void theSmallControlsAreWrittenOutBlownUp() throws IOException {
+        Files.createDirectories(OUTPUT);
+        EditorPreview preview = new EditorPreview()
+                .withCatalog(EditorPreview.sampleCatalog())
+                .withLayers(5);
+        int scale = EditorScale.scaleFor(1080, 4);
+        BufferedImage screen = preview.render(1920 / scale, 1080 / scale, scale);
+        int column = preview.chrome().layers().x() * scale;
+        ImageIO.write(preview.magnify(
+                        preview.crop(screen, column, 0, 1920 - column, 700), 3),
+                "png", OUTPUT.resolve("detail-layers.png").toFile());
+        ImageIO.write(preview.magnify(
+                        preview.crop(screen, 0, 0, preview.chrome().library().width() * scale, 700), 3),
+                "png", OUTPUT.resolve("detail-library.png").toFile());
+    }
+
     /** The design size on its own, drawn four times up, to be looked at closely. */
     @Test
     void theDesignSizeIsWrittenOutMagnifiedToBeLookedAt() throws IOException {
