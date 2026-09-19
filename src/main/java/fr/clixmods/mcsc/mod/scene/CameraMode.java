@@ -21,19 +21,15 @@ public enum CameraMode {
     WORKSHOP("workshop", false, false),
 
     /**
-     * Your real character — armour, held item, cape — over the live world.
+     * Your real character in the real world, seen over their shoulder.
      *
-     * <p>Drawn by the mod into the panel rather than by moving the game's camera, and
-     * that is not a shortcut: <strong>the level renderer refuses to draw the local
-     * player unless they are the camera entity</strong>
-     * ({@code LevelRenderer.renderLevel}: {@code if (entity instanceof LocalPlayer &&
-     * camera.entity() != entity) continue;}). A camera flown around them therefore shows
-     * an empty world, which is exactly what the first attempt did. Nothing short of a
-     * mixin into that loop changes it, so the figure is composited over the world
-     * instead — which also gives it a turn, a zoom and a pan the game's third person
-     * does not have.
+     * <p>The game's own third person, because nothing else draws your own character:
+     * {@code LevelRenderer.renderLevel} skips the local player unless they are the
+     * camera entity. That also fixes how the camera goes round them — it sits behind
+     * wherever they look, so orbiting means turning their view and pinning their body.
+     * Real game state, saved and put back.
      */
-    IN_GAME("in_game", true, false),
+    IN_GAME("in_game", true, true),
 
     /** Your own arm, drawn by the game exactly as it draws it in play. */
     FIRST_PERSON("first_person", true, true);

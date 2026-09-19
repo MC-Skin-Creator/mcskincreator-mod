@@ -303,13 +303,20 @@ head (first person) or locked to vanilla's fixed third-person distance. Reaching
 that means injecting into the entity loop of the largest method in the renderer, which
 is exactly the kind of second mixin this file argues against.
 
-So the in-game view does not move the camera at all. The figure is **composited over the
-live world** through the same picture-in-picture route as the workshop view, with its
-render state extracted off the real player the way `InventoryScreen` extracts it — so
-armour, held item and cape come along, and the skin comes off the entity and therefore
-through the mod's own override. It gains a turn, a zoom and a pan that vanilla's third
-person has never had; what it gives up is parallax, since the background does not swing
-as the figure turns.
+What this rules out is a *free* camera, not third person. Third person renders the
+character because the camera is **detached**, not because it has moved: the camera entity
+is still the player. So the in-game view is the game's own third person, and going round
+the character is done by turning their view — the camera sits behind wherever they look —
+with their body pinned so they keep facing the way they were. That is real game state:
+yaw, pitch and body yaw are saved on the way in and put back on the way out, and in
+multiplayer other people see the character turn. There is no zoom, because vanilla fixes
+its own third-person distance and exposes no way to change it.
+
+Compositing the figure over the world was tried in between, and it is why
+`scene/SceneBackdrop` exists rather than being deleted: it is the right answer to a
+different question. The in-game view shows the **real** character, which cannot be posed;
+putting the live world *behind the workshop figure* is what keeps the animations, the
+zoom and the pan available with a landscape behind them.
 
 Two things had to stop painting over the world for this to be visible at all, and both
 were hiding it completely rather than partly:
@@ -321,6 +328,13 @@ were hiding it completely rather than partly:
 - **the editor's own panels.** The first-person arm is drawn low and to the right, which
   is where the layers panel sat. Both side panels fold themselves away under a camera
   that overlays the game, and the player's own fold choice is put back on the way out.
+  A game *backdrop* does not fold them: that is scenery, and taking the catalogue off
+  the screen in the middle of picking from it would be a poor trade;
+- **the game's own HUD.** The hotbar, the hearts and the crosshair are drawn over the
+  world whether or not a screen is open, and they land straight on the arm. Hidden while
+  a world camera holds, put back on release. The flag moved between the targets —
+  `Options.hideGui` on 1.21.11, `Gui.hud.toggle()` behind `isHidden()` on 26.2 — and
+  both are public, so it stays a rename rather than becoming a reason for a mixin.
 
 ### The editor pauses a single-player game
 

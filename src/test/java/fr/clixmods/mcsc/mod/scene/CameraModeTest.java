@@ -16,11 +16,12 @@ import org.junit.jupiter.api.Test;
  * Three questions the three cameras answer differently, and getting any of them wrong
  * is a camera that shows nothing.
  *
- * <p>The middle one is the one worth pinning down. The in-game view must <strong>not</strong>
- * take the game's camera: the level renderer draws the local player only while they are
- * the camera entity, so moving the camera off them empties the world. That was the first
- * version of this feature, and it cost a round of testing to find — the rule is in
- * `LevelRenderer`, not in anything the mod can see from here.
+ * <p>The middle one is the one worth pinning down, and it has already been got wrong
+ * twice in opposite directions. The level renderer draws the local player only while
+ * they are the camera entity ({@code LevelRenderer.renderLevel}), so the in-game view
+ * must take the game's camera — and must leave it pointed at the player. Flying a
+ * separate camera around them empties the world; not taking the camera at all leaves
+ * the game in whatever view it was in.
  */
 class CameraModeTest {
     @Test
@@ -31,11 +32,22 @@ class CameraModeTest {
     }
 
     @Test
-    void onlyFirstPersonBorrowsTheGamesCamera() {
+    void bothWorldCamerasBorrowTheGamesCamera() {
         assertFalse(CameraMode.WORKSHOP.takesGameCamera());
-        assertFalse(CameraMode.IN_GAME.takesGameCamera(),
-                "moving the camera off the player stops the player being drawn at all");
+        assertTrue(CameraMode.IN_GAME.takesGameCamera(),
+                "only the game draws your own character, and only through its own camera");
         assertTrue(CameraMode.FIRST_PERSON.takesGameCamera());
+    }
+
+    @Test
+    void onlyTheGameBackdropNeedsAWorld() {
+        assertFalse(SceneBackdrop.PANEL.needsWorld());
+        assertTrue(SceneBackdrop.WORLD.needsWorld());
+        for (SceneBackdrop backdrop : SceneBackdrop.values()) {
+            assertTrue(backdrop.labelKey().startsWith("backdrop.mcskincreator."),
+                    backdrop.name());
+            assertTrue(backdrop.tooltipKey().endsWith(".tooltip"), backdrop.name());
+        }
     }
 
     @Test

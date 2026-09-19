@@ -227,12 +227,19 @@ then covers it with the opaque menu background — and both side panels fold the
 away, because the game draws the first-person arm exactly where the layers panel sat.
 The player's own fold choice comes back with them.
 
-**Only the first-person view borrows the game's camera** (`scene/GameCamera`, public
-API, given back on the way out — no second mixin). The in-game view cannot: the level
-renderer draws your own character only while they *are* the camera entity, so a camera
-flown around them shows an empty world. It composites the real character — armour, held
-item and cape — over the live world instead, through the same route as the workshop
-view. See `DECISIONS.md`, "The local player is only drawn when they are the camera".
+**Both world cameras borrow the game's own** (`scene/GameCamera`, public API, given
+back on the way out — no second mixin), and both leave it pointed at the player,
+because the level renderer draws your own character only while they *are* the camera
+entity. Third person works because the camera is detached, not because it is somewhere
+else; going round the character is therefore done by turning them, and their body is
+pinned so they keep facing the way they were. That is real game state, saved and put
+back. See `DECISIONS.md`, "The local player is only drawn when they are the camera".
+
+**The backdrop is a separate question from the camera.** `scene/SceneBackdrop` puts
+either the editor's own dark or the live world behind the workshop figure — which is
+how the animations and the zoom stay available with a landscape behind them, since the
+in-game view shows the real character and a real character cannot be posed. It is a
+preference, never serialised.
 
 The scene does not build it, though: it is handed a [`Figure`](src/main/java/fr/clixmods/mcsc/mod/ui/Figure.java)
 and works out how much room it may have. `PlayerFigure` is the game's one; the preview

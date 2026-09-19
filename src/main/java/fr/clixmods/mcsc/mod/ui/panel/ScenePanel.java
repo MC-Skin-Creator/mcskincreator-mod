@@ -30,7 +30,6 @@ import fr.clixmods.mcsc.mod.ui.Paint;
 import fr.clixmods.mcsc.mod.ui.widget.Dropdown;
 import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 
 /**
@@ -156,6 +155,10 @@ public class ScenePanel extends Element {
         if (this.backdrop.needsWorld() && !this.gameCamera.available()) {
             this.backdrop = SceneBackdrop.PANEL;
             this.gameCamera.take(this.cameraMode, false);
+            this.relayout.run();
+        }
+        if (this.backdrop.needsWorld() && !this.gameCamera.available()) {
+            this.backdrop = SceneBackdrop.PANEL;
             this.relayout.run();
         }
     }
@@ -370,6 +373,9 @@ public class ScenePanel extends Element {
         int dockHeight = rows.size() * rowHeight + (rows.size() - 1) * gap
                 + Metrics.PANEL_INSET * 2;
         int dockX = this.x + this.width - Metrics.PAD_TIGHT - dockWidth;
+        // Top right, in every camera. It used to sit at the bottom and move out of the
+        // way in first person, where the game draws the hand — but a control that
+        // changes corner depending on the mode is a control you have to look for twice.
         int dockY = this.viewport[1] + Metrics.PAD_TIGHT;
         this.dock = new int[] {dockX, dockY, dockWidth, dockHeight};
 

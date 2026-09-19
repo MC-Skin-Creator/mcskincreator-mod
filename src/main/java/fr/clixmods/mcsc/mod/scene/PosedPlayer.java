@@ -8,9 +8,6 @@
 package fr.clixmods.mcsc.mod.scene;
 
 import fr.clixmods.mcsc.mod.ui.Canvas;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
@@ -22,13 +19,12 @@ import org.joml.Vector3f;
 /**
  * Hands the figure to the game to be drawn: a render state, and where to look at it from.
  *
- * <p>Two figures, one camera. {@link #draw} builds a state from nothing — a skin and a
- * situation — for the workshop view, which has to work on the title screen where there
- * is no entity at all. {@link #drawLive} takes the state off the player who is actually
- * standing in the world, so the in-game view shows their armour, their held item and
- * their cape. Both then go through the same camera and the same call.
+ * <p>The state is built rather than taken off an entity, because there may be no entity:
+ * the editor opens from the title screen, where no world is loaded. The in-game view is
+ * a different thing entirely — there the game draws the real character itself, because
+ * the level renderer will not draw the local player any other way.
  *
- * <p>That the built one works at all rests on one fact, read out of
+ * <p>That this works at all rests on one fact, read out of
  * {@code EntityRenderDispatcher.getRenderer}: an {@code AvatarRenderState} is dispatched
  * <strong>on its skin</strong>, not on an entity type, and the skin's model type is what
  * picks the classic or the slim renderer. So a state carrying {@link PlayerSkin} is drawn
@@ -59,9 +55,6 @@ public final class PosedPlayer {
 
     private static final float DEGREES = (float) (180 / Math.PI);
 
-    /** What vanilla lights a figure in a menu with: everything. */
-    private static final int FULL_BRIGHT = 15728880;
-
     private PosedPlayer() {
     }
 
@@ -81,60 +74,6 @@ public final class PosedPlayer {
         state.boundingBoxWidth = BOX_WIDTH;
         pose.apply(state, seconds, playing);
         submit(canvas, state, pose.spread(), camera, x, y, width, height);
-    }
-
-    /**
-     * Draws the character who is actually standing in the world.
-     *
-     * <p>The state is the game's, extracted exactly as vanilla's inventory portrait
-     * extracts it, so what appears is the real thing: armour, held item, cape, and
-     * whatever the character happens to be doing. The skin comes off the entity, which
-     * means it comes through the mod's own override — so what is being edited is what is
-     * worn, with nothing extra to wire up.
-     *
-     * <p>This is also why the in-game view does not go through the game's camera. The
-     * level renderer refuses to draw the local player unless they are the camera entity,
-     * so a camera flown around them shows an empty world; compositing the figure over
-     * that world is what gets it on screen, and it gains a turn, a zoom and a pan the
-     * game's own third person has never had.
-     */
-    public static void drawLive(Canvas canvas, LocalPlayer player, SceneCamera camera,
-                                int x, int y, int width, int height) {
-        EntityRenderState state = extract(player);
-        if (state == null) {
-            return;
-        }
-        submit(canvas, state, ScenePose.IDLE.spread(), camera, x, y, width, height);
-    }
-
-    /**
-     * The player's render state, lit for a menu rather than for the world.
-     *
-     * <p>Vanilla's own three adjustments come with it: full brightness, no shadow and no
-     * outline. A figure drawn in a panel with the light of the cave it is standing in is
-     * a black rectangle.
-     */
-    private static EntityRenderState extract(LocalPlayer player) {
-        EntityRenderer<? super LocalPlayer, ?> renderer =
-                Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(player);
-        if (renderer == null) {
-            return null;
-        }
-        EntityRenderState state = renderer.createRenderState(player, 1.0F);
-        state.lightCoords = FULL_BRIGHT;
-        state.shadowPieces.clear();
-        state.outlineColor = 0;
-        // The name tag belongs over a head in the world, not in a panel eight inches
-        // from the eye.
-        state.nameTag = null;
-        if (state instanceof LivingEntityRenderState living) {
-            // Vanilla divides the box out by the scale and then renders at scale one, so
-            // that the figure is centred on its own size rather than on a scaled one.
-            living.boundingBoxWidth /= living.scale;
-            living.boundingBoxHeight /= living.scale;
-            living.scale = 1.0F;
-        }
-        return state;
     }
 
     /**

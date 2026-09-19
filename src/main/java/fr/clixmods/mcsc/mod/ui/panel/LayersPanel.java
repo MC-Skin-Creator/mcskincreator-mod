@@ -472,7 +472,11 @@ public class LayersPanel extends Panel {
 
     @Override
     public boolean scroll(double mouseX, double mouseY, double amount) {
-        if (folded() || mouseY < this.bodyTop || mouseY > this.bodyTop + this.bodyHeight) {
+        // The horizontal test is not redundant: without it this list took the wheel
+        // from anything at the same height as its body — which is the whole middle
+        // column, so the scene could never be zoomed.
+        if (folded() || !contains(mouseX, mouseY)
+                || mouseY < this.bodyTop || mouseY > this.bodyTop + this.bodyHeight) {
             return false;
         }
         return this.scroll.scroll(amount);
