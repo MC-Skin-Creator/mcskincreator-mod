@@ -12,6 +12,7 @@
   "library.mcskincreator.thumbnails_stale": "Esta categoría ha cambiado. Vuelve a abrir el editor.",
   "library.mcskincreator.region.all": "Elementos",
   "library.mcskincreator.region.base": "Base",
+  "library.mcskincreator.region.outfit": "Conjuntos",
   "library.mcskincreator.region.head": "Cabeza",
   "library.mcskincreator.region.torso": "Torso",
   "library.mcskincreator.region.arms": "Brazos",
@@ -147,5 +148,12 @@
   "licence.mcskincreator.cc-by-sa-4": "CC BY-SA 4.0 — atribución y compartir igual",
   "licence.mcskincreator.libre": "Uso libre, según su autor",
   "licence.mcskincreator.libre-credit": "Uso libre con atribución, según su autor",
-  "licence.mcskincreator.libre-restreint": "Uso libre con restricciones, no publicado aquí"
+  "licence.mcskincreator.libre-restreint": "Uso libre con restricciones, no publicado aquí",
+  "gui.mcskincreator.models": "Modelos",
+  "gui.mcskincreator.models.tooltip": "Empezar de nuevo desde un personaje entero",
+  "window.mcskincreator.models": "Modelos de inicio",
+  "toast.mcskincreator.model_applied": "%s: %s capas",
+  "toast.mcskincreator.outfit_applied": "%s puesto: %s capas",
+  "toast.mcskincreator.model_empty": "No queda nada de él en el catálogo",
+  "window.mcskincreator.models.notice": "Un personaje entero. Elegir uno reemplaza todo lo que has apilado — deshacer lo devuelve."
 }

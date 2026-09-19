@@ -158,6 +158,8 @@ public final class Metrics {
     public static final int THUMB_PAD = ui(3);
     /** {@code .thumb.used:after { width: 7px }} — the mark on an element already in play. */
     public static final int THUMB_MARK = ui(7);
+    /** {@code .thumb .info { width: 15px }} — the "i" that says where an element came from. */
+    public static final int INFO_MARK = ui(15);
     /** Transparency checker squares: {@code background-size: 8px 8px}. */
     public static final int CHECKER = ui(8);
     /**

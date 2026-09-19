@@ -12,6 +12,7 @@
   "library.mcskincreator.thumbnails_stale": "Cette catégorie a changé. Rouvrez l'éditeur.",
   "library.mcskincreator.region.all": "Éléments",
   "library.mcskincreator.region.base": "Base",
+  "library.mcskincreator.region.outfit": "Tenues",
   "library.mcskincreator.region.head": "Tête",
   "library.mcskincreator.region.torso": "Torse",
   "library.mcskincreator.region.arms": "Bras",
@@ -147,5 +148,12 @@
   "licence.mcskincreator.cc-by-sa-4": "CC BY-SA 4.0 — attribution et partage à l'identique",
   "licence.mcskincreator.libre": "Libre d'usage, déclaré par l'auteur",
   "licence.mcskincreator.libre-credit": "Libre d'usage avec crédit, déclaré par l'auteur",
-  "licence.mcskincreator.libre-restreint": "Libre d'usage sous réserve, non publié ici"
+  "licence.mcskincreator.libre-restreint": "Libre d'usage sous réserve, non publié ici",
+  "gui.mcskincreator.models": "Modèles",
+  "gui.mcskincreator.models.tooltip": "Repartir d'un personnage entier",
+  "window.mcskincreator.models": "Modèles de départ",
+  "toast.mcskincreator.model_applied": "%s : %s calques",
+  "toast.mcskincreator.outfit_applied": "%s enfilée : %s calques",
+  "toast.mcskincreator.model_empty": "Il n'en reste rien au catalogue",
+  "window.mcskincreator.models.notice": "Un personnage entier. En choisir un remplace tout ce que vous avez empilé — une annulation le rend."
 }

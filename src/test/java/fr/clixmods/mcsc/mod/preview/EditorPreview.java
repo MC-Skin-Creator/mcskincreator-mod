@@ -66,11 +66,11 @@ public final class EditorPreview {
     public EditorPreview(String language) {
         Translations.install(language);
 
-        this.topBar = new TopBar(this.history, () -> null,
-                () -> { }, () -> { }, () -> { }, () -> { });
+        this.topBar = new TopBar(this.history, () -> null, () -> { }, () -> { },
+                () -> !this.catalog.models().isEmpty(), () -> { }, () -> { }, () -> { });
         this.library = new LibraryPanel(this::invalidate, text -> Component.literal(text.base()),
-                id -> null, this.project::isSlim, item -> false, tile -> { }, tile -> { },
-                tile -> { }, link -> { }, () -> { });
+                id -> null, this.project::isSlim, item -> false, tile -> { }, outfit -> { },
+                tile -> { }, tile -> { }, link -> { }, () -> { });
         this.library.createSearch(query -> { });
         this.library.setEmptyMessage(
                 () -> Component.translatable("library.mcskincreator.empty"));
@@ -208,7 +208,7 @@ public final class EditorPreview {
                 "Work trousers", "Shorts", "Long skirt", "Leggings"));
         categories.add(category("shoes", "legs", "Shoes", ThumbCrop.LEGS,
                 "Boots", "Sandals", "Trainers"));
-        return new Catalog(categories, java.util.Map.of());
+        return new Catalog(categories, java.util.Map.of(), List.of(), List.of());
     }
 
     private static CatalogCategory category(String id, String region, String name,

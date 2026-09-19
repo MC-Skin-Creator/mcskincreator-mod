@@ -28,11 +28,15 @@ import net.minecraft.network.chat.Component;
  * An element of the catalogue, in an inventory slot: the most used brick of the whole
  * interface.
  *
- * <p>An element already in the stack keeps the frame the game lays over a slot, so
- * "this one is in play" is said the way the game says it rather than with a badge of
- * the mod's own. Where the element came from is on the right button, which is where
- * the game puts a second action — the site uses a little "i" that appears on hover,
- * and a mark that is only sometimes there is a mark that is sometimes missed.
+
+ * <p>Two marks can appear on it and they take opposite corners on purpose. Already in
+ * the stack is a small green square, top right. Where it came from is an "i", top
+ * left, and only while the tile is pointed at or focused — and it swallows its own
+ * click, because asking where something came from must not also add it to the stack.
+ * Stacking two marks in one corner hides one of them, which the site did once.
+ *
+ * <p>A tile with no {@code onInfo} draws no "i" at all: the catalogue credits elements,
+ * one work each, and there is nothing to open for a set of them.
  */
 public class ItemTile extends Element {
     private final CatalogCategory category;
@@ -115,9 +119,34 @@ public class ItemTile extends Element {
         this.marquee.draw(paint, this.label, boxX, labelY, boxWidth,
                 hot ? Palette.INK_HOVERED : Palette.INK_MUTED, hot);
 
-        if (hot || this.used.test(this.item)) {
+        if (hot) {
             Surface.slotHighlight(canvas, this.x, this.y, this.width, this.height);
         }
+
+        // Already in the stack: a small square, top right, in the site's lime.
+        if (this.used.test(this.item)) {
+            int markX = this.x + this.width - Metrics.SLOT_INSET - Metrics.THUMB_MARK;
+            int markY = this.y + Metrics.SLOT_INSET;
+            canvas.fill(markX - 1, markY - 1, Metrics.THUMB_MARK + 2, Metrics.THUMB_MARK + 2,
+                    Palette.OUTLINE);
+            canvas.fill(markX, markY, Metrics.THUMB_MARK, Metrics.THUMB_MARK, Palette.LIME);
+        }
+
+        // Where it came from: an "i", top left, and only while the tile is pointed at.
+        if (hot && this.onInfo != null) {
+            int[] mark = infoBounds();
+            canvas.fill(mark[0], mark[1], mark[2], mark[3], Palette.OUTLINE);
+            canvas.fill(mark[0] + 1, mark[1] + 1, mark[2] - 2, mark[3] - 2, Palette.PANEL_SUB);
+            canvas.textCentered(Component.literal("i"), mark[0] + mark[2] / 2,
+                    mark[1] + (mark[3] - canvas.lineHeight()) / 2 + 1, Palette.INK_HOVERED);
+        }
+    }
+
+    private int[] infoBounds() {
+        int size = Metrics.INFO_MARK;
+        return new int[] {
+            this.x + Metrics.SLOT_INSET, this.y + Metrics.SLOT_INSET, size, size,
+        };
     }
 
     @Override
@@ -125,9 +154,12 @@ public class ItemTile extends Element {
         if (!contains(mouseX, mouseY)) {
             return false;
         }
-        if (button == 1) {
-            // The right button asks where the element came from. Keeping it off the
-            // left one is the point: asking must never also stack the element.
+        int[] mark = infoBounds();
+        if (this.onInfo != null
+                && mouseX >= mark[0] && mouseX < mark[0] + mark[2]
+                && mouseY >= mark[1] && mouseY < mark[1] + mark[3]) {
+            // The provenance mark stops the click. Without this, asking where an
+            // element came from would also stack it.
             this.onInfo.accept(this);
             return true;
         }

@@ -12,6 +12,7 @@
   "library.mcskincreator.thumbnails_stale": "This category has changed. Reopen the editor.",
   "library.mcskincreator.region.all": "Elements",
   "library.mcskincreator.region.base": "Base",
+  "library.mcskincreator.region.outfit": "Outfits",
   "library.mcskincreator.region.head": "Head",
   "library.mcskincreator.region.torso": "Torso",
   "library.mcskincreator.region.arms": "Arms",
@@ -147,5 +148,12 @@
   "licence.mcskincreator.cc-by-sa-4": "CC BY-SA 4.0 — attribution and share-alike",
   "licence.mcskincreator.libre": "Free to use, as stated by the author",
   "licence.mcskincreator.libre-credit": "Free to use with credit, as stated by the author",
-  "licence.mcskincreator.libre-restreint": "Free to use with restrictions, not published here"
+  "licence.mcskincreator.libre-restreint": "Free to use with restrictions, not published here",
+  "gui.mcskincreator.models": "Models",
+  "gui.mcskincreator.models.tooltip": "Start again from a whole character",
+  "window.mcskincreator.models": "Starter models",
+  "toast.mcskincreator.model_applied": "%s: %s layers",
+  "toast.mcskincreator.outfit_applied": "%s put on: %s layers",
+  "toast.mcskincreator.model_empty": "Nothing left of it in the catalogue",
+  "window.mcskincreator.models.notice": "A whole character. Choosing one replaces everything you have stacked — one undo brings it back."
 }

@@ -229,10 +229,21 @@ one is not decoration — hovering exists with a mouse and not with a controller
 the site reveals real functionality on hover, so whatever holds the focus draws as
 whatever is hovered.
 
-**The interface owns no pixels.** The model is vanilla's `PlayerSkinWidget`, the
-thumbnails are folded out of the category atlases the API already serves, the stack is
-composed by the server, and every surface is a vanilla sprite. The mod generates no
-textures of its own at all.
+**The interface owns almost no pixels of its own.** The model is vanilla's
+`PlayerSkinWidget`, the thumbnails are folded out of the category atlases the API
+already serves, and the stack being edited is composed by the server. One texture is
+drawn from nothing: the stone grain under the panels, from deterministic noise, because
+a tile generated from a function cannot go out of step with the palette it is tinted by
+and a PNG of the same thing can.
+
+The one exception is the pictures of the ready-made stacks — the starter models and
+the outfits — which the mod stacks and folds itself (`Composite`, `ReadyMadeSkins`).
+The catalogue offers two hundred and odd of them, and asking the server for two hundred
+compositions to fill one panel is not a thing to do to a service, or to a player waiting
+on it. The blend copies the server's, half rounded to even like the
+`Uint8ClampedArray` the site composes into, so the picture is the one the stack will
+actually produce. They are then a `CategorySprites` sheet like any other, so the library
+draws them with the tile it already had.
 
 The layer stack is the mod's, and it follows the server's format rather than
 inventing a second one: the project validator is the authority on what a project is,

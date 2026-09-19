@@ -40,8 +40,10 @@ why the whole project is on Mojang mappings.
 src/main/java/fr/clixmods/mcsc/mod/
 ├── MCSkinCreatorClient.java   ClientModInitializer: logs on load, registers the menu buttons
 ├── remote/                    the HTTP side of the site's /api/v1 contract
-├── catalog/                   what the catalogue says: regions, categories, elements, crops
-├── skin/                      pixels: front sprites, category sheets, the previewed skin, textures
+├── catalog/                   what the catalogue says: regions, categories, elements, crops,
+│                               and the ready-made models and outfits it offers
+├── skin/                      pixels: front sprites, category and model sheets, the previewed
+│                               skin, the blend behind a model's picture, textures
 ├── project/                   what is being edited: the layer stack and its history
 ├── account/                   the Mojang upload, and the only code that holds the session token
 ├── mixin/                     the one mixin: the applied skin, worn before Mojang propagates it

@@ -7,6 +7,7 @@
  */
 package fr.clixmods.mcsc.mod.skin;
 
+import static fr.clixmods.mcsc.mod.Fixtures.catalog;
 import static fr.clixmods.mcsc.mod.Fixtures.category;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -14,7 +15,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -39,7 +39,7 @@ import net.minecraft.world.entity.player.PlayerModelType;
 class ProjectJsonTest {
     private final SkinProject project = new SkinProject();
     private final CatalogCategory hats = category("hats", "head", "cap", "crown", "helm");
-    private final Catalog catalog = new Catalog(List.of(this.hats), Map.of());
+    private final Catalog catalog = catalog(this.hats);
 
     private Layer add(String itemId) {
         return this.project.add(this.hats, this.hats.items().stream()

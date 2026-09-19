@@ -84,6 +84,12 @@ public final class Palette {
     public static final int INK_DISABLED = 0xFF7C7C84;
     /** Failure ink, readable on stone. */
     public static final int INK_FAILURE = 0xFFFF9D8F;
+    /** --gold, by its own name: the colour, where a caller means the colour. */
+    public static final int GOLD = INK_HOVERED;
+    /** --txt-dim2, by its own name. */
+    public static final int INK_DIM = INK_FAINT;
+    /** --lime: brighter than the green, for a mark that has to read at seven pixels. */
+    public static final int LIME = 0xFF7EC850;
 
     // Text field: a light border is what tells a field apart from a carved slot.
     public static final int FIELD = 0xFF0A0A0C;

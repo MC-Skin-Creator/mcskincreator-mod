@@ -9,6 +9,7 @@ package fr.clixmods.mcsc.mod.ui.panel;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -20,7 +21,9 @@ import java.util.function.Supplier;
 import fr.clixmods.mcsc.mod.catalog.Catalog;
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
 import fr.clixmods.mcsc.mod.catalog.CatalogItem;
+import fr.clixmods.mcsc.mod.catalog.CatalogModel;
 import fr.clixmods.mcsc.mod.catalog.CatalogText;
+import fr.clixmods.mcsc.mod.catalog.ThumbCrop;
 import fr.clixmods.mcsc.mod.remote.SearchResults;
 import fr.clixmods.mcsc.mod.skin.CategorySprites;
 import fr.clixmods.mcsc.mod.style.Metrics;
@@ -71,6 +74,7 @@ public class LibraryPanel extends Panel {
     private final Supplier<Boolean> slim;
     private final Predicate<CatalogItem> used;
     private final Consumer<ItemTile> onPick;
+    private final Consumer<CatalogModel> onOutfit;
     private final Consumer<ItemTile> onInfo;
     private final Consumer<ItemTile> onHover;
     private final Consumer<String> onFooterLink;
@@ -114,8 +118,9 @@ public class LibraryPanel extends Panel {
     public LibraryPanel(Runnable relayout, Function<CatalogText, Component> naming,
                         Function<String, CategorySprites> sprites, Supplier<Boolean> slim,
                         Predicate<CatalogItem> used, Consumer<ItemTile> onPick,
-                        Consumer<ItemTile> onInfo, Consumer<ItemTile> onHover,
-                        Consumer<String> onFooterLink, Runnable onCategoriesChanged) {
+                        Consumer<CatalogModel> onOutfit, Consumer<ItemTile> onInfo,
+                        Consumer<ItemTile> onHover, Consumer<String> onFooterLink,
+                        Runnable onCategoriesChanged) {
         super("panel.mcskincreator.library", true);
         this.relayout = relayout;
         this.naming = naming;
@@ -123,10 +128,79 @@ public class LibraryPanel extends Panel {
         this.slim = slim;
         this.used = used;
         this.onPick = onPick;
+        this.onOutfit = onOutfit;
         this.onInfo = onInfo;
         this.onHover = onHover;
         this.onFooterLink = onFooterLink;
         this.onCategoriesChanged = onCategoriesChanged;
+    }
+
+    /**
+     * The region the outfits browse in.
+     *
+     * <p>The site gives them a shelf of their own between the body and the head, and
+     * they are picked exactly the way an element is — so they are one more region here
+     * too, rather than a button somewhere else. The catalogue does not carry the region
+     * itself: outfits are a list beside the categories, not a category, so the tab is
+     * added to the ones it does carry.
+     */
+    public static final String OUTFIT_REGION = "outfit";
+
+    /**
+     * The key the outfits' sheet of thumbnails is kept under, beside the categories'.
+     *
+     * <p>Not {@code "outfit"}: that is a region, and a catalogue is free to name a real
+     * category anything: two sheets under one key would draw each other's pixels.
+     */
+    public static final String OUTFIT_SHEET = "ready-made-outfits";
+
+    /**
+     * The shelf the outfit tiles stand on.
+     *
+     * <p>A category in shape only, and it never leaves this panel: it lets an outfit be
+     * drawn and picked by the same tile as everything else in the library instead of a
+     * second widget that would have to be kept looking the same. What a pick means is
+     * decided here, and the project only ever sees a real {@link CatalogModel}.
+     */
+    private CatalogCategory outfitShelf() {
+        List<CatalogItem> items = new ArrayList<>(this.catalog.outfits().size());
+        List<CatalogModel> outfits = this.catalog.outfits();
+        for (int index = 0; index < outfits.size(); index++) {
+            // The rank is the outfit's place in the sheet built from the same list.
+            // No credit: the catalogue credits the elements an outfit is made of, one
+            // work each, and has nothing to say about the set.
+            items.add(new CatalogItem(outfits.get(index).id(), outfits.get(index).name(),
+                    index, CatalogItem.NONE, ThumbCrop.ALL, ""));
+        }
+        return new CatalogCategory(OUTFIT_SHEET, OUTFIT_REGION,
+                new CatalogText("", "", ""), false, ThumbCrop.ALL, "", items);
+    }
+
+    /** Whether the outfits' shelf is the one on screen, so its sheet is worth drawing. */
+    public boolean showingOutfits() {
+        return OUTFIT_REGION.equals(this.region) && !searching();
+    }
+
+    /** The regions to offer: the catalogue's, with the outfits' shelf after the body. */
+    private List<String> regions() {
+        return regionsWith(this.catalog.regions(), !this.catalog.outfits().isEmpty());
+    }
+
+    /**
+     * Where the outfits' tab goes: straight after {@code base}, which is the site's
+     * order, and first when the catalogue has no body region to put it after.
+     *
+     * <p>A catalogue with no outfit gets no tab at all, by the rule the rest of the
+     * interface follows: a control whose target is empty is absent, not dead.
+     */
+    static List<String> regionsWith(List<String> catalogRegions, boolean hasOutfits) {
+        List<String> regions = new ArrayList<>(catalogRegions);
+        if (!hasOutfits) {
+            return List.copyOf(regions);
+        }
+        int at = regions.indexOf("base");
+        regions.add(at < 0 ? 0 : at + 1, OUTFIT_REGION);
+        return List.copyOf(regions);
     }
 
     public boolean hasCatalog() {
@@ -136,7 +210,7 @@ public class LibraryPanel extends Panel {
     /** Hands the panel the catalogue. Done once: doing it again resets the browsing. */
     public void setCatalog(Catalog catalog) {
         this.catalog = catalog;
-        this.region = catalog.regions().isEmpty() ? null : catalog.regions().get(0);
+        this.region = regions().isEmpty() ? null : regions().get(0);
         this.category = firstCategory(this.region);
         this.scroll.reset();
         this.relayout.run();
@@ -148,9 +222,31 @@ public class LibraryPanel extends Panel {
         this.emptyMessage = message;
     }
 
-    /** The categories on screen, which are the ones whose pixels are worth fetching. */
+    /**
+     * The categories on screen, which are the ones whose pixels are worth fetching.
+     *
+     * <p>The outfits' shelf is the one that reaches outside itself: an outfit is made
+     * of elements from all over the library, and none of them can be drawn without its
+     * category. The body it is stood on adds the skin category to that.
+     */
     public List<CatalogCategory> visibleCategories() {
-        return this.region == null ? List.of() : this.catalog.categoriesIn(this.region);
+        if (this.region == null) {
+            return List.of();
+        }
+        if (!OUTFIT_REGION.equals(this.region)) {
+            return this.catalog.categoriesIn(this.region);
+        }
+        LinkedHashSet<CatalogCategory> needed = new LinkedHashSet<>();
+        for (CatalogCategory category : this.catalog.categories()) {
+            if (category.single()) {
+                needed.add(category);   // the body under the clothes
+                break;
+            }
+        }
+        for (CatalogModel outfit : this.catalog.outfits()) {
+            needed.addAll(this.catalog.categoriesOf(outfit));
+        }
+        return List.copyOf(needed);
     }
 
     /** @param onQuery told what is being searched for, so the server can be asked */
@@ -176,6 +272,9 @@ public class LibraryPanel extends Panel {
     }
 
     private CatalogCategory firstCategory(String region) {
+        if (OUTFIT_REGION.equals(region)) {
+            return outfitShelf();
+        }
         List<CatalogCategory> list = region == null ? List.of() : this.catalog.categoriesIn(region);
         return list.isEmpty() ? null : list.get(0);
     }
@@ -261,7 +360,7 @@ public class LibraryPanel extends Panel {
      * same way when its strip runs out of room, so this is not a second idea.
      */
     private int layoutRegions(Canvas canvas, int left, int right, int top) {
-        List<String> regions = this.catalog.regions();
+        List<String> regions = regions();
         if (regions.isEmpty()) {
             this.regionsBottom = top;
             return top;
@@ -304,6 +403,11 @@ public class LibraryPanel extends Panel {
     }
 
     private int layoutCategories(int left, int right, int top) {
+        if (showingOutfits()) {
+            // One shelf, so no row to choose from: a single tab that cannot be
+            // unchosen is a control that does nothing.
+            return top;
+        }
         int cursorX = left;
         int cursorY = top;
         for (CatalogCategory candidate : visibleCategories()) {
@@ -357,11 +461,17 @@ public class LibraryPanel extends Panel {
             // full-body tiles twice as tall as head ones.
             int tileHeight = ItemTile.heightFor(canvas, Metrics.THUMB_RENDER);
 
+            boolean outfits = OUTFIT_SHEET.equals(batchCategory.id());
             int column = 0;
             for (CatalogItem item : batch.getValue()) {
                 ItemTile tile = new ItemTile(batchCategory, item, this.naming.apply(item.name()),
                         () -> this.sprites.apply(batchCategory.id()), this.slim,
-                        this.used, this.onPick, this.onInfo, this.onHover);
+                        outfits ? this::outfitIsOn : this.used,
+                        outfits ? this::pickOutfit : this.onPick,
+                        // No provenance mark on an outfit: the catalogue credits the
+                        // elements it is made of, one work each, not the set.
+                        outfits ? null : this.onInfo,
+                        this.onHover);
                 tile.setBounds(left + column * (tileWidth + Metrics.GRID_GAP), cursorY,
                         tileWidth, tileHeight);
                 this.tiles.add(new PlacedTile(addChild(tile), cursorY));
@@ -452,6 +562,41 @@ public class LibraryPanel extends Panel {
         this.scroll.reset();
         this.relayout.run();
         this.onCategoriesChanged.run();
+    }
+
+    /** The outfit a shelf tile stands for, by the id the two share. */
+    private CatalogModel outfitFor(CatalogItem item) {
+        for (CatalogModel outfit : this.catalog.outfits()) {
+            if (outfit.id().equals(item.id())) {
+                return outfit;
+            }
+        }
+        return null;
+    }
+
+    private void pickOutfit(ItemTile tile) {
+        CatalogModel outfit = outfitFor(tile.item());
+        if (outfit != null) {
+            this.onOutfit.accept(outfit);
+        }
+    }
+
+    /** An outfit reads as worn once every piece of it is in the stack. */
+    private boolean outfitIsOn(CatalogItem item) {
+        CatalogModel outfit = outfitFor(item);
+        if (outfit == null) {
+            return false;
+        }
+        for (CatalogModel.Piece piece : outfit.pieces()) {
+            CatalogCategory category = this.catalog.category(piece.categoryId()).orElse(null);
+            CatalogItem piecedItem = category == null ? null : category.items().stream()
+                    .filter(candidate -> candidate.id().equals(piece.itemId()))
+                    .findFirst().orElse(null);
+            if (piecedItem == null || !this.used.test(piecedItem)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void pickCategory(CatalogCategory picked) {
