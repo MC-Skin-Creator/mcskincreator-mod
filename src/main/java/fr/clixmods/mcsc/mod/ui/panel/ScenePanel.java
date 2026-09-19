@@ -156,11 +156,11 @@ public class ScenePanel extends Element {
             this.backdrop = SceneBackdrop.PANEL;
             this.gameCamera.take(this.cameraMode, false);
             this.relayout.run();
+            return;
         }
-        if (this.backdrop.needsWorld() && !this.gameCamera.available()) {
-            this.backdrop = SceneBackdrop.PANEL;
-            this.relayout.run();
-        }
+        // A tick pulls the head back towards the view and the body after it, so what was
+        // pinned has to be pinned again.
+        this.gameCamera.hold();
     }
 
     /** Gives the game its camera back, and the character their own movements. */
@@ -590,7 +590,7 @@ public class ScenePanel extends Element {
         return switch (this.cameraMode) {
             case WORKSHOP -> List.of("gesture.mcskincreator.turn", "gesture.mcskincreator.pan",
                     "gesture.mcskincreator.zoom");
-            case IN_GAME -> List.of("gesture.mcskincreator.orbit");
+            case IN_GAME -> List.of("gesture.mcskincreator.orbit_flat");
             case FIRST_PERSON -> List.of("gesture.mcskincreator.first_person");
         };
     }

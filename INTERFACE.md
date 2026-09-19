@@ -241,7 +241,13 @@ how the animations and the zoom stay available with a landscape behind them, sin
 in-game view shows the real character and a real character cannot be posed. It is a
 preference, never serialised.
 
-The scene does not build it, though: it is handed a [`Figure`](src/main/java/fr/clixmods/mcsc/mod/ui/Figure.java)
+A backdrop is **behind**, not **around**: the figure is a GUI element drawn after the
+world, so it takes no world lighting and no shader pack. The view that puts the
+character in the world is the in-game one. The world backdrop also borrows the camera,
+for the opposite reason to the other two — first person and no HUD is how the game is
+asked to draw the world and nothing else, neither the character nor their hand.
+
+The scene does not build the figure, though: it is handed a [`Figure`](src/main/java/fr/clixmods/mcsc/mod/ui/Figure.java)
 and works out how much room it may have. `PlayerFigure` is the game's one; the preview
 stands a labelled box in its place, which is the only reason the scene's own layout
 can be looked at at all.

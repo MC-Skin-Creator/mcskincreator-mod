@@ -331,10 +331,39 @@ were hiding it completely rather than partly:
   A game *backdrop* does not fold them: that is scenery, and taking the catalogue off
   the screen in the middle of picking from it would be a poor trade;
 - **the game's own HUD.** The hotbar, the hearts and the crosshair are drawn over the
-  world whether or not a screen is open, and they land straight on the arm. Hidden while
-  a world camera holds, put back on release. The flag moved between the targets —
-  `Options.hideGui` on 1.21.11, `Gui.hud.toggle()` behind `isHidden()` on 26.2 — and
-  both are public, so it stays a rename rather than becoming a reason for a mixin.
+  world whether or not a screen is open. Hidden while a world camera holds, put back on
+  release. The flag moved between the targets — `Options.hideGui` on 1.21.11,
+  `Gui.hud.toggle()` behind `isHidden()` on 26.2 — and both are public, so it stays a
+  rename rather than a reason for a mixin.
+
+  **But one flag covers the HUD and the hand.** Both targets guard the
+  `ItemInHandRenderer` call with the same boolean they guard the HUD with. So hiding the
+  HUD in the first-person view hid the arm — the one thing that view exists for. The HUD
+  is therefore hidden only where the hand is unwanted anyway: third person, and a world
+  backdrop behind the workshop figure, where it is exactly how the arm is got rid of.
+  First person keeps its HUD, because the alternative is keeping no arm.
+
+### The head cannot be tilted away from the camera
+
+The in-game orbit turns the character's view, and the head has to stay put while it does
+— a head that swivels to follow the camera is the one thing that makes the view read as
+a bug. Yaw is easy: pin `yHeadRot` and `yBodyRot` to where they were, and re-pin them
+every tick, because a tick pulls the head back towards the view and the body after it.
+
+Pitch is not, and cannot be: **the camera's pitch and the head's pitch are the same
+field.** The camera reads `Entity.xRot` through `getViewXRot`; the model reads it off the
+render state. Tilting one tilts the other. So the pitch is held level and the orbit is
+horizontal only — a vertical drag does nothing in that view. The workshop camera, which
+owns its own angles, keeps its tilt.
+
+### What a backdrop is, and what it is not
+
+The world behind the workshop figure is a **backdrop**: the game draws the world, and the
+figure is a GUI element drawn over it, after the world pass and after any shader pack has
+had its say. It will not take world lighting, world shadows or shader effects, and
+nothing short of rendering it inside the level pass would change that. The view that puts
+the character *in* the world, shaders included, is the in-game one — which is the whole
+reason both exist.
 
 ### The editor pauses a single-player game
 

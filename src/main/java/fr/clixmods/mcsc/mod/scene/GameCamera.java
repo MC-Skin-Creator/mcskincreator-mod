@@ -31,10 +31,23 @@ import net.minecraft.world.entity.Entity;
  *
  * <p>Which is also why <strong>orbiting means turning the character</strong>. The camera
  * sits behind wherever they look, so going round them is done by rotating their view,
- * and their body is pinned so they keep facing the way they were — otherwise the orbit
- * would be a figure turning with the camera and never showing another side. It is real
- * game state, so it is saved and put back, and in multiplayer other people will see the
- * character turn.
+ * and their body <em>and head</em> are pinned so they keep facing the way they were —
+ * otherwise the orbit would be a figure turning with the camera and never showing
+ * another side. It is real game state, so it is saved and put back, and in multiplayer
+ * other people will see the character turn.
+ *
+ * <p><strong>The orbit is horizontal only</strong>, and that is the game's doing rather
+ * than a corner cut: the camera's pitch and the head's pitch are the same field
+ * ({@code Entity.xRot} — the camera reads it through {@code getViewXRot}, the model
+ * through the render state). Tilting the view therefore tilts the head, and a head that
+ * follows the camera is exactly what this view must not do. So the pitch is held level
+ * and a vertical drag does nothing.
+ *
+ * <p><strong>Hiding the HUD hides the hand.</strong> One flag covers both — 1.21.11
+ * checks {@code Options.hideGui} and 26.2 {@code GuiRenderState.isHudHidden}, each
+ * guarding the same {@code ItemInHandRenderer} call. So the HUD goes only where the hand
+ * is unwanted anyway: third person, and a world backdrop behind the workshop figure. The
+ * first-person view keeps the HUD, because the alternative is keeping no arm.
  *
  * <p><strong>No second mixin.</strong> Everything here is public API, checked with
  * {@code javap} on both jars: {@code Minecraft#setCameraEntity},
@@ -49,7 +62,6 @@ import net.minecraft.world.entity.Entity;
  */
 public final class GameCamera {
     private static final float DEGREES_PER_PIXEL = 0.35F;
-    private static final float PITCH_LIMIT = 89.0F;
 
     private final Minecraft client;
 
@@ -59,10 +71,14 @@ public final class GameCamera {
     private float borrowedYaw;
     private float borrowedPitch;
     private float borrowedBodyYaw;
+    private float borrowedHeadYaw;
     private boolean holding;
 
-    /** Where the body is held while the view goes round it. */
+    /** Where the body and the head are held while the view goes round them. */
     private float pinnedBodyYaw;
+
+    /** The view currently held, so ticking can keep re-pinning what the game moves. */
+    private CameraMode held = CameraMode.WORKSHOP;
 
     public GameCamera(Minecraft client) {
         this.client = client;
@@ -81,8 +97,13 @@ public final class GameCamera {
      * necessarily the player: somebody spectating an entity when they opened the editor
      * would otherwise be shown that entity.
      */
-    public void take(CameraMode mode) {
-        if (!mode.takesGameCamera() || !available()) {
+    public void take(CameraMode mode, boolean worldBackdrop) {
+        // A world backdrop behind the workshop figure needs the camera too, and for the
+        // opposite reason: there the game must draw the world and *nothing else*, so it
+        // goes to first person — which is how the level renderer is told to skip the
+        // player — with the HUD off, which takes the hand with it.
+        boolean wanted = mode.takesGameCamera() || worldBackdrop;
+        if (!wanted || !available()) {
             release();
             return;
         }
@@ -95,17 +116,45 @@ public final class GameCamera {
             this.borrowedYaw = player.getYRot();
             this.borrowedPitch = player.getXRot();
             this.borrowedBodyYaw = player.yBodyRot;
+            this.borrowedHeadYaw = player.yHeadRot;
             this.pinnedBodyYaw = player.yBodyRot;
             this.holding = true;
         }
+        this.held = mode;
 
         this.client.options.setCameraType(mode == CameraMode.IN_GAME
                 ? CameraType.THIRD_PERSON_BACK
                 : CameraType.FIRST_PERSON);
         this.client.setCameraEntity(player);
-        // The hotbar, the hearts and the crosshair are drawn over the world whether or
-        // not a screen is open, and they land straight on top of the arm.
-        hideHud(true);
+        // Everywhere but first person, where the same flag would take the arm away.
+        hideHud(mode != CameraMode.FIRST_PERSON);
+
+        if (mode == CameraMode.IN_GAME) {
+            hold();
+        }
+    }
+
+    /**
+     * Re-pins what the game would otherwise move.
+     *
+     * <p>Called every tick while the in-game view holds. A tick lerps the head towards
+     * the view and drags the body after it once the two are far enough apart, so pinning
+     * once at the start lasts exactly until the next tick — which is every tick on a
+     * server, where the editor does not pause anything.
+     */
+    public void hold() {
+        LocalPlayer player = this.client.player;
+        if (!this.holding || player == null || this.held != CameraMode.IN_GAME) {
+            return;
+        }
+        player.setXRot(0);
+        player.xRotO = 0;
+        player.yBodyRot = this.pinnedBodyYaw;
+        player.yBodyRotO = this.pinnedBodyYaw;
+        // The head is pinned to the body, not to the view: the camera is what goes
+        // round, and the character is meant to stand there and be looked at.
+        player.yHeadRot = this.pinnedBodyYaw;
+        player.yHeadRotO = this.pinnedBodyYaw;
     }
 
     /**
@@ -120,28 +169,26 @@ public final class GameCamera {
         if (!this.holding || player == null || mode != CameraMode.IN_GAME) {
             return;
         }
+        // Horizontal only. The vertical drag is dropped on purpose: see the note on
+        // xRot above — tilting the camera is tilting the head.
         float yaw = player.getYRot() + (float) dragX * DEGREES_PER_PIXEL;
-        float pitch = SceneCamera.clamp(player.getXRot() + (float) dragY * DEGREES_PER_PIXEL,
-                -PITCH_LIMIT, PITCH_LIMIT);
         player.setYRot(yaw);
-        player.setXRot(pitch);
-        player.setYHeadRot(yaw);
-        // Pinned, so the character keeps facing the way they were while the camera goes
-        // round them. Without this the body turns with the view and the same side stays
-        // towards the camera for ever.
-        player.yBodyRot = this.pinnedBodyYaw;
-        player.yBodyRotO = this.pinnedBodyYaw;
+        player.yRotO = yaw;
+        hold();
     }
 
-    /** Faces the character the way they were when the editor opened. */
+    /** Faces the character exactly the way they were when the editor opened. */
     public void recentre() {
         LocalPlayer player = this.client.player;
         if (!this.holding || player == null) {
             return;
         }
         player.setYRot(this.borrowedYaw);
+        player.yRotO = this.borrowedYaw;
         player.setXRot(this.borrowedPitch);
-        player.setYHeadRot(this.borrowedYaw);
+        player.xRotO = this.borrowedPitch;
+        player.setYHeadRot(this.borrowedHeadYaw);
+        player.yHeadRotO = this.borrowedHeadYaw;
         player.yBodyRot = this.borrowedBodyYaw;
         player.yBodyRotO = this.borrowedBodyYaw;
     }
@@ -166,6 +213,7 @@ public final class GameCamera {
         hideHud(this.borrowedHud);
         this.borrowedType = null;
         this.borrowedEntity = null;
+        this.held = CameraMode.WORKSHOP;
     }
 
     /**
