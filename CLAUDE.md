@@ -43,7 +43,7 @@ src/main/java/fr/clixmods/mcsc/mod/
 ├── catalog/                   what the catalogue says: regions, categories, elements, crops,
 │                               and the ready-made models and outfits it offers
 ├── skin/                      pixels: front sprites, category and model sheets, the previewed
-│                               skin, the blend behind a model's picture, textures
+│                               skin, the stack composed through mcsc-engine, textures
 ├── project/                   what is being edited: the layer stack and its history
 ├── scene/                     how the character is looked at: the camera, the backdrop,
 │                               the animations in the game's own terms, the render state
@@ -74,7 +74,8 @@ and there never should be.
 
 `src/test/java/` holds the tests, and is shared the same way: every target compiles
 and runs all of them. They cover the pure logic — the layer stack and its history,
-the project body sent to the server, the catalogue reader and its fallbacks — and
+what that stack composes to, the project document, the catalogue reader and its
+fallbacks — and
 need no game, though they do resolve against the target's Minecraft jar for
 `Component` and `PlayerModelType`. Nothing that draws is tested: that is what
 running the game is for.
@@ -314,6 +315,45 @@ table — because the same version runs on Java 21 and on Java 25 alike. It is p
 through the JUnit BOM, so the engine, the parameterised runner and the launcher all
 follow that one number.
 
+### `mcsc-engine`, and the two lines it takes
+
+The texture engine — `fr.clixmods.mcsc:mcsc-engine`, from the public repository
+[`mcskincreator-engine`](https://github.com/MC-Skin-Creator/mcskincreator-engine) —
+is the site's own composition, taken out of it so this mod does not write a fourth
+port of the same calculation. It is the only third-party code that ships to players
+with the mod, and it carries nothing of its own: its build fails on a single
+production dependency, because this jar travels inside ours.
+
+```kotlin
+val engine = "fr.clixmods.mcsc:mcsc-engine:${property("deps.mcsc_engine")}"
+implementation(engine)   // compile against it
+include(engine)          // and put it inside the jar
+```
+
+**`include` is not optional.** With `implementation` alone the mod compiles, the
+tests pass, and the game dies on a `NoClassDefFoundError`: nothing put the library
+in the shipped jar, and Minecraft resolves no Maven dependency at startup. The build
+gives no warning whatsoever; the first sign is a crash report from a player. What to
+check after touching this is the jar itself — `META-INF/jars/mcsc-engine-<version>.jar`
+has to be in it, and `fabric.mod.json` has to name it.
+
+**The version is pinned, and there is no `SNAPSHOT`.** The engine decides what a
+player's skin looks like, and the mod sits on one version for months.
+
+**GitHub Packages asks for a token even for a public package**, which is the one
+thing this dependency adds to the build. Locally, put a personal token with the
+`read:packages` scope in `~/.gradle/gradle.properties`:
+
+```properties
+gpr.user=your-github-account
+gpr.token=ghp_…
+```
+
+`GITHUB_ACTOR` and `GITHUB_TOKEN` are read as a fallback, which is what CI uses.
+Without either, the build fails on **401** while resolving `mcsc-engine` — not on a
+compile error. The repository declaration is scoped to `fr.clixmods.mcsc`, so
+nothing else is ever looked up there.
+
 ## Adding a Minecraft version
 
 1. Add the node in `settings.gradle.kts` (`versions(…)` or `version(alias, value)`).
@@ -335,7 +375,9 @@ tests, uploads the test report when something failed, and uploads its jar as a
 **workflow artifact** (`retention-days: 7`) so a PR can be test-installed before it
 merges — this is not a release: no tag, no GitHub release,
 `mod.version` unchanged. It deliberately does not run on `main` or `develop`, where
-`release.yml` compiles the same commit anyway. No secret is declared.
+`release.yml` compiles the same commit anyway. Both workflows take `packages: read`
+and hand the run's `GITHUB_TOKEN` to Gradle, which is what resolving `mcsc-engine`
+needs; no other secret is declared.
 
 ## Branch model
 

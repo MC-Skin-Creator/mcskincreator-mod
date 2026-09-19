@@ -16,6 +16,25 @@ val requiredJava: JavaVersion = when {
     else -> JavaVersion.VERSION_21
 }
 
+repositories {
+    // The texture engine lives on GitHub Packages, which asks for a token even for a
+    // public package. A contributor passes one on the command line or in
+    // ~/.gradle/gradle.properties (gpr.user / gpr.token); CI hands over the run's own
+    // GITHUB_ACTOR and GITHUB_TOKEN. The repository is scoped to the engine's group,
+    // so no other dependency is ever looked up here - and so a missing token fails on
+    // that one line rather than on everything.
+    maven("https://maven.pkg.github.com/MC-Skin-Creator/mcskincreator-engine") {
+        name = "mcscEngine"
+        credentials {
+            username = providers.gradleProperty("gpr.user")
+                    .orElse(providers.environmentVariable("GITHUB_ACTOR")).orNull
+            password = providers.gradleProperty("gpr.token")
+                    .orElse(providers.environmentVariable("GITHUB_TOKEN")).orNull
+        }
+        content { includeGroup("fr.clixmods.mcsc") }
+    }
+}
+
 dependencies {
     fun fapi(vararg modules: String) {
         for (it in modules) modImplementation(fabricApi.module(it, sc.properties["deps.fabric_api"]))
@@ -29,6 +48,16 @@ dependencies {
     modImplementation("net.fabricmc:fabric-loader:${property("deps.fabric_loader")}")
     // Only the module the mod actually uses, to keep each target's setup quick.
     fapi("fabric-screen-api-v1")
+
+    // The texture engine: the site's composition, taken out of it so the mod does not
+    // write a fourth port of the same calculation (js/, TypeScript, the server's Java).
+    // include() is not optional under Fabric: with implementation alone the mod
+    // compiles and then dies in game on a NoClassDefFoundError, because nothing put
+    // the library inside the shipped jar - the build says nothing, and the first sign
+    // is a crash report from a player.
+    val engine = "fr.clixmods.mcsc:mcsc-engine:${property("deps.mcsc_engine")}"
+    implementation(engine)
+    include(engine)
 
     // JUnit 5, one version for every target. Nothing else is declared for the tests:
     // Loom already puts this target's own Minecraft jar on their classpath, which is
