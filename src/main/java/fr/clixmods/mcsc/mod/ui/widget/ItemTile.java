@@ -106,7 +106,11 @@ public class ItemTile extends Element {
             this.onHover.accept(hot ? this : null);
         }
 
-        Surface.slot(canvas, this.x, this.y, this.width, this.height);
+        // Hovered is the slot's own colour, drawn once, underneath. It used to be a
+        // second slot laid over the finished tile — which is a filled rectangle, so
+        // pointing at an element hid the element and its name behind a grey box.
+        Surface.slot(canvas, this.x, this.y, this.width, this.height,
+                hot ? Palette.SLOT_HOVER : Palette.SLOT);
 
         int inset = Metrics.SLOT_INSET + Metrics.THUMB_PAD;
         int boxX = this.x + inset;
@@ -118,10 +122,8 @@ public class ItemTile extends Element {
         // The checker says "transparent here", so an element with holes does not read
         // as an element with black in it.
         Surface.checker(canvas, boxX, boxY, boxWidth, boxHeight);
-        canvas.pushScissor(boxX, boxY, boxWidth, boxHeight);
         Thumbnail.draw(canvas, this.sprites.get(), this.item.atlasIndex(this.slim.get()),
                 this.category.thumbCrop(this.item), boxX, boxY, boxWidth, boxHeight);
-        canvas.popScissor();
 
         // The label at the half size, which is what lets a name be a name. At the full
         // size a tile this wide held five letters, and a column of "Cheve..." tells you
@@ -129,10 +131,6 @@ public class ItemTile extends Element {
         int labelY = boxY + boxHeight + Metrics.THUMB_PAD;
         this.marquee.drawSmall(paint, this.label, boxX, labelY, boxWidth,
                 hot ? Palette.INK_HOVERED : Palette.INK_MUTED, hot);
-
-        if (hot) {
-            Surface.slotHighlight(canvas, this.x, this.y, this.width, this.height);
-        }
 
         // Already in the stack: a small square, top right, in the site's lime.
         if (this.used.test(this.item)) {
@@ -152,9 +150,8 @@ public class ItemTile extends Element {
             boolean over = paint.over(mark[0], mark[1], mark[2], mark[3]);
             Surface.button(canvas, mark[0], mark[1], mark[2], mark[3],
                     Surface.Tone.NEUTRAL, over, false);
-            canvas.textSmall(Component.literal("i"),
-                    mark[0] + (mark[2] - canvas.smallTextWidth("i")) / 2,
-                    mark[1] + (mark[3] - canvas.smallLineHeight()) / 2,
+            canvas.textCentered(Component.literal("i"), mark[0] + mark[2] / 2,
+                    mark[1] + (mark[3] - canvas.lineHeight()) / 2,
                     over ? Palette.INK_HOVERED : Palette.INK);
         }
     }

@@ -22,6 +22,11 @@ import fr.clixmods.mcsc.mod.ui.Canvas;
  * skin, and the whole point of a pixel editor is that it is not — so the thumbnail is
  * centred in its box at the largest whole multiple that fits rather than stretched to
  * fill it.
+ *
+ * <p>And it never draws outside that box: a crop too big for its box even at a scale of
+ * one is narrowed at the source rather than clipped, so no caller needs a scissor. That
+ * matters more than it sounds — a scissor flushes the interface's draw batch, so one per
+ * thumbnail is one flush per thumbnail, and a grid of them crawls.
  */
 public final class Thumbnail {
     private Thumbnail() {
@@ -43,14 +48,23 @@ public final class Thumbnail {
         // cannot show are past rescuing, and come out empty either way.
         ThumbCrop shown = sprites.covers(index, crop) ? crop : ThumbCrop.ALL;
         int scale = Math.max(1, Math.min(boxWidth / shown.width(), boxHeight / shown.height()));
-        int drawnWidth = shown.width() * scale;
-        int drawnHeight = shown.height() * scale;
+
+        // A crop too big for its box at the smallest whole scale is narrowed at the
+        // source instead of being drawn past the edges. Clipping it with a scissor
+        // would work and would cost a batch flush per thumbnail, which on a grid of
+        // forty is forty — the models window was unusable for exactly that reason.
+        int sourceWidth = Math.min(shown.width(), Math.max(1, boxWidth / scale));
+        int sourceHeight = Math.min(shown.height(), Math.max(1, boxHeight / scale));
+        int sourceX = shown.x() + (shown.width() - sourceWidth) / 2;
+        int sourceY = shown.y() + (shown.height() - sourceHeight) / 2;
+        int drawnWidth = sourceWidth * scale;
+        int drawnHeight = sourceHeight * scale;
 
         canvas.blit(sprites.texture(),
                 boxX + (boxWidth - drawnWidth) / 2, boxY + (boxHeight - drawnHeight) / 2,
                 drawnWidth, drawnHeight,
-                sprites.spriteU(index) + shown.x(), sprites.spriteV(index) + shown.y(),
-                shown.width(), shown.height(),
+                sprites.spriteU(index) + sourceX, sprites.spriteV(index) + sourceY,
+                sourceWidth, sourceHeight,
                 sprites.sheetWidth(), sprites.sheetHeight());
         return true;
     }

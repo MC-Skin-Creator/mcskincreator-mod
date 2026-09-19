@@ -12,7 +12,6 @@ import java.util.function.Consumer;
 
 import java.util.function.Supplier;
 
-import fr.clixmods.mcsc.mod.catalog.ThumbCrop;
 import fr.clixmods.mcsc.mod.project.Layer;
 import fr.clixmods.mcsc.mod.skin.CategorySprites;
 import fr.clixmods.mcsc.mod.style.Metrics;
@@ -145,14 +144,13 @@ public class LayerRow extends Element {
         int previewY = this.y + (this.height - preview) / 2;
         Surface.slot(canvas, cursorX, previewY, preview, preview);
         int inner = Metrics.SLOT_INSET;
-        canvas.pushScissor(cursorX + inner, previewY + inner,
-                preview - inner * 2, preview - inner * 2);
-        Surface.checker(canvas, cursorX + inner, previewY + inner,
-                preview - inner * 2, preview - inner * 2);
+        int picture = preview - inner * 2;
+        Surface.checker(canvas, cursorX + inner, previewY + inner, picture, picture);
+        // The layer's own crop, the same one the library tile used. Asking for the
+        // whole body here drew the middle fifteen rows of it — the torso — so every
+        // hat, every pair of eyes and every hairstyle came out blank.
         Thumbnail.draw(canvas, this.sprites.get(), this.layer.atlasIndex(this.slim.get()),
-                ThumbCrop.ALL, cursorX + inner, previewY + inner,
-                preview - inner * 2, preview - inner * 2);
-        canvas.popScissor();
+                this.layer.thumbCrop(), cursorX + inner, previewY + inner, picture, picture);
         cursorX += preview + Metrics.PAD_TIGHT;
 
         // The actions keep their room whether or not they are drawn, so a name does not

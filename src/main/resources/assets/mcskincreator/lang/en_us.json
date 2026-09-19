@@ -63,7 +63,7 @@
   "gui.mcskincreator.redo.tooltip": "Do again what was just undone",
   "gui.mcskincreator.export": "Export",
   "gui.mcskincreator.export.tooltip": "Get the skin out of the game",
-  "gui.mcskincreator.search": "search…",
+  "gui.mcskincreator.search": "Search for an element…",
   "gui.mcskincreator.fold": "Fold",
   "gui.mcskincreator.fold.tooltip": "Fold this panel away",
   "gui.mcskincreator.unfold": "Unfold",
@@ -187,5 +187,6 @@
   "toast.mcskincreator.model_applied": "%s: %s layers",
   "toast.mcskincreator.outfit_applied": "%s put on: %s layers",
   "toast.mcskincreator.model_empty": "Nothing left of it in the catalogue",
-  "window.mcskincreator.models.notice": "A whole character. Choosing one replaces everything you have stacked — one undo brings it back."
+  "window.mcskincreator.models.notice": "A whole character. Choosing one replaces everything you have stacked — one undo brings it back.",
+  "library.mcskincreator.all_categories": "All (%s)"
 }

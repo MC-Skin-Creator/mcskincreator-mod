@@ -63,7 +63,7 @@
   "gui.mcskincreator.redo.tooltip": "Rehacer lo que se acaba de deshacer",
   "gui.mcskincreator.export": "Exportar",
   "gui.mcskincreator.export.tooltip": "Sacar la skin del juego",
-  "gui.mcskincreator.search": "buscar…",
+  "gui.mcskincreator.search": "Buscar un elemento…",
   "gui.mcskincreator.fold": "Plegar",
   "gui.mcskincreator.fold.tooltip": "Plegar este panel",
   "gui.mcskincreator.unfold": "Desplegar",
@@ -187,5 +187,6 @@
   "toast.mcskincreator.model_applied": "%s: %s capas",
   "toast.mcskincreator.outfit_applied": "%s puesto: %s capas",
   "toast.mcskincreator.model_empty": "No queda nada de él en el catálogo",
-  "window.mcskincreator.models.notice": "Un personaje entero. Elegir uno reemplaza todo lo que has apilado — deshacer lo devuelve."
+  "window.mcskincreator.models.notice": "Un personaje entero. Elegir uno reemplaza todo lo que has apilado — deshacer lo devuelve.",
+  "library.mcskincreator.all_categories": "Todo (%s)"
 }

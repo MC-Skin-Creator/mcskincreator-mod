@@ -26,9 +26,11 @@ import net.minecraft.resources.Identifier;
 /**
  * The strip across the top: the mark, the beta badge, and the tools.
  *
- * <p>When the window is too narrow for everything, the order changes rather than the
- * buttons wrapping: export, then undo and redo, go first — those are the ones nobody
- * should have to hunt for.
+ * <p>Export sits at the right end and stays there: it is the control that finishes the
+ * job, and one that finishes the job belongs at the end of the row rather than floating
+ * in the middle of it, where it moved every time a neighbour appeared. Everything else
+ * runs from the mark leftwards, and when the window is too narrow the buttons furthest
+ * from either end are dropped rather than wrapped onto a second row the bar has not got.
  *
  * <p>Two of the site's controls are deliberately absent. The random outfit has nothing
  * behind it yet, and a button whose target is empty disappears instead of opening onto
@@ -127,15 +129,21 @@ public class TopBar extends Element {
             button.fit(canvas);
         }
 
-        // Roomy: the site's order, grouped by separators. Cramped: the three controls
-        // one must never hunt for come first, and the rest take what is left.
-        List<PixelButton> starting = this.hasModels.getAsBoolean()
-                ? List.of(fresh, models, skins) : List.of(fresh, skins);
-        List<List<PixelButton>> groups = fits(cursorX, all)
-                ? List.of(starting, List.of(undo, redo), List.of(export))
-                : List.of(List.of(export), List.of(undo, redo), starting);
-
+        // Export is pinned to the right end of the bar and nothing else goes there.
+        // It is the one control that finishes the job, and a control that finishes the
+        // job belongs at the end of the row rather than somewhere in the middle of it,
+        // where it moved every time a neighbour appeared or went away.
         int right = this.x + this.width - Metrics.PAD_TIGHT;
+        export.setBounds(right - export.width(), buttonY, export.width(),
+                Metrics.BUTTON_HEIGHT_COMPACT);
+        this.children.add(export);
+        right -= export.width() + Metrics.PAD;
+        this.separators.add(right + Metrics.PAD / 2);
+
+        List<PixelButton> starting = new ArrayList<>(this.hasModels.getAsBoolean()
+                ? List.of(fresh, models, skins) : List.of(fresh, skins));
+        List<List<PixelButton>> groups = List.of(starting, List.of(undo, redo));
+
         boolean firstGroup = true;
         for (List<PixelButton> group : groups) {
             if (group.isEmpty()) {
@@ -158,14 +166,6 @@ public class TopBar extends Element {
                 cursorX += button.width() + Metrics.SEGMENT_GAP;
             }
         }
-    }
-
-    private boolean fits(int from, List<PixelButton> buttons) {
-        int total = from;
-        for (PixelButton button : buttons) {
-            total += button.width() + Metrics.SEGMENT_GAP;
-        }
-        return total + Metrics.PAD * 3 <= this.x + this.width;
     }
 
     /** The badge is small: it says what the product is, not what to do next. */

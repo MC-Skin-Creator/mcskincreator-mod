@@ -98,7 +98,6 @@ public class ScenePanel extends Element {
     private boolean dragging;
     private boolean panning;
 
-    private int[] dock = {0, 0, 0, 0};
     private int[] viewport = {0, 0, 0, 0};
 
     /** Everything below the top bar: how far the figure may paint, columns included. */
@@ -226,8 +225,116 @@ public class ScenePanel extends Element {
         int viewHeight = Math.max(0, this.height - (viewTop - this.y));
         this.viewport = new int[] {this.x, viewTop, this.width, viewHeight};
 
+        layoutBar(canvas, barY, cursorX);
         layoutModel(viewTop, viewHeight);
-        layoutDock(canvas);
+        layoutPlay(viewTop, viewHeight);
+    }
+
+    /**
+     * The workshop's own controls, on the right of the same strip the view tabs are on.
+     *
+     * <p>They used to be a floating panel over the figure, which was wrong twice: it sat
+     * on a bar of its own at a different height from the tabs, so the scene had two
+     * toolbars that did not line up, and being a panel over the scene it showed the
+     * world through the gap around it. One strip, one height, one edge.
+     *
+     * @param taken where the view tabs stopped, so nothing is laid on top of them
+     */
+    /** The cameras this screen can offer: the workshop always, the world ones in one. */
+    private List<CameraMode> availableCameras() {
+        List<CameraMode> cameras = new ArrayList<>();
+        for (CameraMode mode : CameraMode.values()) {
+            if (!mode.needsWorld() || this.gameCamera.available()) {
+                cameras.add(mode);
+            }
+        }
+        return cameras;
+    }
+
+    /** One of the workshop's settings: a dropdown the width of the widest of them. */
+    private <T> Dropdown<T> chooser(List<T> options, java.util.function.Function<T, Component> naming,
+                                    Supplier<T> read, java.util.function.Consumer<T> write) {
+        Dropdown<T> dropdown = new Dropdown<>(options, naming, read, write, candidate -> true);
+        dropdown.setBounds(0, 0, Metrics.ui(96), Metrics.TAB_HEIGHT);
+        dropdown.inScreen(this.y + this.height);
+        return dropdown;
+    }
+
+    private void layoutBar(Canvas canvas, int barY, int taken) {
+        List<Element> docked = new ArrayList<>();
+
+        List<CameraMode> cameras = availableCameras();
+        if (cameras.size() > 1) {
+            docked.add(chooser(cameras, mode -> Component.translatable(mode.labelKey()),
+                    () -> this.cameraMode, this::chooseCamera));
+        }
+
+        if (this.cameraMode == CameraMode.WORKSHOP && this.gameCamera.available()) {
+            // Only where there is a world to put behind the figure. On the title screen
+            // the choice has one answer, and a chooser with one answer is a dead control.
+            docked.add(chooser(List.of(SceneBackdrop.values()),
+                    candidate -> Component.translatable(candidate.labelKey()),
+                    () -> this.backdrop, this::chooseBackdrop));
+        }
+
+        if (this.cameraMode != CameraMode.FIRST_PERSON) {
+            docked.add(chooser(List.of(ScenePose.values()),
+                    candidate -> Component.translatable(candidate.labelKey()),
+                    () -> this.pose, this::choosePose));
+        }
+
+        if (this.cameraMode == CameraMode.FIRST_PERSON) {
+            PixelButton swing = new PixelButton(Component.translatable("gui.mcskincreator.swing"),
+                    PixelButton.Style.NORMAL, this.gameCamera::swing);
+            swing.fit(canvas);
+            swing.withTooltip(Component.translatable("gui.mcskincreator.swing.tooltip"));
+            docked.add(swing);
+        }
+
+        PixelButton recentre = new PixelButton(
+                Component.translatable("gui.mcskincreator.recentre"),
+                PixelButton.Style.NORMAL, this::recentre);
+        recentre.fit(canvas);
+        recentre.withTooltip(Component.translatable("gui.mcskincreator.recentre.tooltip"));
+        docked.add(recentre);
+
+        // Laid out right to left from the end of the bar, and anything that would run
+        // into the view tabs is dropped rather than drawn over them.
+        int cursorX = this.x + this.width - Metrics.PAD_TIGHT;
+        for (int index = docked.size() - 1; index >= 0; index--) {
+            Element control = docked.get(index);
+            if (cursorX - control.width() < taken) {
+                continue;
+            }
+            cursorX -= control.width();
+            control.setBounds(cursorX, barY, control.width(), Metrics.TAB_HEIGHT);
+            this.controls.add(control);
+            cursorX -= Metrics.SEGMENT_GAP;
+        }
+    }
+
+    /**
+     * Play, bottom right of the figure: a square with a triangle or two bars on it.
+     *
+     * <p>It was a word in the strip with the choosers, which put the one control you
+     * press repeatedly among the ones you set once. It belongs on the picture it
+     * animates, in the corner, at the size of every other mark in this interface.
+     */
+    private void layoutPlay(int viewTop, int viewHeight) {
+        if (this.cameraMode == CameraMode.FIRST_PERSON || viewHeight <= 0) {
+            return;
+        }
+        PixelButton play = new PixelButton(
+                Component.translatable(this.playing
+                        ? "gui.mcskincreator.stop" : "gui.mcskincreator.play"),
+                PixelButton.Style.NORMAL, this::togglePlaying);
+        play.withGlyph(this.playing ? PixelButton.Glyph.PAUSE : PixelButton.Glyph.PLAY);
+        play.withTooltip(Component.translatable(this.playing
+                ? "gui.mcskincreator.stop.tooltip" : "gui.mcskincreator.play.tooltip"));
+        int size = Metrics.BUTTON_HEIGHT;
+        play.setBounds(this.x + this.width - Metrics.PAD_TIGHT - size,
+                viewTop + viewHeight - Metrics.PAD_TIGHT - size, size, size);
+        this.controls.add(play);
     }
 
     /**
@@ -263,145 +370,6 @@ public class ScenePanel extends Element {
      * the whole screen and on a desktop with both panels open it is a third of it, and
      * the same row of controls has to sit in both.
      */
-    private void layoutDock(Canvas canvas) {
-        List<Element> docked = new ArrayList<>();
-
-        List<CameraMode> cameras = availableCameras();
-        if (cameras.size() > 1) {
-            docked.add(chooser(cameras, mode -> Component.translatable(mode.labelKey()),
-                    () -> this.cameraMode, this::chooseCamera));
-        }
-
-        if (this.cameraMode == CameraMode.WORKSHOP && this.gameCamera.available()) {
-            // Only where there is a world to put behind the figure. On the title screen
-            // the choice has one answer, and a chooser with one answer is a dead control.
-            docked.add(chooser(List.of(SceneBackdrop.values()),
-                    candidate -> Component.translatable(candidate.labelKey()),
-                    () -> this.backdrop, this::chooseBackdrop));
-        }
-
-        // Both figures animate: the workshop one because the mod builds it, the one in
-        // the world because the mixin poses it on its way to being drawn.
-        if (this.cameraMode != CameraMode.FIRST_PERSON) {
-            PixelButton play = new PixelButton(
-                    Component.translatable(this.playing
-                            ? "gui.mcskincreator.stop"
-                            : "gui.mcskincreator.play"),
-                    PixelButton.Style.NORMAL, this::togglePlaying);
-            play.fit(canvas).setActive(this.playing);
-            play.withTooltip(Component.translatable(this.playing
-                    ? "gui.mcskincreator.stop.tooltip"
-                    : "gui.mcskincreator.play.tooltip"));
-            docked.add(play);
-
-            docked.add(chooser(List.of(ScenePose.values()),
-                    candidate -> Component.translatable(candidate.labelKey()),
-                    () -> this.pose, this::choosePose));
-        }
-
-        if (this.cameraMode == CameraMode.FIRST_PERSON) {
-            PixelButton swing = new PixelButton(Component.translatable("gui.mcskincreator.swing"),
-                    PixelButton.Style.NORMAL, this.gameCamera::swing);
-            swing.fit(canvas);
-            swing.withTooltip(Component.translatable("gui.mcskincreator.swing.tooltip"));
-            docked.add(swing);
-        }
-
-        PixelButton recentre = new PixelButton(
-                Component.translatable("gui.mcskincreator.recentre"),
-                PixelButton.Style.GHOST, this::recentre);
-        recentre.fit(canvas);
-        recentre.withTooltip(Component.translatable("gui.mcskincreator.recentre.tooltip"));
-        docked.add(recentre);
-
-        placeDock(docked);
-    }
-
-    private <T> Dropdown<T> chooser(List<T> options, java.util.function.Function<T, Component> naming,
-                                    Supplier<T> read, java.util.function.Consumer<T> write) {
-        Dropdown<T> dropdown = new Dropdown<>(options, naming, read, write, candidate -> true);
-        dropdown.setBounds(0, 0, Metrics.ui(96), Metrics.TAB_HEIGHT);
-        dropdown.inScreen(this.y + this.height);
-        return dropdown;
-    }
-
-    /** Which cameras have something to show, so which ones are worth offering. */
-    private List<CameraMode> availableCameras() {
-        List<CameraMode> cameras = new ArrayList<>();
-        for (CameraMode mode : CameraMode.values()) {
-            if (!mode.needsWorld() || this.gameCamera.available()) {
-                cameras.add(mode);
-            }
-        }
-        return cameras;
-    }
-
-    /**
-     * Fills the dock from the top right, wrapping downwards.
-     *
-     * <p>The rows are filled last control first, so the one that matters least is the
-     * one that gets pushed onto a row of its own.
-     */
-    private void placeDock(List<Element> docked) {
-        int gap = Metrics.SEGMENT_GAP;
-        int rowHeight = Metrics.TAB_HEIGHT;
-        int usable = Math.max(rowHeight,
-                this.width - Metrics.PAD_TIGHT * 2 - Metrics.PANEL_INSET * 2);
-
-        List<List<Element>> rows = new ArrayList<>();
-        List<Element> row = new ArrayList<>();
-        int rowWidth = 0;
-        for (int index = docked.size() - 1; index >= 0; index--) {
-            Element control = docked.get(index);
-            int wanted = Math.min(control.width(), usable);
-            control.setBounds(0, 0, wanted, rowHeight);
-            int added = row.isEmpty() ? wanted : wanted + gap;
-            if (!row.isEmpty() && rowWidth + added > usable) {
-                rows.add(row);
-                row = new ArrayList<>();
-                rowWidth = 0;
-                added = wanted;
-            }
-            row.add(control);
-            rowWidth += added;
-        }
-        if (!row.isEmpty()) {
-            rows.add(row);
-        }
-
-        int widest = 0;
-        for (List<Element> line : rows) {
-            int lineWidth = -gap;
-            for (Element control : line) {
-                lineWidth += control.width() + gap;
-            }
-            widest = Math.max(widest, lineWidth);
-        }
-
-        int dockWidth = widest + Metrics.PANEL_INSET * 2;
-        int dockHeight = rows.size() * rowHeight + (rows.size() - 1) * gap
-                + Metrics.PANEL_INSET * 2;
-        int dockX = this.x + this.width - Metrics.PAD_TIGHT - dockWidth;
-        // Top right, in every camera. It used to sit at the bottom and move out of the
-        // way in first person, where the game draws the hand — but a control that
-        // changes corner depending on the mode is a control you have to look for twice.
-        int dockY = this.viewport[1] + Metrics.PAD_TIGHT;
-        this.dock = new int[] {dockX, dockY, dockWidth, dockHeight};
-
-        // Rows were gathered last-first and each row right-to-left, so both loops walk
-        // back out again to put the first control top-left of the dock.
-        int rowY = dockY + dockHeight - Metrics.PANEL_INSET - rowHeight;
-        for (List<Element> line : rows) {
-            int controlX = dockX + dockWidth - Metrics.PANEL_INSET;
-            for (Element control : line) {
-                controlX -= control.width();
-                control.setBounds(controlX, rowY, control.width(), rowHeight);
-                this.controls.add(control);
-                controlX -= gap;
-            }
-            rowY -= rowHeight + gap;
-        }
-    }
 
     private void chooseBackdrop(SceneBackdrop backdrop) {
         if (this.backdrop == backdrop) {
@@ -492,16 +460,17 @@ public class ScenePanel extends Element {
             }
         }
 
-        // The view chooser is a tab bar, so it sits on a rule rather than floating over
-        // the figure. Floating it was the site's idea and it cost more than it gave: a
-        // strip with nothing under it reads as three loose boxes, and it was over the
-        // one thing on this screen worth looking at.
-        Surface.rule(canvas, this.x, this.y + Metrics.TAB_HEIGHT + Metrics.PAD_TIGHT, this.width);
+        // One strip across the top, with a ground of its own and a black edge under it:
+        // the view tabs on the left, the workshop's controls on the right. Floating them
+        // over the figure was the site's idea and it cost more than it gave — a control
+        // with the world showing round it reads as a sticker, and it sat on the one
+        // thing on this screen worth looking at.
+        int barBottom = this.y + Metrics.TAB_HEIGHT + Metrics.PAD_TIGHT;
+        Surface.flat(canvas, this.x, this.y, this.width, barBottom - this.y,
+                Palette.PANEL_HEADER);
+        canvas.fill(this.x, barBottom - 1, this.width, 1, Palette.OUTLINE);
 
-        // The two corner boxes are backdrops, so they go down before what sits on
-        // them. Drawing them afterwards is what left the dock looking like an empty
-        // frame: the panel was covering its own button.
-        drawDock(canvas);
+        // The corner box is a backdrop, so it goes down before what sits on it.
         drawCorner(canvas);
 
         for (Element control : this.controls) {
@@ -562,10 +531,6 @@ public class ScenePanel extends Element {
                 0, 0, size, size, size, size);
     }
 
-    private void drawDock(Canvas canvas) {
-        Surface.panel(canvas, this.dock[0], this.dock[1], this.dock[2], this.dock[3]);
-    }
-
     /**
      * Bottom left: the preview label above the reminder of what the gestures are.
      *
@@ -582,14 +547,15 @@ public class ScenePanel extends Element {
             lines.add(Component.translatable(key));
         }
 
-        // The gesture reminder is the smallest thing on the screen on purpose: it is
-        // read once, and after that it is furniture in the corner of the one panel the
-        // player actually came to look at.
-        int lineHeight = canvas.smallLineHeight() + 1;
+        // At the full size. It was the half size on the reasoning that it is read once
+        // and is furniture after that — but it is furniture laid on a picture rather
+        // than in a panel, and four pixels of letter on a lit backdrop is not read once,
+        // it is never read at all.
+        int lineHeight = canvas.lineHeight() + 1;
         int boxHeight = lines.size() * lineHeight + Metrics.PANEL_INSET * 2 - 1;
         int boxWidth = 0;
         for (Component line : lines) {
-            boxWidth = Math.max(boxWidth, canvas.smallTextWidth(line));
+            boxWidth = Math.max(boxWidth, canvas.textWidth(line));
         }
         boxWidth += Metrics.PANEL_INSET * 2;
 
@@ -599,7 +565,7 @@ public class ScenePanel extends Element {
 
         for (int index = 0; index < lines.size(); index++) {
             boolean isLabel = hovered != null && index == 0;
-            canvas.textSmall(lines.get(index), boxX + Metrics.PANEL_INSET,
+            canvas.textRinged(lines.get(index), boxX + Metrics.PANEL_INSET,
                     boxY + Metrics.PANEL_INSET + index * lineHeight,
                     isLabel ? Palette.INK_HOVERED : Palette.INK_MUTED);
         }

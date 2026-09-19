@@ -56,7 +56,7 @@ public class PixelButton extends Element {
      * where they are put, and they are the same marks the layer rows already use.
      */
     public enum Glyph {
-        NONE, PLUS, CHEVRON_LEFT, CHEVRON_RIGHT, CROSS
+        NONE, PLUS, CHEVRON_LEFT, CHEVRON_RIGHT, CROSS, PLAY, PAUSE
     }
 
     private final Component label;
@@ -206,6 +206,8 @@ public class PixelButton extends Element {
             case CROSS -> Surface.cross(canvas, left, top, size, ink);
             case CHEVRON_LEFT -> Surface.chevron(canvas, left, top, size, false, ink);
             case CHEVRON_RIGHT -> Surface.chevron(canvas, left, top, size, true, ink);
+            case PLAY -> Surface.play(canvas, left, top, size, ink);
+            case PAUSE -> Surface.pause(canvas, left, top, size, ink);
             default -> {
                 // NONE never reaches here.
             }

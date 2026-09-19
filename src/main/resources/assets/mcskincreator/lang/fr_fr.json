@@ -63,7 +63,7 @@
   "gui.mcskincreator.redo.tooltip": "Refaire ce qui vient d'être annulé",
   "gui.mcskincreator.export": "Exporter",
   "gui.mcskincreator.export.tooltip": "Sortir le skin du jeu",
-  "gui.mcskincreator.search": "chercher…",
+  "gui.mcskincreator.search": "Rechercher un élément…",
   "gui.mcskincreator.fold": "Replier",
   "gui.mcskincreator.fold.tooltip": "Replier ce panneau",
   "gui.mcskincreator.unfold": "Déplier",
@@ -187,5 +187,6 @@
   "toast.mcskincreator.model_applied": "%s : %s calques",
   "toast.mcskincreator.outfit_applied": "%s enfilée : %s calques",
   "toast.mcskincreator.model_empty": "Il n'en reste rien au catalogue",
-  "window.mcskincreator.models.notice": "Un personnage entier. En choisir un remplace tout ce que vous avez empilé — une annulation le rend."
+  "window.mcskincreator.models.notice": "Un personnage entier. En choisir un remplace tout ce que vous avez empilé — une annulation le rend.",
+  "library.mcskincreator.all_categories": "Tout (%s)"
 }

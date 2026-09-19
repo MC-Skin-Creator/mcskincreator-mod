@@ -274,6 +274,23 @@ public final class Surface {
         }
     }
 
+    /** Play: a filled triangle, which is what the sign has meant since tape decks. */
+    public static void play(Canvas canvas, int x, int y, int size, int ink) {
+        // Widest at the left edge and narrowing to a point on the right: the tip is
+        // where it is going.
+        int half = size / 2;
+        for (int column = 0; column <= half; column++) {
+            canvas.fill(x + column, y + column, 1, size - column * 2, ink);
+        }
+    }
+
+    /** Pause: two bars, as wide apart as they are wide. */
+    public static void pause(Canvas canvas, int x, int y, int size, int ink) {
+        int bar = Math.max(1, size / 3);
+        canvas.fill(x, y, bar, size, ink);
+        canvas.fill(x + size - bar, y, bar, size, ink);
+    }
+
     /** A plus: two bars, which is the one mark that means "add" in this interface. */
     public static void plus(Canvas canvas, int x, int y, int size, int ink) {
         int middle = (size - 1) / 2;
@@ -353,8 +370,18 @@ public final class Surface {
      * not read as an element with black in it.
      */
     public static void checker(Canvas canvas, int x, int y, int width, int height) {
-        checker(canvas, x, y, width, height, Metrics.CHECKER);
+        // The square doubles as the area grows, so the count stays bounded: a thumbnail
+        // gets the site's own eight-pixel square, and a model's portrait — which is
+        // twenty times the area — gets a bigger one rather than four hundred quads.
+        int cell = Metrics.CHECKER;
+        while (width / cell > CHECKER_LIMIT || height / cell > CHECKER_LIMIT) {
+            cell *= 2;
+        }
+        checker(canvas, x, y, width, height, cell);
     }
+
+    /** The most squares a checker draws along either edge. */
+    private static final int CHECKER_LIMIT = 16;
 
     /**
      * The same checker at a chosen square size.

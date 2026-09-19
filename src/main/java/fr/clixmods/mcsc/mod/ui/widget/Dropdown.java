@@ -32,6 +32,9 @@ import org.lwjgl.glfw.GLFW;
  * Escape closes the menu and stops there. Closing the window underneath as well is
  * the kind of thing that loses someone's work.
  *
+ * <p>An option may be null, which is how a list offers "any of them": the naming
+ * function is asked what to call it like any other.
+ *
  * @param <T> what the options stand for
  */
 public class Dropdown<T> extends Element {
@@ -115,7 +118,7 @@ public class Dropdown<T> extends Element {
             T option = this.options.get(index);
             int rowY = top + inset + index * row;
             boolean usable = this.available.test(option);
-            boolean current = option.equals(this.read.get());
+            boolean current = java.util.Objects.equals(option, this.read.get());
             boolean lit = usable && (index == this.highlighted
                     || paint.over(this.x, rowY, this.width, row));
 
