@@ -34,6 +34,10 @@ public final class PlayerFigure implements Figure {
     private int y;
     private int width;
     private int height;
+    private int stageX;
+    private int stageY;
+    private int stageWidth;
+    private int stageHeight;
 
     public PlayerFigure(PreviewSkin preview) {
         this.preview = preview;
@@ -48,11 +52,20 @@ public final class PlayerFigure implements Figure {
     }
 
     @Override
+    public void stage(int x, int y, int width, int height) {
+        this.stageX = x;
+        this.stageY = y;
+        this.stageWidth = width;
+        this.stageHeight = height;
+    }
+
+    @Override
     public void draw(Canvas canvas, SceneShot shot, int mouseX, int mouseY, float delta) {
         if (shot.drawnByTheGame() || this.width <= 0 || this.height <= 0) {
             return;
         }
         PosedPlayer.draw(canvas, this.preview.playerSkin(), shot.pose(), shot.playing(),
-                shot.seconds(), shot.eye(), this.x, this.y, this.width, this.height);
+                shot.seconds(), shot.eye(), this.x, this.y, this.width, this.height,
+                this.stageX, this.stageY, this.stageWidth, this.stageHeight);
     }
 }

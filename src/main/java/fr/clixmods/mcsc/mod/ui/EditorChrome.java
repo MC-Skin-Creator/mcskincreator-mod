@@ -125,6 +125,12 @@ public final class EditorChrome {
             layoutDrawers(canvas, top);
         }
 
+        // The figure may paint over everything below the top bar, not only over the
+        // column it stands in: zoomed in, a head that stopped at the library's edge was
+        // simply cut off in mid-air. The columns are painted after it, so what spills
+        // under them is covered rather than seen.
+        this.scene.setStage(0, top, width, height - top);
+
         this.library.layout(canvas);
         this.layers.layout(canvas);
         this.scene.layout(canvas);
@@ -210,7 +216,8 @@ public final class EditorChrome {
      *
      * <p>The ground is the game's own: the panorama behind a menu, the world behind a
      * pause screen. Painting over it would be replacing something the player's resource
-     * pack may well have chosen.
+     * pack may well have chosen. The scene paints its own over its own rectangle, but
+     * only when the backdrop chooser says to — that is the player asking.
      */
     public void draw(Paint paint, float delta) {
         this.topBar.draw(paint);

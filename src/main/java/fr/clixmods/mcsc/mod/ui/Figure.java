@@ -18,7 +18,7 @@ import fr.clixmods.mcsc.mod.scene.SceneShot;
  * figure — where the bar goes, how big the portrait may be, what the dock holds — is then
  * laid out and looked at without one.
  *
- * <p>Two methods, and it used to be six: the other four carried the turn, because the
+ * <p>Three methods, and it used to be six: the other four carried the turn, because the
  * figure was vanilla's player widget and the widget owned its own rotation. The scene has
  * a camera now, and a camera is not the figure's to keep — so the turn, the tilt, the
  * zoom and the pan live in {@code ScenePanel}, and arrive here as a {@link SceneShot}.
@@ -34,6 +34,18 @@ public interface Figure {
      * @param width zero when there is no room for a figure at all
      */
     void place(int x, int y, int width, int height);
+
+    /**
+     * Says how far the figure may paint, which is wider than where it stands.
+     *
+     * <p>{@link #place} decides the figure's size, so that it is the same at a given zoom
+     * whatever else is on screen; this decides only where the painting stops. They were
+     * one rectangle once, and zooming in then cut the head off in mid-air — the figure
+     * grew past a box sized for it at rest. The stage is everything below the top bar,
+     * columns included, because the columns are painted after the figure and cover what
+     * spills under them.
+     */
+    void stage(int x, int y, int width, int height);
 
     /**
      * Draws the figure as the scene currently wants it.

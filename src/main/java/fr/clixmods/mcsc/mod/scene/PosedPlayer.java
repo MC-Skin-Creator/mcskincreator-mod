@@ -67,13 +67,15 @@ public final class PosedPlayer {
      */
     public static void draw(Canvas canvas, PlayerSkin skin, ScenePose pose, boolean playing,
                             float seconds, SceneCamera camera,
-                            int x, int y, int width, int height) {
+                            int x, int y, int width, int height,
+                            int stageX, int stageY, int stageWidth, int stageHeight) {
         AvatarRenderState state = new AvatarRenderState();
         state.skin = skin;
         state.boundingBoxHeight = BOX_HEIGHT;
         state.boundingBoxWidth = BOX_WIDTH;
         pose.apply(state, seconds, playing);
-        submit(canvas, state, pose.spread(), camera, x, y, width, height);
+        submit(canvas, state, pose.spread(), camera, x, y, width, height,
+                stageX, stageY, stageWidth, stageHeight);
     }
 
     /**
@@ -83,8 +85,9 @@ public final class PosedPlayer {
      * @param spread how wide the figure gets, in blocks, so it can be fitted whole
      */
     private static void submit(Canvas canvas, EntityRenderState state, float spread,
-                               SceneCamera camera, int x, int y, int width, int height) {
-        if (width <= 0 || height <= 0) {
+                               SceneCamera camera, int x, int y, int width, int height,
+                               int stageX, int stageY, int stageWidth, int stageHeight) {
+        if (width <= 0 || height <= 0 || stageWidth <= 0 || stageHeight <= 0) {
             return;
         }
         float scale = Math.max(1.0F, Math.min(width / spread, height / FIT_HEIGHT)
@@ -109,13 +112,22 @@ public final class PosedPlayer {
         Quaternionf tilt = new Quaternionf().rotateX(camera.pitch());
         Quaternionf rotation = new Quaternionf().rotateZ((float) Math.PI).mul(tilt);
 
+        // The rectangle handed over does two jobs at once in the game's picture-in-picture
+        // path: it is the scissor, and its centre is where the figure is put. Only the
+        // first of those is wanted from the stage — the figure's own box decides where it
+        // stands — so the difference between the two centres is added back here, in
+        // blocks, which is pixels over the scale.
+        float offsetX = (x + width / 2.0F) - (stageX + stageWidth / 2.0F);
+        float offsetY = (y + height / 2.0F) - (stageY + stageHeight / 2.0F);
+
         // Half the box down puts the feet below the middle, so the figure sits in the
         // rectangle rather than hanging from its top. The pan is in pixels, so it is
         // divided by the scale — which is pixels per block — and a drag of ten pixels
         // moves the figure ten pixels whatever the zoom.
-        Vector3f translation = new Vector3f(camera.panX() / scale,
-                state.boundingBoxHeight / 2 + camera.panY() / scale, 0);
+        Vector3f translation = new Vector3f((camera.panX() + offsetX) / scale,
+                state.boundingBoxHeight / 2 + (camera.panY() + offsetY) / scale, 0);
 
-        canvas.entity(state, scale, translation, rotation, tilt, x, y, width, height);
+        canvas.entity(state, scale, translation, rotation, tilt,
+                stageX, stageY, stageWidth, stageHeight);
     }
 }

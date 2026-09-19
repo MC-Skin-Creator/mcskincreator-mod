@@ -35,6 +35,14 @@ public final class PreviewFigure implements Figure {
         this.height = height;
     }
 
+    /**
+     * Nothing to do: the stand-in never grows past its own box, so how far it would have
+     * been allowed to paint is not a thing this preview can show.
+     */
+    @Override
+    public void stage(int x, int y, int width, int height) {
+    }
+
     /** The box the player stands in: a hatch, a frame, and how big it came out. */
     @Override
     public void draw(Canvas canvas, SceneShot shot, int mouseX, int mouseY, float delta) {

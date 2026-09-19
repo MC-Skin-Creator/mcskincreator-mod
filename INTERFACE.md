@@ -239,7 +239,8 @@ pinned so they keep facing the way they were. That is real game state, saved and
 back. See `DECISIONS.md`, "The local player is only drawn when they are the camera".
 
 **The backdrop is a separate question from the camera.** `scene/SceneBackdrop` puts
-either the editor's own dark or the live world behind the workshop figure — which is
+either the editor's own dark (`Palette.VOID`, the site's own scene colour, and the one
+ground the editor paints for itself) or the live world behind the workshop figure — which is
 how the animations and the zoom stay available with a landscape behind them, since the
 in-game view shows the real character and a real character cannot be posed. It is a
 preference, never serialised.
@@ -253,6 +254,12 @@ The world backdrop also borrows the camera, for the opposite reason to the other
 first person plus the game's own HUD flag is how the game is asked to draw the world and
 nothing else, neither the character nor their hand. It is the one place that flag is
 still the right tool.
+
+**The figure's size and the figure's clipping are two rectangles, not one.** How big it
+is at a given zoom comes from a portrait box sized to the scene; how far it may paint is
+everything below the top bar, columns included. They were one rectangle, and zooming in
+then cut the head off in mid-air against an edge with nothing on it. The columns are
+painted after the figure, so what spills under them is covered rather than seen.
 
 The scene does not build the figure, though: it is handed a [`Figure`](src/main/java/fr/clixmods/mcsc/mod/ui/Figure.java)
 and works out how much room it may have. `PlayerFigure` is the game's one; the preview

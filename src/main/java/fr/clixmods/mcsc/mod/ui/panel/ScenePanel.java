@@ -101,6 +101,9 @@ public class ScenePanel extends Element {
     private int[] dock = {0, 0, 0, 0};
     private int[] viewport = {0, 0, 0, 0};
 
+    /** Everything below the top bar: how far the figure may paint, columns included. */
+    private int[] stage = {0, 0, 0, 0};
+
     public ScenePanel(PreviewSkin preview, Figure figure, GameCamera gameCamera,
                       Runnable relayout, Supplier<Component> hoveredLabel) {
         this.preview = preview;
@@ -112,6 +115,16 @@ public class ScenePanel extends Element {
 
     public View view() {
         return this.view;
+    }
+
+    /**
+     * Where the figure is allowed to paint, which is not where it stands.
+     *
+     * <p>Set by the chrome, because only the chrome knows the window. See
+     * {@link Figure#stage}.
+     */
+    public void setStage(int x, int y, int width, int height) {
+        this.stage = new int[] {x, y, width, height};
     }
 
     public List<Element> controls() {
@@ -233,10 +246,12 @@ public class ScenePanel extends Element {
         int width = height * PORTRAIT_WIDTH / PORTRAIT_HEIGHT;
         if (width <= 0 || height <= 0) {
             this.figure.place(this.x, viewTop, 0, 0);
+            this.figure.stage(this.stage[0], this.stage[1], this.stage[2], this.stage[3]);
             return;
         }
         this.figure.place(this.x + (space - width) / 2, viewTop + (viewHeight - height) / 2,
                 width, height);
+        this.figure.stage(this.stage[0], this.stage[1], this.stage[2], this.stage[3]);
     }
 
     /**
@@ -452,6 +467,14 @@ public class ScenePanel extends Element {
         Canvas canvas = paint.canvas();
         this.gameCamera.poseInWorld(this.pose, this.playing, animationSeconds(paint.time()));
         SceneShot shot = shot(paint.time());
+
+        // The one place in the editor that paints its own ground, and only because the
+        // player asked for it: the backdrop chooser says panel or world, and a panel that
+        // let the world through would be a chooser with one answer.
+        if (!showsWorld()) {
+            Surface.flat(canvas, this.x, this.viewport[1], this.width, this.viewport[3],
+                    Palette.VOID);
+        }
 
         switch (this.view) {
             case MODEL -> this.figure.draw(canvas, shot, paint.mouseX(), paint.mouseY(), delta);
