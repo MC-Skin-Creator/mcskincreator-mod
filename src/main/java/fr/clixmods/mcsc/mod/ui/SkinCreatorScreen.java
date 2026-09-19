@@ -73,6 +73,8 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import com.mojang.blaze3d.platform.NativeImage;
+import fr.clixmods.mcsc.mod.skin.SkinBlend;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.PlayerModelType;
 import org.lwjgl.glfw.GLFW;
@@ -226,6 +228,11 @@ public class SkinCreatorScreen extends Screen {
     private int composeGeneration;
     /** The last sheet the server sent back, which is what an export writes out. */
     private byte[] composed;
+    /** The composed stack decoded, so a blend does not decode a PNG twenty times a second. */
+    private NativeImage baseImage;
+    private byte[] baseOf;
+    /** The element under the pointer in the library, laid over the stack while it is. */
+    private byte[] hovered;
     /**
      * The project revision the preview is showing.
      *
@@ -343,14 +350,21 @@ public class SkinCreatorScreen extends Screen {
     }
 
     /**
-     * Shows an element on the model without stacking it, and takes it straight back off
-     * on the way out.
+     * Shows an element <em>on</em> the model without stacking it, and takes it straight
+     * back off on the way out.
+     *
+     * <p>It used to replace the previewed skin with the element alone, so pointing at a
+     * pair of eyes emptied the scene and showed two eyes floating in it — which answers
+     * "what would this look like" by taking away everything it would look like against.
+     * The element is laid over the composed skin instead, which is exactly what picking
+     * it would do.
      *
      * <p>Nothing is written to the project, so cancelling costs nothing and can never
      * leave a stray layer behind.
      */
     private void previewItem(ItemTile tile) {
         if (tile == null) {
+            this.hovered = null;
             this.hoveredLabel = null;
             this.showingItem = false;
             showTopLocally();
@@ -362,7 +376,9 @@ public class SkinCreatorScreen extends Screen {
         // rather than left to paint over the element and then reset the texture.
         this.highlight.drop();
         this.highlighting = false;
-        show(this.sprites.get(tile.category().id()), tile.item().atlasIndex(this.project.isSlim()));
+        this.hovered = buffer(this.sprites.get(tile.category().id()),
+                tile.item().atlasIndex(this.project.isSlim()));
+        showHovered();
     }
 
     /**
@@ -374,6 +390,8 @@ public class SkinCreatorScreen extends Screen {
      * the layer's texels over the stack instead, and so does this: see {@link Highlight}.
      */
     private void peekLayer(Layer layer) {
+        this.hovered = null;
+        this.showingItem = false;
         if (layer == null) {
             this.hoveredLabel = null;
             this.highlight.hide(System.currentTimeMillis());
@@ -418,8 +436,54 @@ public class SkinCreatorScreen extends Screen {
 
     /** The layer's own 64x64, straight out of the atlas its category arrived in. */
     private byte[] layerBuffer(Layer layer) {
-        CategorySprites sprites = this.sprites.get(layer.categoryId());
-        return sprites == null ? null : sprites.buffer(layer.atlasIndex(this.project.isSlim()));
+        return buffer(this.sprites.get(layer.categoryId()),
+                layer.atlasIndex(this.project.isSlim()));
+    }
+
+    /** The base every blend is laid on: the composed stack, decoded once and kept. */
+    private NativeImage base() {
+        if (this.composed == null) {
+            this.baseImage = closed(this.baseImage);
+            this.baseOf = null;
+            return null;
+        }
+        if (this.baseImage != null && this.baseOf == this.composed) {
+            return this.baseImage;
+        }
+        this.baseImage = closed(this.baseImage);
+        try {
+            this.baseImage = PreviewSkin.decode(this.composed);
+            this.baseOf = this.composed;
+        } catch (IOException | RuntimeException cause) {
+            MCSkinCreatorClient.LOGGER.warn("Unreadable composed skin", cause);
+            this.baseOf = null;
+        }
+        return this.baseImage;
+    }
+
+    private static NativeImage closed(NativeImage image) {
+        if (image != null) {
+            image.close();
+        }
+        return null;
+    }
+
+    /** The element under the pointer, laid over the stack. */
+    private void showHovered() {
+        NativeImage base = base();
+        if (base == null || this.hovered == null) {
+            // Nothing composed yet, so there is nothing to lay it over: the element on
+            // its own is the best answer available, and it is the old one.
+            if (this.hovered != null) {
+                show(this.hovered);
+            }
+            return;
+        }
+        this.preview.show(SkinBlend.over(base, this.hovered));
+    }
+
+    private static byte[] buffer(CategorySprites sprites, int index) {
+        return sprites == null ? null : sprites.buffer(index);
     }
 
     /**
@@ -477,6 +541,7 @@ public class SkinCreatorScreen extends Screen {
             // The composition on hand belongs to the stack as it was, so it goes, and
             // the top layer stands in until the server answers for the new one.
             this.composed = null;
+            this.hovered = null;
             if (this.project.isEmpty()) {
                 this.preview.clear();
             } else {
@@ -1820,6 +1885,8 @@ public class SkinCreatorScreen extends Screen {
         }
         AppliedSkin.stopPreviewing();
         this.preview.close();
+        this.baseImage = closed(this.baseImage);
+        this.baseOf = null;
         if (this.modelSprites != null) {
             this.modelSprites.close();
             this.modelSprites = null;

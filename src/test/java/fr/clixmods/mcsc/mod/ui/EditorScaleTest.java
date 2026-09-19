@@ -36,8 +36,8 @@ class EditorScaleTest {
         "1600,  900, 3, 2",
         "1920, 1080, 4, 2",
         "1920, 1200, 5, 2",
-        "2560, 1440, 6, 3",
-        "3440, 1440, 6, 3",
+        "2560, 1440, 6, 2",
+        "3440, 1440, 6, 2",
         "3840, 2160, 9, 4",
     })
     void theEditorTakesTheScaleNearestItsDesignHeight(int width, int height, int auto,
@@ -58,6 +58,8 @@ class EditorScaleTest {
         int scale = EditorScale.scaleFor(height, auto);
         assertTrue(scale >= 1, "a scale is at least one");
         assertTrue(scale <= auto, "and never past what the game says this window holds");
+        assertTrue(scale % 2 == 0 || scale == 1,
+                "an odd scale past one smears the half-size text: " + scale);
     }
 
     /**

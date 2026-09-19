@@ -204,7 +204,7 @@ public class LayersPanel extends Panel {
     private void layoutStack(Canvas canvas, int left, int right) {
         int gutter = ScrollPane.BAR_WIDTH + Metrics.PAD_TIGHT;
         int rowWidth = right - left - gutter;
-        int titleHeight = canvas.lineHeight() + Metrics.PAD_TIGHT;
+        int titleHeight = canvas.smallLineHeight() + Metrics.PAD_TIGHT;
         int cursorY = 0;
 
         // Regions run top to bottom in the catalogue's own order, and each region shows
@@ -382,18 +382,21 @@ public class LayersPanel extends Panel {
     }
 
     private void drawGroupTitle(Canvas canvas, GroupTitle title, int left, int right, int y) {
+        // Small, and without the tracking the panel titles carry: letters spaced apart
+        // at half size stop being a word. It is a divider between groups of rows, and
+        // the rows it divides are the point.
         String name = LibraryPanel.regionLabel(title.region()).getString().toUpperCase(Locale.ROOT);
-        canvas.textTracked(name, left, y, Palette.INK, Metrics.TITLE_TRACKING);
-        int nameWidth = canvas.trackedWidth(name, Metrics.TITLE_TRACKING);
+        canvas.textSmall(Component.literal(name), left, y, Palette.INK_MUTED);
+        int nameWidth = canvas.smallTextWidth(name);
 
         String count = Integer.toString(title.count());
-        int countWidth = canvas.textWidth(count);
+        int countWidth = canvas.smallTextWidth(count);
         int ruleX = left + nameWidth + Metrics.PAD_TIGHT;
         int ruleWidth = right - countWidth - Metrics.PAD_TIGHT - ruleX;
         if (ruleWidth > 0) {
-            Surface.rule(canvas, ruleX, y + canvas.lineHeight() / 2, ruleWidth);
+            Surface.rule(canvas, ruleX, y + canvas.smallLineHeight() / 2, ruleWidth);
         }
-        canvas.textFlat(Component.literal(count), right - countWidth, y, Palette.INK_MUTED);
+        canvas.textSmall(Component.literal(count), right - countWidth, y, Palette.INK_FAINT);
     }
 
     /** The settings, drawn where the scroll has put them: a heading, then the controls. */

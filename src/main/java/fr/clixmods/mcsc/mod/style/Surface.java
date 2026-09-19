@@ -226,6 +226,65 @@ public final class Surface {
         checkbox(canvas, x, y, Metrics.CHECKBOX, ticked, hovered);
     }
 
+    /**
+     * The grip: six dots in two columns, which is what says "this row can be pulled".
+     *
+     * <p>The site draws a {@code ⠿} and the game has no such glyph, so it is six
+     * rectangles. Six and not four: four reads as a decoration and six reads as a
+     * texture you could take hold of, which is the whole job of the thing.
+     */
+    public static void grip(Canvas canvas, int x, int y, int ink) {
+        for (int row = 0; row < GRIP_ROWS; row++) {
+            for (int column = 0; column < GRIP_COLUMNS; column++) {
+                canvas.fill(x + column * 2, y + row * 2, 1, 1, ink);
+            }
+        }
+    }
+
+    public static final int GRIP_COLUMNS = 2;
+    public static final int GRIP_ROWS = 3;
+    /** Three columns of pixels wide: two dots and the gap between them. */
+    public static final int GRIP_WIDTH = GRIP_COLUMNS * 2 - 1;
+    public static final int GRIP_HEIGHT = GRIP_ROWS * 2 - 1;
+
+    /**
+     * Duplication: two squares, one behind the other and offset.
+     *
+     * <p>It was a {@code +}, which is what an <em>add</em> button says everywhere else
+     * in this interface — the one at the head of the layers column adds a layer, and
+     * the one on a row did something else entirely. Two overlapping squares is the sign
+     * every editor uses for a copy, and it cannot be read as an add.
+     */
+    public static void copies(Canvas canvas, int x, int y, int size, int ink) {
+        int square = size - 2;
+        // The one behind, drawn as an outline so the front one reads as being on top.
+        canvas.fill(x, y, square, 1, ink);
+        canvas.fill(x, y, 1, square, ink);
+        canvas.fill(x + square - 1, y, 1, square - 2, ink);
+        canvas.fill(x, y + square - 1, square - 2, 1, ink);
+        // The one in front, filled through its border so the overlap is unambiguous.
+        int frontX = x + 2;
+        int frontY = y + 2;
+        canvas.fill(frontX, frontY, square, 1, ink);
+        canvas.fill(frontX, frontY + square - 1, square, 1, ink);
+        canvas.fill(frontX, frontY, 1, square, ink);
+        canvas.fill(frontX + square - 1, frontY, 1, square, ink);
+    }
+
+    /**
+     * A cross drawn from pixels rather than typed as a letter.
+     *
+     * <p>An {@code x} in this font is five pixels of lower case sitting off the middle
+     * of its box; the control beside it is a square. Two diagonals of the same length
+     * centre properly and read at any size.
+     */
+    public static void cross(Canvas canvas, int x, int y, int size, int ink) {
+        for (int step = 0; step < size; step++) {
+            canvas.fill(x + step, y + step, 1, 1, ink);
+            canvas.fill(x + size - 1 - step, y + step, 1, 1, ink);
+        }
+    }
+
     public static void caret(Canvas canvas, int x, int y, int ink) {
         for (int row = 0; row < Metrics.CARET_HEIGHT; row++) {
             int width = Metrics.CARET_WIDTH - row * 2;

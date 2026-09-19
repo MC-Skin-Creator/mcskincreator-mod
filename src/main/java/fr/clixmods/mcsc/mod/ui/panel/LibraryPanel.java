@@ -446,7 +446,7 @@ public class LibraryPanel extends Panel {
                 : 2;
         int tileWidth = Math.max(Metrics.CATEGORY_TAB,
                 (usable - Metrics.GRID_GAP * (columns - 1)) / columns);
-        int headerHeight = canvas.lineHeight() + Metrics.PAD_TIGHT * 2;
+        int headerHeight = canvas.smallLineHeight() + Metrics.PAD_TIGHT * 2;
 
         int cursorY = 0;
         for (Map.Entry<CatalogCategory, List<CatalogItem>> batch : batches.entrySet()) {
@@ -455,11 +455,11 @@ public class LibraryPanel extends Panel {
             this.headers.add(new GroupHeader(batchCategory, label, batch.getValue().size(), cursorY));
             cursorY += headerHeight;
 
-            // One height for every tile, whatever the crop, because that is what makes
+            // A square, and the same square for every tile, because that is what makes
             // a grid a grid: the site letterboxes each thumbnail into a fixed box, and
             // sizing each tile to its own crop instead gave a column of ragged rows with
             // full-body tiles twice as tall as head ones.
-            int tileHeight = ItemTile.heightFor(canvas, Metrics.THUMB_RENDER);
+            int tileHeight = ItemTile.heightFor(tileWidth);
 
             boolean outfits = OUTFIT_SHEET.equals(batchCategory.id());
             int column = 0;
@@ -685,18 +685,20 @@ public class LibraryPanel extends Panel {
      * rest of the row — the shape the game gives its own section headings.
      */
     private void drawGroupHeader(Canvas canvas, GroupHeader header, int left, int y) {
-        canvas.text(header.label(), left, y, Palette.INK);
+        // Small, like everything inside a list: a heading over a grid of tiles is a
+        // label on the grid, not a title over the column.
+        canvas.textSmall(header.label(), left, y, Palette.INK);
 
         String count = Integer.toString(header.count());
-        int countWidth = canvas.textWidth(count);
-        int nameWidth = canvas.textWidth(header.label());
+        int countWidth = canvas.smallTextWidth(count);
+        int nameWidth = canvas.smallTextWidth(header.label());
         int ruleX = left + nameWidth + Metrics.PAD_TIGHT;
         int right = contentRight() - ScrollPane.BAR_WIDTH;
         int ruleWidth = right - countWidth - Metrics.PAD_TIGHT - ruleX;
         if (ruleWidth > 0) {
-            Surface.rule(canvas, ruleX, y + canvas.lineHeight() / 2, ruleWidth);
+            Surface.rule(canvas, ruleX, y + canvas.smallLineHeight() / 2, ruleWidth);
         }
-        canvas.textFlat(Component.literal(count), right - countWidth, y, Palette.INK_MUTED);
+        canvas.textSmall(Component.literal(count), right - countWidth, y, Palette.INK_MUTED);
     }
 
     /**

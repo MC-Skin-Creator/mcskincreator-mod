@@ -35,11 +35,17 @@ import net.minecraft.client.Minecraft;
  * size it should have been: every label four screen pixels tall, on a 24 inch monitor.
  * Fitting is not the constraint. <strong>How big a pixel ends up</strong> is.
  *
- * <p>So the question asked here is the other way round: of the scales this window can
- * carry, which one leaves the editor nearest {@value #DESIGN_ROWS} rows of its own
+ * <p>So the question asked here is the other way round: which is the largest scale this
+ * window can carry that still leaves the editor {@value #DESIGN_ROWS} rows of its own
  * pixels? More rows than that is not more room, it is the same layout drawn smaller —
  * and past a point, drawn too small to read. Fewer is the layout folding its columns
  * into drawers, which it knows how to do.
+ *
+ * <p>And the scale is <strong>even</strong>, which is the other half of the answer to
+ * "the text is too big". The editor draws its secondary text at half the font's size,
+ * and half of an even scale is a whole screen pixel: the bitmap lands on the grid
+ * exactly. An odd scale would smear every one of those letters, so an odd scale is not
+ * taken, whatever the extra rows would have been worth.
  *
  * <p>Height decides it alone. Width only ever varies the amount of scene between the
  * two columns, and the layout handles a narrow one; height is what the stack of layers
@@ -53,7 +59,7 @@ import net.minecraft.client.Minecraft;
  *   <tr><td>1600 x 900</td><td>2</td><td>800 x 450</td></tr>
  *   <tr><td>1920 x 1080</td><td>2</td><td>960 x 540</td></tr>
  *   <tr><td>1920 x 1200</td><td>2</td><td>960 x 600</td></tr>
- *   <tr><td>2560 x 1440</td><td>3</td><td>853 x 480</td></tr>
+ *   <tr><td>2560 x 1440</td><td>2</td><td>1280 x 720</td></tr>
  *   <tr><td>3840 x 2160</td><td>4</td><td>960 x 540</td></tr>
  * </table>
  *
@@ -117,33 +123,41 @@ public final class EditorScale {
     }
 
     /**
-     * The whole scale that leaves the editor nearest {@link #DESIGN_ROWS} rows.
+     * The largest <strong>even</strong> scale that still leaves {@link #DESIGN_ROWS}
+     * rows; failing that, two; failing that, whatever the window can carry.
      *
-     * <p>Every scale the window can carry is tried and the nearest wins, because the
-     * answer is not monotonic in any one direction: 768 screen rows are better halved
-     * to 384 than left whole at 768, and 1200 are better halved to 600 than cut to 400.
-     * A tie goes to the larger scale — the same distance from the target, in bigger
-     * pixels.
+     * <p>Even is the whole point. The editor's small text is the game's font at a half,
+     * and a half of an even scale is a whole screen pixel — the bitmap lands on the grid
+     * and the letters are as sharp as the screen can draw them. At an odd scale the same
+     * text falls between pixels and smears, so the scale that would have been picked for
+     * a few more rows is not worth the text it ruins.
+     *
+     * <p>Failing that, two. A window too short to give the editor its rows at a scale of
+     * two is a window the layout has to fold for anyway, and folding at a readable size
+     * beats three columns nobody can read: 384 rows at two is a 1366x768 laptop, which
+     * is a small screen and not a broken one.
      *
      * <p>Split out from the window so it can be checked against a table rather than a
-     * running game. The bug this replaces was a one-line arithmetic mistake that no
-     * test could have caught, because there was nothing to call.
+     * running game. The bug this replaces was a one-line arithmetic mistake that no test
+     * could have caught, because there was nothing to call.
      *
      * @param windowHeight the window's height in screen pixels
      * @param autoScale what the game itself would pick for this window
      */
     public static int scaleFor(int windowHeight, int autoScale) {
         int highest = Math.max(1, autoScale);
-        int best = 1;
-        int bestDistance = Integer.MAX_VALUE;
-        for (int scale = 1; scale <= highest; scale++) {
-            int distance = Math.abs(windowHeight / scale - DESIGN_ROWS);
-            // Not strictly less: a tie is resolved in favour of the later, larger scale.
-            if (distance <= bestDistance) {
-                bestDistance = distance;
+        int best = 0;
+        for (int scale = 2; scale <= highest; scale += 2) {
+            if (windowHeight / scale >= DESIGN_ROWS) {
                 best = scale;
             }
         }
-        return best;
+        if (best == 0) {
+            best = 2;
+        }
+        // Never past what the game says this window holds, which on a very small one
+        // leaves the odd scale of one — and there the text is soft, because there is
+        // nothing else to be done with a window that size.
+        return Math.max(1, Math.min(best, highest));
     }
 }

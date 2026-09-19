@@ -41,8 +41,13 @@ public final class ImageCanvas implements Canvas {
     private final Map<Identifier, BufferedImage> supplied = new HashMap<>();
     private final Map<String, JsonObject> scalings = new HashMap<>();
 
-    public ImageCanvas(int width, int height) {
-        this.raster = new Raster(width, height);
+    /**
+     * @param scale screen pixels to one interface pixel — the GUI scale that window
+     *              takes. The picture comes out at screen size, because the half-size
+     *              text only exists there.
+     */
+    public ImageCanvas(int width, int height, int scale) {
+        this.raster = new Raster(width, height, scale);
     }
 
     public BufferedImage image() {
@@ -87,6 +92,31 @@ public final class ImageCanvas implements Canvas {
     @Override
     public void textFlat(Component text, int x, int y, int argb) {
         this.font.draw(this.raster, text.getString(), x, y, argb, false);
+    }
+
+    @Override
+    public int smallLineHeight() {
+        return (lineHeight() + 1) / 2;
+    }
+
+    @Override
+    public int smallTextWidth(Component text) {
+        return (textWidth(text) + 1) / 2;
+    }
+
+    @Override
+    public int smallTextWidth(String text) {
+        return (textWidth(text) + 1) / 2;
+    }
+
+    @Override
+    public String trimToSmallWidth(String text, int room) {
+        return this.font.trim(text, room * 2);
+    }
+
+    @Override
+    public void textSmall(Component text, int x, int y, int argb) {
+        this.font.drawSmall(this.raster, text.getString(), x, y, argb);
     }
 
     @Override

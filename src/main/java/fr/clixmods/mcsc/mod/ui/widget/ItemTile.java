@@ -79,10 +79,16 @@ public class ItemTile extends Element {
         return this.label;
     }
 
-    /** The height a tile needs: its render area, its label, and the padding around both. */
-    public static int heightFor(Canvas canvas, int renderHeight) {
-        return Metrics.SLOT_INSET * 2 + Metrics.THUMB_PAD * 2 + renderHeight
-                + Metrics.THUMB_PAD + canvas.lineHeight();
+    /**
+     * A tile is a square, and its height is therefore its width.
+     *
+     * <p>It used to be its picture plus its label plus the padding, which came to a
+     * different number every time the column changed width and to a grid of rows that
+     * were not the same height as each other. The site's tiles are one size, and a grid
+     * whose cells are one size is the difference between a catalogue and a heap.
+     */
+    public static int heightFor(int tileWidth) {
+        return tileWidth;
     }
 
     @Override
@@ -107,16 +113,21 @@ public class ItemTile extends Element {
         int boxY = this.y + inset;
         int boxWidth = this.width - inset * 2;
         int boxHeight = this.height - inset - Metrics.SLOT_INSET
-                - Metrics.THUMB_PAD - canvas.lineHeight();
+                - Metrics.THUMB_PAD - canvas.smallLineHeight();
 
         // The checker says "transparent here", so an element with holes does not read
         // as an element with black in it.
         Surface.checker(canvas, boxX, boxY, boxWidth, boxHeight);
+        canvas.pushScissor(boxX, boxY, boxWidth, boxHeight);
         Thumbnail.draw(canvas, this.sprites.get(), this.item.atlasIndex(this.slim.get()),
                 this.category.thumbCrop(this.item), boxX, boxY, boxWidth, boxHeight);
+        canvas.popScissor();
 
+        // The label at the half size, which is what lets a name be a name. At the full
+        // size a tile this wide held five letters, and a column of "Cheve..." tells you
+        // nothing at all about which hair is which.
         int labelY = boxY + boxHeight + Metrics.THUMB_PAD;
-        this.marquee.draw(paint, this.label, boxX, labelY, boxWidth,
+        this.marquee.drawSmall(paint, this.label, boxX, labelY, boxWidth,
                 hot ? Palette.INK_HOVERED : Palette.INK_MUTED, hot);
 
         if (hot) {
@@ -133,12 +144,18 @@ public class ItemTile extends Element {
         }
 
         // Where it came from: an "i", top left, and only while the tile is pointed at.
+        // Drawn as a button rather than as a letter on a rectangle — it is pressable,
+        // it does something different from the tile it sits on, and two hand-drawn
+        // rectangles with a glyph in them said neither.
         if (hot && this.onInfo != null) {
             int[] mark = infoBounds();
-            canvas.fill(mark[0], mark[1], mark[2], mark[3], Palette.OUTLINE);
-            canvas.fill(mark[0] + 1, mark[1] + 1, mark[2] - 2, mark[3] - 2, Palette.PANEL_SUB);
-            canvas.textCentered(Component.literal("i"), mark[0] + mark[2] / 2,
-                    mark[1] + (mark[3] - canvas.lineHeight()) / 2 + 1, Palette.INK_HOVERED);
+            boolean over = paint.over(mark[0], mark[1], mark[2], mark[3]);
+            Surface.button(canvas, mark[0], mark[1], mark[2], mark[3],
+                    Surface.Tone.NEUTRAL, over, false);
+            canvas.textSmall(Component.literal("i"),
+                    mark[0] + (mark[2] - canvas.smallTextWidth("i")) / 2,
+                    mark[1] + (mark[3] - canvas.smallLineHeight()) / 2,
+                    over ? Palette.INK_HOVERED : Palette.INK);
         }
     }
 

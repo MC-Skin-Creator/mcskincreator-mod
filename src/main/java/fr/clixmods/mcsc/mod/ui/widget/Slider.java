@@ -64,7 +64,7 @@ public class Slider extends Element {
 
     /** How tall a slider is: its line of text, and the rail under it. */
     public static int heightFor(Canvas canvas) {
-        return canvas.lineHeight() + Metrics.PAD_TIGHT + Metrics.SLIDER_RAIL;
+        return canvas.smallLineHeight() + Metrics.PAD_TIGHT + Metrics.SLIDER_RAIL;
     }
 
     @Override
@@ -76,14 +76,17 @@ public class Slider extends Element {
         boolean hot = paint.hot(this);
         int value = this.read.getAsInt();
 
+        // Label and value at the half size: this is a row you read while your hand is
+        // already on the handle, and at full size the two words above a slider were the
+        // loudest thing in the column.
         Component shown = this.format.apply(value);
-        int valueWidth = canvas.textWidth(shown);
+        int valueWidth = canvas.smallTextWidth(shown);
         int room = Math.max(0, this.width - valueWidth - Metrics.PAD_TIGHT);
-        canvas.text(Component.literal(fr.clixmods.mcsc.mod.ui.Marquee.cut(
+        canvas.textSmall(Component.literal(fr.clixmods.mcsc.mod.ui.Marquee.cutSmall(
                         canvas, this.label.getString(), room)),
                 this.x, this.y,
                 hot ? Palette.INK_HOVERED : Palette.INK_MUTED);
-        canvas.text(shown, this.x + this.width - valueWidth, this.y, Palette.INK);
+        canvas.textSmall(shown, this.x + this.width - valueWidth, this.y, Palette.INK);
 
         int railY = railY(canvas);
         int railWidth = railWidth();
