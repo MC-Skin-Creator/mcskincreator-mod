@@ -168,9 +168,10 @@ public class TopBar extends Element {
         return total + Metrics.PAD * 3 <= this.x + this.width;
     }
 
+    /** The badge is small: it says what the product is, not what to do next. */
     private int betaWidth(Canvas canvas) {
-        return canvas.textWidth(Component.translatable("gui.mcskincreator.beta"))
-                + Metrics.SLOT_INSET * 2;
+        return canvas.smallTextWidth(Component.translatable("gui.mcskincreator.beta"))
+                + Metrics.PAD_HAIR * 2;
     }
 
     @Override
@@ -183,12 +184,12 @@ public class TopBar extends Element {
         canvas.fill(this.x, this.y + this.height - 1, this.width, 1, Palette.OUTLINE);
 
         Element brand = this.children.get(0);
-        int badgeHeight = canvas.lineHeight() + Metrics.SLOT_INSET * 2;
+        int badgeHeight = canvas.smallLineHeight() + Metrics.PAD_HAIR * 2;
         int badgeX = brand.x() + brand.width() + Metrics.PAD_TIGHT;
         int badgeY = this.y + (this.height - badgeHeight) / 2;
         Surface.slot(canvas, badgeX, badgeY, betaWidth(canvas), badgeHeight);
-        canvas.textFlat(Component.translatable("gui.mcskincreator.beta"),
-                badgeX + Metrics.SLOT_INSET, badgeY + Metrics.SLOT_INSET, Palette.INK_MUTED);
+        canvas.textSmall(Component.translatable("gui.mcskincreator.beta"),
+                badgeX + Metrics.PAD_HAIR, badgeY + Metrics.PAD_HAIR, Palette.INK_MUTED);
 
         // A separator is the hairline the game rules its own headings with, stood on end.
         for (int separatorX : this.separators) {

@@ -191,7 +191,35 @@ public final class Surface {
     /** A slider rail: a carved groove, like every other track in the interface. */
     public static void sliderRail(Canvas canvas, int x, int y, int width, int height,
                                   boolean hovered) {
+        sliderRail(canvas, x, y, width, height, hovered, 0, 0);
+    }
+
+    /**
+     * The rail, with the distance between the setting's resting value and where the
+     * handle is now filled in.
+     *
+     * <p>Four unfilled troughs in a column tell you nothing until you read the four
+     * numbers beside them. Filled, the slider is the value at a glance, which is the
+     * whole reason it is a slider and not a text field.
+     *
+     * <p>It fills from the resting value and not from the left end, because half these
+     * settings rest in the middle of their range: hue at zero turns nothing, and a bar
+     * half full of green beside the word "0" says the opposite.
+     *
+     * @param from where the setting rests, and {@code to} where it is now — both in
+     *             pixels from the rail's left edge, in either order
+     */
+    public static void sliderRail(Canvas canvas, int x, int y, int width, int height,
+                                  boolean hovered, int from, int to) {
         slot(canvas, x, y, width, height, hovered ? Palette.SLOT_HOVER : Palette.SLOT);
+        int inset = Metrics.SLOT_INSET;
+        int room = width - inset * 2;
+        int left = Math.max(0, Math.min(Math.min(from, to), room));
+        int right = Math.max(0, Math.min(Math.max(from, to), room));
+        if (right > left && height > inset * 2) {
+            canvas.fill(x + inset + left, y + inset, right - left, height - inset * 2,
+                    hovered ? Palette.GREEN_HOVER : Palette.GREEN);
+        }
     }
 
     public static void sliderHandle(Canvas canvas, int x, int y, int height, boolean hovered) {
@@ -227,6 +255,33 @@ public final class Surface {
     }
 
     /**
+     * A chevron, pointing left or right: the sign a column folds away or comes back.
+     *
+     * <p>It was the font's {@code <} and {@code >}, which are a less-than and a
+     * greater-than sign — bottom-heavy, off-centre in a square button, and a different
+     * weight from every other mark on the row. Two diagonals meeting at a point are the
+     * same drawing at any size and sit where they are put.
+     */
+    public static void chevron(Canvas canvas, int x, int y, int size, boolean pointsRight,
+                               int ink) {
+        int half = size / 2;
+        for (int step = 0; step <= half; step++) {
+            // The tip is the point it aims at, so it is the far column when it points
+            // right and the near one when it points left; the arms open the other way.
+            int column = pointsRight ? half - step : step;
+            canvas.fill(x + column, y + half - step, 1, 1, ink);
+            canvas.fill(x + column, y + half + step, 1, 1, ink);
+        }
+    }
+
+    /** A plus: two bars, which is the one mark that means "add" in this interface. */
+    public static void plus(Canvas canvas, int x, int y, int size, int ink) {
+        int middle = (size - 1) / 2;
+        canvas.fill(x, y + middle, size, 1, ink);
+        canvas.fill(x + middle, y, 1, size, ink);
+    }
+
+    /**
      * The grip: six dots in two columns, which is what says "this row can be pulled".
      *
      * <p>The site draws a {@code ⠿} and the game has no such glyph, so it is six
@@ -256,19 +311,18 @@ public final class Surface {
      * every editor uses for a copy, and it cannot be read as an add.
      */
     public static void copies(Canvas canvas, int x, int y, int size, int ink) {
-        int square = size - 2;
-        // The one behind, drawn as an outline so the front one reads as being on top.
-        canvas.fill(x, y, square, 1, ink);
-        canvas.fill(x, y, 1, square, ink);
-        canvas.fill(x + square - 1, y, 1, square - 2, ink);
-        canvas.fill(x, y + square - 1, square - 2, 1, ink);
-        // The one in front, filled through its border so the overlap is unambiguous.
-        int frontX = x + 2;
-        int frontY = y + 2;
+        int square = Math.max(3, size - 2);
+        // The sheet in front, whole. The one behind is two edges and not a second
+        // square: two complete squares at this size overlap into one box inside
+        // another, which is a frame, not a copy.
+        int frontX = x + size - square;
+        int frontY = y + size - square;
         canvas.fill(frontX, frontY, square, 1, ink);
         canvas.fill(frontX, frontY + square - 1, square, 1, ink);
         canvas.fill(frontX, frontY, 1, square, ink);
         canvas.fill(frontX + square - 1, frontY, 1, square, ink);
+        canvas.fill(x, y, square - 1, 1, ink);
+        canvas.fill(x, y, 1, square - 1, ink);
     }
 
     /**

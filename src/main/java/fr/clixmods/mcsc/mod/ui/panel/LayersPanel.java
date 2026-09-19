@@ -115,27 +115,29 @@ public class LayersPanel extends Panel {
             toggleFolded();
             this.relayout.run();
         });
+        this.foldButton.withGlyph(foldGlyph());
         this.foldButton.withTooltip(Component.translatable(foldTooltipKey()));
+        this.foldButton.setBounds(0, 0, Metrics.HEADER_BUTTON, Metrics.HEADER_BUTTON);
         this.foldButton.fit(canvas);
 
         if (folded()) {
             this.foldButton.setBounds(this.x + (this.width - this.foldButton.width()) / 2,
-                    this.y + (header - Metrics.HEADER_BUTTON) / 2,
-                    this.foldButton.width(), Metrics.HEADER_BUTTON);
+                    headerButtonY(), this.foldButton.width(), Metrics.HEADER_BUTTON);
             this.fixed.add(addChild(this.foldButton));
             return;
         }
 
         int right = contentRight();
-        this.foldButton.setBounds(right - this.foldButton.width(),
-                this.y + (header - Metrics.HEADER_BUTTON) / 2,
+        this.foldButton.setBounds(right - this.foldButton.width(), headerButtonY(),
                 this.foldButton.width(), Metrics.HEADER_BUTTON);
         this.fixed.add(addChild(this.foldButton));
 
         // A button, not a bare glyph. The site's header actions are buttons, and two of
         // the interface's most used controls had no edge to aim at.
-        PixelButton add = new PixelButton(Component.literal("+"), PixelButton.Style.NORMAL,
-                this.onAddRequested);
+        PixelButton add = new PixelButton(Component.translatable("gui.mcskincreator.add"),
+                PixelButton.Style.NORMAL, this.onAddRequested);
+        add.withGlyph(PixelButton.Glyph.PLUS);
+        add.setBounds(0, 0, Metrics.HEADER_BUTTON, Metrics.HEADER_BUTTON);
         add.fit(canvas).withTooltip(Component.translatable("gui.mcskincreator.add.tooltip"));
         add.setBounds(this.foldButton.x() - add.width() - Metrics.PAD_HAIR,
                 this.foldButton.y(), add.width(), Metrics.HEADER_BUTTON);
@@ -239,7 +241,7 @@ public class LayersPanel extends Panel {
         }
         // The rule that separates the band from the list is part of the band, or the
         // band's own clip cuts it off.
-        int heading = 1 + Metrics.PAD_TIGHT + canvas.lineHeight() + Metrics.PAD;
+        int heading = 1 + Metrics.PAD_TIGHT + canvas.smallLineHeight() + Metrics.PAD;
         if (this.project.selected() == null) {
             return heading + canvas.lineHeight() + Metrics.PAD;
         }
@@ -255,7 +257,7 @@ public class LayersPanel extends Panel {
             return;
         }
         int cursorY = this.settingsTop + 1 + Metrics.PAD_TIGHT
-                + canvas.lineHeight() + Metrics.PAD;
+                + canvas.smallLineHeight() + Metrics.PAD;
         int width = right - left;
 
         cursorY = addSlider(canvas, left, cursorY, width, "opacity", 0, 100,
@@ -424,15 +426,18 @@ public class LayersPanel extends Panel {
                 Palette.OUTLINE);
         Surface.rule(canvas, left, top + 1, Math.max(0, right - left));
 
+        // Small, like the group titles above it: this labels a band of controls, it does
+        // not title the column — and the layer's name is already on the row it came from,
+        // so shouting it again here made the two look like different things.
         int titleY = top + 1 + Metrics.PAD_TIGHT;
         String title = Component.translatable("gui.mcskincreator.settings").getString()
                 .toUpperCase(Locale.ROOT);
-        canvas.textTracked(title, left, titleY, Palette.INK, Metrics.TITLE_TRACKING);
-        int titleWidth = canvas.trackedWidth(title, Metrics.TITLE_TRACKING);
-        int nameRoom = Math.max(0, right - left - titleWidth - Metrics.PAD);
-        canvas.text(Component.literal(fr.clixmods.mcsc.mod.ui.Marquee.cut(
+        canvas.textSmall(Component.literal(title), left, titleY, Palette.INK_MUTED);
+        int titleWidth = canvas.smallTextWidth(title);
+        int nameRoom = Math.max(0, right - left - titleWidth - Metrics.PAD_TIGHT);
+        canvas.textSmall(Component.literal(fr.clixmods.mcsc.mod.ui.Marquee.cutSmall(
                         canvas, layer.name().getString(), nameRoom)),
-                left + titleWidth + Metrics.PAD, titleY, Palette.INK);
+                left + titleWidth + Metrics.PAD_TIGHT, titleY, Palette.INK);
 
         for (Element element : this.settings) {
             element.draw(paint);

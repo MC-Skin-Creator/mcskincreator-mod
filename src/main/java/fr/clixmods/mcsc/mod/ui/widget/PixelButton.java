@@ -46,11 +46,25 @@ public class PixelButton extends Element {
         CROSS
     }
 
+    /**
+     * A mark drawn in place of a label, for the buttons whose label would be one
+     * character of punctuation.
+     *
+     * <p>{@code +}, {@code <}, {@code >} and {@code x} in the game's font are a plus
+     * sign, two comparison operators and a lower-case letter: four different weights,
+     * none of them centred in a square. Drawn from pixels they are one family, they sit
+     * where they are put, and they are the same marks the layer rows already use.
+     */
+    public enum Glyph {
+        NONE, PLUS, CHEVRON_LEFT, CHEVRON_RIGHT, CROSS
+    }
+
     private final Component label;
     private final Runnable action;
     private final Style style;
 
     private List<Component> tooltip = List.of();
+    private Glyph glyph = Glyph.NONE;
     private boolean active;
     private boolean held;
 
@@ -67,6 +81,17 @@ public class PixelButton extends Element {
     public <T extends PixelButton> T withTooltip(Component text) {
         this.tooltip = List.of(text);
         return (T) this;
+    }
+
+    /**
+     * Draws a mark instead of the label, and makes the button a square.
+     *
+     * <p>The label stays: it is what the button is called, for a tooltip and for anything
+     * that has to read the screen aloud.
+     */
+    public PixelButton withGlyph(Glyph glyph) {
+        this.glyph = glyph;
+        return this;
     }
 
     /** Marks the button as the chosen one of a group. */
@@ -100,6 +125,12 @@ public class PixelButton extends Element {
             this.height = Metrics.CROSS;
             return this;
         }
+        if (this.glyph != Glyph.NONE) {
+            // A mark has no width of its own to measure, so the button is a square of
+            // whatever height it was given.
+            this.width = this.height;
+            return this;
+        }
         this.width = canvas.textWidth(this.label) + padding();
         return this;
     }
@@ -124,8 +155,7 @@ public class PixelButton extends Element {
             case CROSS -> {
                 Surface.button(canvas, this.x, this.y, Metrics.CROSS, Metrics.CROSS,
                         hot ? Surface.Tone.RED : Surface.Tone.NEUTRAL, hot, down);
-                canvas.textCentered(Component.literal("x"), this.x + Metrics.CROSS / 2,
-                        this.y + (Metrics.CROSS - canvas.lineHeight()) / 2 + 1, Palette.INK);
+                drawGlyph(canvas, Glyph.CROSS, Metrics.CROSS, Metrics.CROSS, down, Palette.INK);
                 return;
             }
             case TAB -> Surface.tab(canvas, this.x, this.y, this.width, this.height,
@@ -137,15 +167,49 @@ public class PixelButton extends Element {
                     tone(), hot && enabled(), down);
         }
 
-        // Cut to the button rather than drawn past it: a label that overflows its own
-        // frame is the one thing a caller cannot see coming from the layout.
-        int room = this.width - padding();
-        // Pressing drops the content one pixel, which with the inverted bevel is the
-        // whole of the press feedback.
-        canvas.textCentered(Component.literal(
-                        fr.clixmods.mcsc.mod.ui.Marquee.cut(canvas, this.label.getString(), room)),
-                this.x + this.width / 2,
-                this.y + (this.height - canvas.lineHeight()) / 2 + (down ? 1 : 0), ink(hot));
+        if (this.glyph != Glyph.NONE) {
+            drawGlyph(canvas, this.glyph, this.width, this.height, down, ink(hot));
+        } else {
+            // Cut to the button rather than drawn past it: a label that overflows its own
+            // frame is the one thing a caller cannot see coming from the layout.
+            int room = this.width - padding();
+            // Pressing drops the content one pixel, which with the inverted bevel is the
+            // whole of the press feedback.
+            canvas.textCentered(Component.literal(
+                            fr.clixmods.mcsc.mod.ui.Marquee.cut(canvas, this.label.getString(), room)),
+                    this.x + this.width / 2,
+                    this.y + (this.height - canvas.lineHeight()) / 2 + (down ? 1 : 0), ink(hot));
+        }
+
+        if (!enabled()) {
+            // A veil over the finished control rather than a paler ink on the same
+            // material. Dimming only the label left a button that looked pressable with
+            // a faint word on it, which is what "Undo" looked like with nothing to undo.
+            canvas.fill(this.x, this.y, this.width, this.height,
+                    Palette.withAlpha(0xFF000000, 110));
+        }
+    }
+
+    /**
+     * A mark, centred in the button and dropped a pixel while it is held.
+     *
+     * <p>Half the box and never more: a mark that fills its button reads as part of the
+     * frame, and the frame then looks like a thick border with a smudge inside it.
+     */
+    private void drawGlyph(Canvas canvas, Glyph mark, int width, int height, boolean down,
+                           int ink) {
+        int size = Math.max(3, Math.min(width, height) / 2 | 1);
+        int left = this.x + (width - size) / 2;
+        int top = this.y + (height - size) / 2 + (down ? 1 : 0);
+        switch (mark) {
+            case PLUS -> Surface.plus(canvas, left, top, size, ink);
+            case CROSS -> Surface.cross(canvas, left, top, size, ink);
+            case CHEVRON_LEFT -> Surface.chevron(canvas, left, top, size, false, ink);
+            case CHEVRON_RIGHT -> Surface.chevron(canvas, left, top, size, true, ink);
+            default -> {
+                // NONE never reaches here.
+            }
+        }
     }
 
     private Surface.Tone tone() {

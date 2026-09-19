@@ -62,6 +62,18 @@ public class Slider extends Element {
         this.height = Metrics.SLIDER_RAIL;
     }
 
+    /**
+     * The value this setting rests at: zero when the range straddles it, the floor
+     * otherwise.
+     *
+     * <p>Opacity runs 0 to 100 and rests at the bottom of its range; hue runs -180 to
+     * 180 and rests in the middle of its. Which one a slider is, is written in its own
+     * bounds, so nothing has to be told.
+     */
+    private int resting() {
+        return this.minimum < 0 && this.maximum > 0 ? 0 : this.minimum;
+    }
+
     /** How tall a slider is: its line of text, and the rail under it. */
     public static int heightFor(Canvas canvas) {
         return canvas.smallLineHeight() + Metrics.PAD_TIGHT + Metrics.SLIDER_RAIL;
@@ -90,10 +102,15 @@ public class Slider extends Element {
 
         int railY = railY(canvas);
         int railWidth = railWidth();
-        Surface.sliderRail(canvas, this.x, railY, railWidth, Metrics.SLIDER_RAIL, hot);
-
         int travel = railWidth - Metrics.SLIDER_HANDLE;
         int handleX = this.x + Math.round(travel * fraction(value));
+        // Filled from where the setting rests to the middle of the handle, so the fill
+        // and the handle read as one thing rather than as a bar stopping short of its
+        // own marker.
+        int middle = Metrics.SLIDER_HANDLE / 2 - Metrics.SLOT_INSET;
+        int restX = Math.round(travel * fraction(resting()));
+        Surface.sliderRail(canvas, this.x, railY, railWidth, Metrics.SLIDER_RAIL, hot,
+                restX + middle, handleX - this.x + middle);
         Surface.sliderHandle(canvas, handleX, railY, Metrics.SLIDER_RAIL, hot);
     }
 

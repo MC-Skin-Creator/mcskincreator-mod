@@ -582,11 +582,14 @@ public class ScenePanel extends Element {
             lines.add(Component.translatable(key));
         }
 
-        int lineHeight = canvas.lineHeight() + 1;
+        // The gesture reminder is the smallest thing on the screen on purpose: it is
+        // read once, and after that it is furniture in the corner of the one panel the
+        // player actually came to look at.
+        int lineHeight = canvas.smallLineHeight() + 1;
         int boxHeight = lines.size() * lineHeight + Metrics.PANEL_INSET * 2 - 1;
         int boxWidth = 0;
         for (Component line : lines) {
-            boxWidth = Math.max(boxWidth, canvas.textWidth(line));
+            boxWidth = Math.max(boxWidth, canvas.smallTextWidth(line));
         }
         boxWidth += Metrics.PANEL_INSET * 2;
 
@@ -596,7 +599,7 @@ public class ScenePanel extends Element {
 
         for (int index = 0; index < lines.size(); index++) {
             boolean isLabel = hovered != null && index == 0;
-            canvas.textRinged(lines.get(index), boxX + Metrics.PANEL_INSET,
+            canvas.textSmall(lines.get(index), boxX + Metrics.PANEL_INSET,
                     boxY + Metrics.PANEL_INSET + index * lineHeight,
                     isLabel ? Palette.INK_HOVERED : Palette.INK_MUTED);
         }

@@ -238,9 +238,10 @@ public class LayerRow extends Element {
         Surface.button(canvas, x, y, size, size,
                 remove && over ? Surface.Tone.RED : Surface.Tone.NEUTRAL, over, false);
         int ink = over ? Palette.INK : Palette.INK_MUTED;
-        // A pixel of air inside the bevel: a glyph that touches the frame reads as part
-        // of it, and the two then look like one thick border with a smudge in it.
-        int glyph = size - (Metrics.BUTTON_INSET + 1) * 2;
+        // Half the button, which is what every other mark in this interface takes. At
+        // two thirds — where this was — the mark ran into the frame and the pair read as
+        // one thick smudged border rather than as a button with a sign on it.
+        int glyph = Math.max(3, size / 2 | 1);
         if (remove) {
             Surface.cross(canvas, x + (size - glyph) / 2, y + (size - glyph) / 2, glyph, ink);
         } else {

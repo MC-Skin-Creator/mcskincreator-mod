@@ -90,13 +90,22 @@ class EditorPreviewTest {
                 .withLayers(5);
         int scale = EditorScale.scaleFor(1080, 4);
         BufferedImage screen = preview.render(1920 / scale, 1080 / scale, scale);
-        int column = preview.chrome().layers().x() * scale;
-        ImageIO.write(preview.magnify(
-                        preview.crop(screen, column, 0, 1920 - column, 700), 3),
-                "png", OUTPUT.resolve("detail-layers.png").toFile());
-        ImageIO.write(preview.magnify(
-                        preview.crop(screen, 0, 0, preview.chrome().library().width() * scale, 700), 3),
-                "png", OUTPUT.resolve("detail-library.png").toFile());
+        int layers = preview.chrome().layers().x() * scale;
+        int library = preview.chrome().library().width() * scale;
+        detail(preview, screen, "layers", layers, 0, 1920 - layers, 700);
+        detail(preview, screen, "library", 0, 0, library, 700);
+        detail(preview, screen, "settings", layers, 1080 - 320, 1920 - layers, 320);
+        detail(preview, screen, "topbar-left", 0, 0, 640, 80);
+        detail(preview, screen, "topbar-right", 620, 0, 640, 80);
+        detail(preview, screen, "scene-foot", library, 1080 - 120, 900, 120);
+        ImageIO.write(preview.magnify(preview.crop(screen, layers, 130, 1920 - layers, 60), 6),
+                "png", OUTPUT.resolve("detail-layers-head.png").toFile());
+    }
+
+    private static void detail(EditorPreview preview, BufferedImage screen, String name,
+                               int x, int y, int width, int height) throws IOException {
+        ImageIO.write(preview.magnify(preview.crop(screen, x, y, width, height), 3), "png",
+                OUTPUT.resolve("detail-" + name + ".png").toFile());
     }
 
     /** The design size on its own, drawn four times up, to be looked at closely. */

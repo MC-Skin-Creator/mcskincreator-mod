@@ -311,14 +311,15 @@ public class LibraryPanel extends Panel {
             toggleFolded();
             this.relayout.run();
         });
+        this.foldButton.withGlyph(foldGlyph());
         this.foldButton.withTooltip(Component.translatable(foldTooltipKey()));
+        this.foldButton.setBounds(0, 0, Metrics.HEADER_BUTTON, Metrics.HEADER_BUTTON);
         this.foldButton.fit(canvas);
 
         if (folded()) {
             // Folded, the header carries the unfold button and nothing else.
             this.foldButton.setBounds(this.x + (this.width - this.foldButton.width()) / 2,
-                    this.y + (header - Metrics.HEADER_BUTTON) / 2,
-                    this.foldButton.width(), Metrics.HEADER_BUTTON);
+                    headerButtonY(), this.foldButton.width(), Metrics.HEADER_BUTTON);
             addChild(this.foldButton);
             return;
         }
