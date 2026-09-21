@@ -188,5 +188,9 @@
   "library.mcskincreator.all_categories": "Tout (%s)",
   "credits.mcskincreator.work_line": "%s — %s",
   "credits.mcskincreator.elements": "Utilisée ici pour : %s",
-  "credits.mcskincreator.source": "Source"
+  "credits.mcskincreator.source": "Source",
+  "gui.mcskincreator.view": "Affichage :",
+  "gui.mcskincreator.camera": "Caméra :",
+  "gui.mcskincreator.backdrop": "Fond :",
+  "gui.mcskincreator.pose": "Pose :"
 }

@@ -182,44 +182,24 @@ public class ScenePanel extends Element {
         int cursorX = this.x + Metrics.PAD_TIGHT;
         int barY = this.y + Metrics.PAD_TIGHT;
 
-        List<PixelButton> viewButtons = new ArrayList<>();
-        int segmentedWidth = 0;
-        for (View candidate : View.values()) {
-            PixelButton button = new PixelButton(Component.translatable(candidate.labelKey()),
-                    PixelButton.Style.TAB, () -> {
-                        this.view = candidate;
-                        this.relayout.run();
-                    });
-            button.fit(canvas).setActive(this.view == candidate);
-            button.withTooltip(Component.translatable(candidate.tooltipKey()));
-            viewButtons.add(button);
-            segmentedWidth += button.width() + Metrics.SEGMENT_GAP;
-        }
-
-        // Three buttons side by side is the site's segmented group, and it is what this
-        // shows whenever the scene is wide enough for it. Below that width the same
-        // choice becomes a dropdown rather than spilling off the bar: a control that
-        // runs past the edge of its strip is a control nobody can reach.
-        if (segmentedWidth + Metrics.ui(90) <= this.width) {
-            for (PixelButton button : viewButtons) {
-                button.setBounds(cursorX, barY, button.width(), Metrics.TAB_HEIGHT);
-                this.controls.add(button);
-                cursorX += button.width() + Metrics.SEGMENT_GAP;
-            }
-        } else {
-            Dropdown<View> chooser = new Dropdown<>(List.of(View.values()),
-                    candidate -> Component.translatable(candidate.labelKey()),
-                    () -> this.view,
-                    candidate -> {
-                        this.view = candidate;
-                        this.relayout.run();
-                    },
-                    candidate -> true);
-            int chooserWidth = Math.min(Metrics.ui(150), Math.max(1, this.width - Metrics.PAD_TIGHT * 2));
-            chooser.setBounds(cursorX, barY, chooserWidth, Metrics.TAB_HEIGHT);
-            chooser.inScreen(this.y + this.height);
-            this.controls.add(chooser);
-        }
+        // A dropdown and not a row of tabs. Three buttons reading "3D", "Texture" and
+        // "Les deux" say what each of them shows and never say that together they are
+        // the choice of what this panel displays — which is the one thing a stranger to
+        // the screen needs to know about them. Named, it says so before it is opened,
+        // and it is the same control as every other setting on this scene.
+        Dropdown<View> chooser = chooser(canvas, "gui.mcskincreator.view",
+                List.of(View.values()),
+                candidate -> Component.translatable(candidate.labelKey()),
+                () -> this.view,
+                candidate -> {
+                    this.view = candidate;
+                    this.relayout.run();
+                });
+        chooser.setBounds(cursorX, barY,
+                Math.min(chooser.width(), Math.max(1, this.width - Metrics.PAD_TIGHT * 2)),
+                Metrics.TAB_HEIGHT);
+        this.controls.add(chooser);
+        cursorX += chooser.width() + Metrics.SEGMENT_GAP;
 
         int viewTop = this.y + barHeight;
         int viewHeight = Math.max(0, this.height - (viewTop - this.y));
@@ -251,11 +231,20 @@ public class ScenePanel extends Element {
         return cameras;
     }
 
-    /** One of the workshop's settings: a dropdown the width of the widest of them. */
-    private <T> Dropdown<T> chooser(List<T> options, java.util.function.Function<T, Component> naming,
+    /**
+     * One of the scene's settings: a named dropdown, sized to its longest option.
+     *
+     * <p>Every control on this scene is one of these, and each says what it decides
+     * before it says what it holds. Three unlabelled dropdowns reading "Atelier",
+     * "Panneau" and "Debout" are three words with no question attached to them.
+     */
+    private <T> Dropdown<T> chooser(Canvas canvas, String labelKey, List<T> options,
+                                    java.util.function.Function<T, Component> naming,
                                     Supplier<T> read, java.util.function.Consumer<T> write) {
         Dropdown<T> dropdown = new Dropdown<>(options, naming, read, write, candidate -> true);
+        dropdown.withLabel(Component.translatable(labelKey));
         dropdown.setBounds(0, 0, Metrics.ui(96), Metrics.TAB_HEIGHT);
+        dropdown.fit(canvas);
         dropdown.inScreen(this.y + this.height);
         return dropdown;
     }
@@ -265,14 +254,16 @@ public class ScenePanel extends Element {
 
         List<CameraMode> cameras = availableCameras();
         if (cameras.size() > 1) {
-            docked.add(chooser(cameras, mode -> Component.translatable(mode.labelKey()),
+            docked.add(chooser(canvas, "gui.mcskincreator.camera", cameras,
+                    mode -> Component.translatable(mode.labelKey()),
                     () -> this.cameraMode, this::chooseCamera));
         }
 
         if (this.cameraMode == CameraMode.WORKSHOP && this.gameCamera.available()) {
             // Only where there is a world to put behind the figure. On the title screen
             // the choice has one answer, and a chooser with one answer is a dead control.
-            docked.add(chooser(List.of(SceneBackdrop.values()),
+            docked.add(chooser(canvas, "gui.mcskincreator.backdrop",
+                    List.of(SceneBackdrop.values()),
                     candidate -> Component.translatable(candidate.labelKey()),
                     () -> this.backdrop, this::chooseBackdrop));
         }
@@ -308,7 +299,7 @@ public class ScenePanel extends Element {
         List<Element> staged = new ArrayList<>();
 
         if (this.cameraMode != CameraMode.FIRST_PERSON) {
-            staged.add(chooser(List.of(ScenePose.values()),
+            staged.add(chooser(canvas, "gui.mcskincreator.pose", List.of(ScenePose.values()),
                     candidate -> Component.translatable(candidate.labelKey()),
                     () -> this.pose, this::choosePose));
 
