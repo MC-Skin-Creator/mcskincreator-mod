@@ -204,9 +204,15 @@ public class LayersPanel extends Panel {
     }
 
     private void layoutStack(Canvas canvas, int left, int right) {
-        int gutter = ScrollPane.BAR_WIDTH + Metrics.PAD_TIGHT;
-        int rowWidth = right - left - gutter;
         int titleHeight = canvas.smallLineHeight() + Metrics.PAD_TIGHT;
+        // The rail's gutter is only taken when there is a rail. This list is a handful
+        // of rows and they are the width of the column, so reserving a gutter that is
+        // never used left a strip of nothing down the right of every one of them — and
+        // unlike the element grid, a stack of rows changing width by nine pixels when
+        // it overflows is not something anybody notices.
+        int gutter = stackHeight(canvas, titleHeight) > this.bodyHeight
+                ? ScrollPane.BAR_WIDTH + Metrics.PAD_TIGHT : 0;
+        int rowWidth = right - left - gutter;
         int cursorY = 0;
 
         // Regions run top to bottom in the catalogue's own order, and each region shows
@@ -230,6 +236,20 @@ public class LayersPanel extends Panel {
             }
         }
         this.scroll.setContent(cursorY, this.bodyHeight);
+    }
+
+    /** How tall the stack will come out, worked out before anything is placed. */
+    private int stackHeight(Canvas canvas, int titleHeight) {
+        int total = 0;
+        for (String region : this.project.regionsInUse(this.catalog.get().regions())) {
+            List<Layer> inRegion = this.project.displayOrder(region);
+            if (inRegion.isEmpty()) {
+                continue;
+            }
+            total += titleHeight
+                    + inRegion.size() * (Metrics.LAYER_ROW + Metrics.SEGMENT_GAP);
+        }
+        return total;
     }
 
     /** How tall the settings band wants to be: its heading, four sliders and a button. */

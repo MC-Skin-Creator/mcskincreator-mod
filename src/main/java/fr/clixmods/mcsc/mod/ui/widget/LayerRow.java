@@ -33,10 +33,9 @@ import net.minecraft.network.chat.Component;
  * leaving them clickable is how someone deletes a layer by clicking a cross they never
  * saw.
  *
- * <p>Both lines of text are the half size. The site sets a layer name at 11 pixels in a
- * column of 318; the game's font at full size is 8 in a column of 161, half again as
- * large against everything around it, and that — rather than the padding — is why this
- * row used to read as three times the size of the site's.
+ * <p>The name is set at the full size and the category under it at the half. The name
+ * is what the row is for and what has to read across the column; the category is read
+ * once you are already looking at the row, and the site sets the two that way round too.
  *
  * <p>The selected row is a tinted slot with a green band down its flank. A hidden layer
  * drops to half opacity, and a row being dragged takes a shadow, fades, and leaves a

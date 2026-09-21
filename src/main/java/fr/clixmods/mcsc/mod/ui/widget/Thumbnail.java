@@ -24,9 +24,10 @@ import fr.clixmods.mcsc.mod.ui.Canvas;
  * fill it.
  *
  * <p>And it never draws outside that box: a crop too big for its box even at a scale of
- * one is narrowed at the source rather than clipped, so no caller needs a scissor. That
- * matters more than it sounds — a scissor flushes the interface's draw batch, so one per
- * thumbnail is one flush per thumbnail, and a grid of them crawls.
+ * one is drawn at a whole <em>fraction</em> — a half, a third — rather than clipped, so
+ * no caller needs a scissor. That matters more than it sounds: a scissor flushes the
+ * interface's draw batch, so one per thumbnail is one flush per thumbnail, and a grid of
+ * them crawls.
  */
 public final class Thumbnail {
     private Thumbnail() {
@@ -47,26 +48,38 @@ public final class Thumbnail {
         // Widening the crop rescues those; the ones drawn only on faces a front view
         // cannot show are past rescuing, and come out empty either way.
         ThumbCrop shown = sprites.covers(index, crop) ? crop : ThumbCrop.ALL;
-        int scale = Math.max(1, Math.min(boxWidth / shown.width(), boxHeight / shown.height()));
-
-        // A crop too big for its box at the smallest whole scale is narrowed at the
-        // source instead of being drawn past the edges. Clipping it with a scissor
-        // would work and would cost a batch flush per thumbnail, which on a grid of
-        // forty is forty — the models window was unusable for exactly that reason.
-        int sourceWidth = Math.min(shown.width(), Math.max(1, boxWidth / scale));
-        int sourceHeight = Math.min(shown.height(), Math.max(1, boxHeight / scale));
-        int sourceX = shown.x() + (shown.width() - sourceWidth) / 2;
-        int sourceY = shown.y() + (shown.height() - sourceHeight) / 2;
-        int drawnWidth = sourceWidth * scale;
-        int drawnHeight = sourceHeight * scale;
+        int drawnWidth;
+        int drawnHeight;
+        int scale = Math.min(boxWidth / shown.width(), boxHeight / shown.height());
+        if (scale >= 1) {
+            drawnWidth = shown.width() * scale;
+            drawnHeight = shown.height() * scale;
+        } else {
+            // Too big for its box even at one, so it is halved, thirded, quartered —
+            // whichever whole fraction first fits. Narrowing the source instead, which
+            // is what this did, does not shrink a body: it cuts the middle out of one,
+            // so every layer row showed a torso and nothing else.
+            int shrink = 2;
+            while (divide(shown.width(), shrink) > boxWidth
+                    || divide(shown.height(), shrink) > boxHeight) {
+                shrink++;
+            }
+            drawnWidth = divide(shown.width(), shrink);
+            drawnHeight = divide(shown.height(), shrink);
+        }
 
         canvas.blit(sprites.texture(),
                 boxX + (boxWidth - drawnWidth) / 2, boxY + (boxHeight - drawnHeight) / 2,
                 drawnWidth, drawnHeight,
-                sprites.spriteU(index) + sourceX, sprites.spriteV(index) + sourceY,
-                sourceWidth, sourceHeight,
+                sprites.spriteU(index) + shown.x(), sprites.spriteV(index) + shown.y(),
+                shown.width(), shown.height(),
                 sprites.sheetWidth(), sprites.sheetHeight());
         return true;
+    }
+
+    /** Rounds up, so a crop never shrinks to nothing and never loses its last row. */
+    private static int divide(int value, int by) {
+        return Math.max(1, (value + by - 1) / by);
     }
 
     /** The proportions a thumbnail box wants, so a tile can be sized before it draws. */

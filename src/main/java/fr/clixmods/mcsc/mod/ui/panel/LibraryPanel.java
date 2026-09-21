@@ -565,7 +565,7 @@ public class LibraryPanel extends Panel {
         // Not "about": the mark at the top of the screen opens it, and a second door to
         // the same room is a door nobody needs. Not "beta" either — the badge beside that
         // mark already says so, and said it twice.
-        for (String link : List.of("credits", "legal")) {
+        for (String link : List.of("credits")) {
             PixelButton button = new PixelButton(
                     Component.translatable("footer.mcskincreator." + link),
                     PixelButton.Style.GHOST, () -> this.onFooterLink.accept(link));

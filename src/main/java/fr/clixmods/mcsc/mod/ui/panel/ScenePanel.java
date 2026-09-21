@@ -227,7 +227,7 @@ public class ScenePanel extends Element {
 
         layoutBar(canvas, barY, cursorX);
         layoutModel(viewTop, viewHeight);
-        layoutPlay(viewTop, viewHeight);
+        layoutStageControls(canvas, viewTop, viewHeight);
     }
 
     /**
@@ -277,27 +277,6 @@ public class ScenePanel extends Element {
                     () -> this.backdrop, this::chooseBackdrop));
         }
 
-        if (this.cameraMode != CameraMode.FIRST_PERSON) {
-            docked.add(chooser(List.of(ScenePose.values()),
-                    candidate -> Component.translatable(candidate.labelKey()),
-                    () -> this.pose, this::choosePose));
-        }
-
-        if (this.cameraMode == CameraMode.FIRST_PERSON) {
-            PixelButton swing = new PixelButton(Component.translatable("gui.mcskincreator.swing"),
-                    PixelButton.Style.NORMAL, this.gameCamera::swing);
-            swing.fit(canvas);
-            swing.withTooltip(Component.translatable("gui.mcskincreator.swing.tooltip"));
-            docked.add(swing);
-        }
-
-        PixelButton recentre = new PixelButton(
-                Component.translatable("gui.mcskincreator.recentre"),
-                PixelButton.Style.NORMAL, this::recentre);
-        recentre.fit(canvas);
-        recentre.withTooltip(Component.translatable("gui.mcskincreator.recentre.tooltip"));
-        docked.add(recentre);
-
         // Laid out right to left from the end of the bar, and anything that would run
         // into the view tabs is dropped rather than drawn over them.
         int cursorX = this.x + this.width - Metrics.PAD_TIGHT;
@@ -314,35 +293,63 @@ public class ScenePanel extends Element {
     }
 
     /**
-     * Play, bottom right of the figure: a square with a triangle or two bars on it.
+     * What the figure is <em>doing</em>, in the bottom right corner of the picture.
      *
-     * <p>It was a word in the strip with the choosers, which put the one control you
-     * press repeatedly among the ones you set once. It belongs on the picture it
-     * animates, in the corner, at the size of every other mark in this interface.
+     * <p>The pose, play, and recentre. They belong together and they belong on the
+     * picture they act on: play alone in one corner while the pose that decides what it
+     * plays sat in the strip at the top was two halves of one control at opposite ends
+     * of the scene. The strip above keeps what you are looking <em>with</em> — the view,
+     * the camera, the backdrop — and this keeps what you are looking <em>at</em>.
      */
-    private void layoutPlay(int viewTop, int viewHeight) {
-        if (this.cameraMode == CameraMode.FIRST_PERSON || viewHeight <= 0) {
+    private void layoutStageControls(Canvas canvas, int viewTop, int viewHeight) {
+        if (viewHeight <= 0) {
             return;
         }
-        PixelButton play = new PixelButton(
-                Component.translatable(this.playing
-                        ? "gui.mcskincreator.stop" : "gui.mcskincreator.play"),
-                PixelButton.Style.NORMAL, this::togglePlaying);
-        play.withGlyph(this.playing ? PixelButton.Glyph.PAUSE : PixelButton.Glyph.PLAY);
-        play.withTooltip(Component.translatable(this.playing
-                ? "gui.mcskincreator.stop.tooltip" : "gui.mcskincreator.play.tooltip"));
-        int size = Metrics.BUTTON_HEIGHT;
-        play.setBounds(this.x + this.width - Metrics.PAD_TIGHT - size,
-                viewTop + viewHeight - Metrics.PAD_TIGHT - size, size, size);
-        this.controls.add(play);
+        List<Element> staged = new ArrayList<>();
+
+        if (this.cameraMode != CameraMode.FIRST_PERSON) {
+            staged.add(chooser(List.of(ScenePose.values()),
+                    candidate -> Component.translatable(candidate.labelKey()),
+                    () -> this.pose, this::choosePose));
+
+            PixelButton play = new PixelButton(
+                    Component.translatable(this.playing
+                            ? "gui.mcskincreator.stop" : "gui.mcskincreator.play"),
+                    PixelButton.Style.NORMAL, this::togglePlaying);
+            play.withGlyph(this.playing ? PixelButton.Glyph.PAUSE : PixelButton.Glyph.PLAY);
+            play.setBounds(0, 0, Metrics.TAB_HEIGHT, Metrics.TAB_HEIGHT);
+            play.withTooltip(Component.translatable(this.playing
+                    ? "gui.mcskincreator.stop.tooltip" : "gui.mcskincreator.play.tooltip"));
+            staged.add(play);
+        } else {
+            PixelButton swing = new PixelButton(Component.translatable("gui.mcskincreator.swing"),
+                    PixelButton.Style.NORMAL, this.gameCamera::swing);
+            swing.fit(canvas);
+            swing.withTooltip(Component.translatable("gui.mcskincreator.swing.tooltip"));
+            staged.add(swing);
+        }
+
+        PixelButton recentre = new PixelButton(
+                Component.translatable("gui.mcskincreator.recentre"),
+                PixelButton.Style.NORMAL, this::recentre);
+        recentre.fit(canvas);
+        recentre.withTooltip(Component.translatable("gui.mcskincreator.recentre.tooltip"));
+        staged.add(recentre);
+
+        int cursorX = this.x + this.width - Metrics.PAD_TIGHT;
+        int rowY = viewTop + viewHeight - Metrics.PAD_TIGHT - Metrics.TAB_HEIGHT;
+        for (int index = staged.size() - 1; index >= 0; index--) {
+            Element control = staged.get(index);
+            if (cursorX - control.width() < this.x + Metrics.PAD_TIGHT) {
+                continue;
+            }
+            cursorX -= control.width();
+            control.setBounds(cursorX, rowY, control.width(), Metrics.TAB_HEIGHT);
+            this.controls.add(control);
+            cursorX -= Metrics.SEGMENT_GAP;
+        }
     }
 
-    /**
-     * Sizes the portrait so the player stays whole.
-     *
-     * <p>Whichever of width and height runs out first decides, so the figure keeps its
-     * proportions at any window size and any of the four GUI scales.
-     */
     private void layoutModel(int viewTop, int viewHeight) {
         int space = this.view == View.BOTH ? this.width / 2 : this.width;
         int inset = Metrics.PAD;

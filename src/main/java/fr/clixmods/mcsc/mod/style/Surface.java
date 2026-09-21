@@ -276,11 +276,12 @@ public final class Surface {
 
     /** Play: a filled triangle, which is what the sign has meant since tape decks. */
     public static void play(Canvas canvas, int x, int y, int size, int ink) {
-        // Widest at the left edge and narrowing to a point on the right: the tip is
-        // where it is going.
-        int half = size / 2;
-        for (int column = 0; column <= half; column++) {
-            canvas.fill(x + column, y + column, 1, size - column * 2, ink);
+        // Across the whole box, widest at the left edge and narrowing to a point on
+        // the right. Half the box was half a triangle sitting against the left side of
+        // its button, which reads as a stray wedge rather than as play.
+        for (int column = 0; column < size; column++) {
+            int top = column / 2;
+            canvas.fill(x + column, y + top, 1, Math.max(1, size - top * 2), ink);
         }
     }
 

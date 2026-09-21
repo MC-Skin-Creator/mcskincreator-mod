@@ -58,6 +58,7 @@ import fr.clixmods.mcsc.mod.ui.widget.ItemTile;
 import fr.clixmods.mcsc.mod.ui.window.CardWindow;
 import fr.clixmods.mcsc.mod.ui.window.ConfirmWindow;
 import fr.clixmods.mcsc.mod.ui.window.ModalWindow;
+import fr.clixmods.mcsc.mod.ui.window.CreditsWindow;
 import fr.clixmods.mcsc.mod.ui.window.ModelsWindow;
 import fr.clixmods.mcsc.mod.ui.window.NameWindow;
 import fr.clixmods.mcsc.mod.ui.window.SkinsWindow;
@@ -1041,16 +1042,21 @@ public class SkinCreatorScreen extends Screen {
                 TextWindow.Line.warning("about.mcskincreator.local_only")), null));
     }
 
+    /**
+     * The one door the library's foot still has.
+     *
+     * <p>About and the beta notice both hung here as well, and both were a second way
+     * into a room the top bar already opens — the mark opens About, and the badge beside
+     * it says beta. The legal notice went with them: it said what the mod is not, which
+     * is About's job and is in About.
+     */
     private void openFooterLink(String link) {
-        switch (link) {
-            case "about" -> openAbout();
-            case "legal" -> open(new TextWindow("window.mcskincreator.legal",
-                    List.of(TextWindow.Line.of("legal.mcskincreator.body")), null));
-            case "credits" -> open(new TextWindow("window.mcskincreator.credits",
-                    this::creditsLines, null));
-            default -> open(new TextWindow("window.mcskincreator.beta",
-                    List.of(TextWindow.Line.of("beta.mcskincreator.body")), null));
+        if ("credits".equals(link)) {
+            open(new CreditsWindow("window.mcskincreator.credits",
+                    this::creditsNotice, this::creditsEntries, null));
+            return;
         }
+        openAbout();
     }
 
     /**
@@ -1065,10 +1071,14 @@ public class SkinCreatorScreen extends Screen {
      * <p>Elements the repository drew itself credit nobody outside it and are left out,
      * which is what the site does with them too.
      */
-    private List<TextWindow.Line> creditsLines() {
-        List<TextWindow.Line> lines = new ArrayList<>();
-        lines.add(TextWindow.Line.of("credits.mcskincreator.body"));
+    private Component creditsNotice() {
+        if (this.project.isEmpty()) {
+            return Component.translatable("credits.mcskincreator.nothing_stacked");
+        }
+        return Component.translatable("credits.mcskincreator.body");
+    }
 
+    private List<CreditsWindow.Entry> creditsEntries() {
         Map<CatalogWork, List<String>> used = new LinkedHashMap<>();
         for (Layer layer : this.project.layers()) {
             CatalogItem item = itemOf(layer).orElse(null);
@@ -1086,19 +1096,13 @@ public class SkinCreatorScreen extends Screen {
             }
         }
 
-        if (used.isEmpty()) {
-            lines.add(TextWindow.Line.of(this.project.isEmpty()
-                    ? "credits.mcskincreator.nothing_stacked"
-                    : "credits.mcskincreator.nothing_to_credit"));
-            return lines;
-        }
+        List<CreditsWindow.Entry> entries = new ArrayList<>();
         for (Map.Entry<CatalogWork, List<String>> entry : used.entrySet()) {
             CatalogWork work = entry.getKey();
-            lines.add(new TextWindow.Line(Component.translatable("credits.mcskincreator.work",
-                    work.title(), work.author(), licenceName(work),
-                    String.join(", ", entry.getValue())), false));
+            entries.add(new CreditsWindow.Entry(work.author(), work.title(),
+                    licenceName(work).getString(), work.url(), entry.getValue()));
         }
-        return lines;
+        return entries;
     }
 
     /** The catalogue entry a layer was stacked from, which it may have outlived. */

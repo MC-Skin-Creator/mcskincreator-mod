@@ -92,7 +92,6 @@
   "footer.mcskincreator.about": "Acerca de",
   "footer.mcskincreator.credits": "Créditos",
   "footer.mcskincreator.beta": "Beta",
-  "footer.mcskincreator.legal": "Aviso legal",
   "gesture.mcskincreator.turn": "Arrastra para girar",
   "gesture.mcskincreator.pan": "Clic derecho para mover",
   "gesture.mcskincreator.zoom": "Rueda para ampliar",
@@ -128,7 +127,7 @@
   "about.mcskincreator.local_only": "Lo que compongas se queda en tu máquina mientras no lo apliques. Aplicarlo lo envía a tu cuenta de Minecraft, te lo pone aquí al momento, y los demás lo ven en cuanto Minecraft lo reparte: el editor nunca lo hace por su cuenta.",
   "beta.mcskincreator.body": "El editor se está escribiendo. Las herramientas de dibujo y los colores por elemento aún no están.",
   "legal.mcskincreator.body": "Minecraft es una marca de Mojang Studios. Este proyecto no está afiliado ni respaldado por Mojang Studios o Microsoft.",
-  "credits.mcskincreator.body": "Interfaz: MC Skin Creator. Los elementos vienen del catálogo del sitio, y cada uno dice abajo de dónde se recortó.",
+  "credits.mcskincreator.body": "La interfaz es la de MC Skin Creator. Los elementos vienen del catálogo del sitio, y cada obra de la que bebe esta pila se acredita abajo.",
   "provenance.mcskincreator.category": "Categoría: %s",
   "import.mcskincreator.body": "Importar una skin ya hecha la colocará como una capa única sobre la que seguirán actuando los ajustes de color.",
   "import.mcskincreator.not_yet": "La lectura de un archivo aún no está escrita. El botón se queda aquí para decir dónde llegará.",
@@ -162,9 +161,7 @@
   "provenance.mcskincreator.models": "Parte de %s modelo(s) de inicio: %s",
   "provenance.mcskincreator.models_more": "Parte de %s modelos de inicio: %s, y %s más",
   "provenance.mcskincreator.no_models": "Ningún modelo de inicio se apoya en este elemento.",
-  "credits.mcskincreator.work": "%s, por %s (%s) — %s",
   "credits.mcskincreator.nothing_stacked": "No hay nada apilado: esta ventana dice de dónde viene la skin del modelo.",
-  "credits.mcskincreator.nothing_to_credit": "Todo lo apilado aquí lo ha dibujado MC Skin Creator.",
   "export.mcskincreator.front": "Guardar la vista de frente",
   "export.mcskincreator.front_detail": "Escribe el personaje visto de frente, ocho veces más grande, en la misma carpeta.",
   "export.mcskincreator.account": "Aplicar en mi cuenta",
@@ -188,5 +185,8 @@
   "toast.mcskincreator.outfit_applied": "%s puesto: %s capas",
   "toast.mcskincreator.model_empty": "No queda nada de él en el catálogo",
   "window.mcskincreator.models.notice": "Un personaje entero. Elegir uno reemplaza todo lo que has apilado — deshacer lo devuelve.",
-  "library.mcskincreator.all_categories": "Todo (%s)"
+  "library.mcskincreator.all_categories": "Todo (%s)",
+  "credits.mcskincreator.work_line": "%s — %s",
+  "credits.mcskincreator.elements": "Usada aquí para: %s",
+  "credits.mcskincreator.source": "Fuente"
 }
