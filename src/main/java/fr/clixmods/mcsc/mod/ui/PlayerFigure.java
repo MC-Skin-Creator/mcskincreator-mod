@@ -21,7 +21,8 @@ import fr.clixmods.mcsc.mod.skin.PreviewSkin;
  *
  * <p>It used to be vanilla's {@code PlayerSkinWidget}, which turns under the mouse and
  * does nothing else. The scene wanted a zoom, a pan and a pose, and none of the three is
- * something that widget can be asked for.
+ * something that widget can be asked for. The pointer is still handed on: the figure
+ * watches it, which is the one part of the pose nobody aims by hand.
  *
  * <p>Two of the three cameras draw nothing here at all: they let the game draw the real
  * character, in the real world, and this figure's whole job is then to keep out of the
@@ -65,7 +66,8 @@ public final class PlayerFigure implements Figure {
             return;
         }
         PosedPlayer.draw(canvas, this.preview.playerSkin(), shot.pose(), shot.playing(),
-                shot.seconds(), shot.eye(), this.x, this.y, this.width, this.height,
+                shot.seconds(), shot.eye(), mouseX, mouseY,
+                this.x, this.y, this.width, this.height,
                 this.stageX, this.stageY, this.stageWidth, this.stageHeight);
     }
 }
