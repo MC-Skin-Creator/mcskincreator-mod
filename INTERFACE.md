@@ -64,6 +64,10 @@ Every one of those values is a custom property in the site's own stylesheet, tra
 into [`Palette`](src/main/java/fr/clixmods/mcsc/mod/style/Palette.java) and derived from
 nothing. Nothing else in the source tree names a colour.
 
+The one fill that is not the interface's is a layer's colour swatch
+(`widget/ColorSwatch`), and it names no colour either: it shows the skin's, read from
+the layer, inside an ordinary slot.
+
 ### Drawing rules
 
 - Nothing is rounded, nothing is a gradient, nothing animates.
@@ -123,42 +127,52 @@ moment the screen closes. It is their setting, so it is restored in `removed()`,
 the game calls however the screen ends, and re-applied on every layout, because a
 window resize makes the game recompute it from the options.
 
-The site is laid out around a 12 px font; the game's is 8 px. Every spacing and line
-height is two thirds of its reference value — `Metrics.ui(int)`, and nothing does
-that conversion anywhere else.
+The site is laid out around an 11 px font; the game's is 8 px. Every spacing, every
+line height and every control height is `8/11` of its reference value — `Metrics.ui(int)`,
+and nothing does that conversion anywhere else. The reference values are the numbers in
+the site's own stylesheet, each one named in the comment beside its constant.
 
-**A width is not a spacing, and converting one that way is the trap this interface
-already fell into.** The site's library is 300 px wide, which `ui()` turns into 200 —
-and 200 is wrong, because the site has some 1900 px to spend and the game, at a GUI
-scale of 3, has about 640. Two columns of 200 ate two thirds of the screen and left
-the model a strip. What carries over is the **share**: a side column is about a fifth
-of the width, within bounds that keep it readable at one end and from sprawling at the
-other. That is `Metrics.columnWidth(int)`.
+**A column is not a length, and converting one that way is the trap this interface
+fell into twice.** The site's library is `300px` wide, which `ui()` turns into 218 — and
+218 is wrong, because the site has some 1900 px to spend and this editor has 960. What
+carries over is the **share**: 300 of 1900 is a sixth of the screen over there, so it is
+a sixth of the screen here, which is `Metrics.share(int)`. Put through `ui()` instead,
+the two columns took very nearly half the width and left the model a strip between them.
 
-What is **not** converted at all is anything the game already has an opinion about. A
-button is 20 px tall because that is what a Minecraft button is. The insets in
-`Metrics` are the borders of the sprites above, so a label sits clear of the frame the
-sprite draws.
+The library column has a floor under that share, and only it: its grid is
+`repeat(3, minmax(0, 1fr))` on the site and three columns here too, so the column is
+measured from the tile up — `MIN_TILE_WIDTH` is the narrowest tile whose label still
+says something, and three of them is the narrowest the column may be.
 
 **Three gaps and one control height.** The gaps are the site's 8, 6 and 3 converted:
 6, 4 and 2. The height is 20, which is its `padding: 5px 10px` over an 11 px line. A
 row holding a 14 px tab beside a 16 px button beside a 20 px one is the whole of why
 nothing used to line up.
 
-**A panel's contents start at its frame, not at its edge.** `popup/background` carries
-a six pixel border, so anything laid out closer than that is drawn *under* the frame:
-the last letter of a value, the count beside a heading, the flank of a tab.
-`Panel.contentLeft()` and `contentRight()` name that box once, and nothing measures
-from `x` and `width` itself.
+**The frame is a length too, and it converts like one.** `border: 2px solid var(--edge)`
+appears 36 times in the site's stylesheet, and the outline and bevel were 2 here as well
+on the reasoning that the frame is the graphic identity and would vanish at one pixel.
+Seen in a client it was the opposite: two and two is four pixels of frame around a
+control sixteen across, leaving eight for the glyph, and a button read as a hole with
+something at the bottom of it. Both are 1. At the even GUI scales this editor takes, one
+interface pixel is two on the screen — which is the thickness the site's frame has there
+too. A whole multiple does stay whole: a thumbnail is drawn at x1 or x2, never at x1.4.
 
-**A tab is part of a tab bar.** The game's tab sprite has no bottom border, because it
-is drawn to sit on the thing it opens. One floating in the middle of a column reads as
-a bracket, and a row of them that wraps is not a tab bar at all — it is a grid of
-boxes. So a tab strip ends flush on a rule, and a strip that will not fit on one row
-becomes a dropdown instead of wrapping.
+**A panel's contents start at its frame, not at its edge.** The panel material is an
+outline, a bevel and a pixel of air — `Metrics.PANEL_INSET` — so anything laid out
+closer than that is drawn *under* the frame: the last letter of a value, the count
+beside a heading, the flank of a tab. `Panel.contentLeft()` and `contentRight()` name
+that box once, and nothing measures from `x` and `width` itself.
 
-Images are drawn at whole scales only, and the nine-sliced sprites are scaled by the
-game, which knows where their borders are — so the mod never stretches a corner.
+**A tab is part of a tab bar.** One floating in the middle of a column reads as a
+bracket, and a row of them that wraps is not a tab bar at all — it is a grid of boxes.
+So a tab strip ends flush on a rule, and a strip that will not fit on one row becomes a
+dropdown instead of wrapping.
+
+**What scrolls stops at a hard edge.** The layer list runs under the settings band
+pinned at the foot of its column, and the band draws black across the full width where
+it begins. A row cut off by a grey hairline reads as a broken row; cut off by black, it
+reads as a row that carries on underneath.
 
 Everything gives way before the column does: the element grid drops from three
 thumbnails to two rather than splitting the width into ones too small to tell apart, a
@@ -208,8 +222,10 @@ rendering, with its overlay layer, its animation and its classic or slim proport
 
 That path is what gives the scene a camera and an animation chooser, and it replaced
 vanilla's `PlayerSkinWidget`, which turns under the mouse and does nothing else. The
-widget is still what the panel on the vanilla menus uses (`SkinPanel`), where turning
-is all that is wanted.
+panel on the vanilla menus (`SkinPanel`) goes through the same path, as `MenuFigure`,
+so that its figure can watch the pointer. The editor's does not: there the player turns
+the figure to look at a skin, and a head chasing the mouse would move what they are
+looking at.
 
 **The animations are named in the game's terms, not the site's.** The site had to
 write its ten out by hand — limb angles, cycle lengths, a coordinate change and a
@@ -267,22 +283,28 @@ stands a labelled box in its place, which is the only reason the scene's own lay
 can be looked at at all.
 
 Thumbnails are cheaper still: a category's atlas arrives as raw 64x64 skins, and
-`FrontSprite` folds each one into the 16x32 front view the site's slots show. One
-sheet per category rather than one texture per element, cropped per category to the
-part of the body the element actually covers — a shelf of hairstyles drawn on whole
-bodies is unreadable, which is what `ThumbCrop` exists to prevent.
+`FrontSprite` folds each one into the 16x32 front view the site's slots show — the
+fold itself is `mcsc-engine`'s, the very call the browser makes, so a shelf of
+elements is framed and blended here as it is there. One sheet per category rather
+than one texture per element, cropped per category to the part of the body the
+element actually covers — a shelf of hairstyles drawn on whole bodies is unreadable,
+which is what `ThumbCrop` exists to prevent. Its rectangles are the library's too:
+they used to be written out again here, tighter, so a head was the eight rows of the
+face where the site gives it ten by eleven.
 
-The stack is composed by the server: the project goes to `POST /textures` and the
-sheet comes back. Picking never waits on that. The element goes on the model
-immediately from the atlas buffer already in memory, and the composition replaces it
-when it lands, so a server that cannot compose costs a notification rather than the
-preview.
+The stack is composed in the game, out of those same atlas buffers, by
+`mcsc-engine` — the library the site's own composition was taken out into, so the two
+produce the same bytes by running the same code. Nothing on screen waits on it:
+stacking an element, dragging a slider and reordering the stack all show on the next
+frame. It used to be a `POST /textures` per change behind a 300 ms debounce, which a
+dragged slider would never have survived. A category whose atlas is still on its way
+contributes nothing until it lands, and the sheet is composed again when it does.
 
-The ready-made stacks — the starter models and the outfits — are the one place that
-composes locally, because there are two hundred of them on screen at once and a
-request each is not a thing to ask for. Their pictures are what choosing one will put
-on the model, which is not always what the site shows for the same entry: the
-catalogue gives some pieces a colour override, and a layer here cannot hold one yet.
+The ready-made stacks — the starter models and the outfits — go through the same
+library, which is why there are two hundred of them on screen at once and not one
+request each. Their pictures are what choosing one will put on the model, colour
+overrides included: the catalogue gives some pieces one — the same cloak in green
+rather than in red — and both the picture and the layers choosing one stacks take it.
 
 An outfit is clothes and nothing else, so its picture is stood on a body taken from
 the catalogue's own skin category. The site names one outright and the catalogue no
@@ -331,8 +353,7 @@ body.
 The interface is complete; several of the things it is an interface *to* are not.
 These are deliberate gaps, and each one follows the rule above about empty targets —
 the control is absent rather than dead. That is why there is no animation chooser in
-the scene dock, no colour swatches in the inspector (the catalogue carries no colour
-keys yet), and no random-outfit button. The starter models the site offers are
+the scene dock, and no random-outfit button. The starter models the site offers are
 there — that is what the **Models** button in the top bar opens — and the button
 itself disappears when the catalogue turns out to carry none.
 
@@ -348,7 +369,6 @@ project only ever sees a real `CatalogModel`.
 | Missing | Where it lands |
 |---|---|
 | The pixel drawing tools and their shortcuts | issues #7, #8 |
-| Per-element colours, and the swatch row that goes with them | issue #7 |
 | Composing locally instead of over the network | issue #8 |
 | Importing a texture | issue #8 |
 | The fitting room: the skin on your own client only | issue #11 |

@@ -43,9 +43,11 @@ import org.joml.Vector3f;
  * the state as {@code bodyRot} in degrees, the tilt into the rotation quaternion, the
  * zoom into the scale and the pan into the translation. Deriving them from vanilla
  * rather than from first principles is what settles the signs — every one of them is a
- * chance to send the figure off the side of the panel. The head comes from the same
- * place, through {@link Gaze}, and is the one thing here the player does not aim: it
- * watches the pointer.
+ * chance to send the figure off the side of the panel.
+ *
+ * <p>The figure on the vanilla menus also watches the pointer, through {@link Gaze}. The
+ * editor's does not: there the player is turning the figure to look at a skin, and a
+ * head that chased the mouse would move whatever they were trying to look at.
  */
 public final class PosedPlayer {
     /** A player is 1.8 blocks tall and 0.6 wide; the box is what centres the figure. */
@@ -61,24 +63,37 @@ public final class PosedPlayer {
     }
 
     /**
-     * Draws a figure built from a skin and a pose.
+     * Draws a figure built from a skin and a pose, its head riding its body.
      *
      * @param skin    what it wears, and so also which of the two player models it is
      * @param seconds how long the animation has been running
      * @param playing false leaves it standing rather than frozen mid-stride
-     * @param mouseX  the pointer, which is what the figure looks at
      */
     public static void draw(Canvas canvas, PlayerSkin skin, ScenePose pose, boolean playing,
-                            float seconds, SceneCamera camera, int mouseX, int mouseY,
+                            float seconds, SceneCamera camera,
                             int x, int y, int width, int height,
                             int stageX, int stageY, int stageWidth, int stageHeight) {
+        submit(canvas, state(skin, pose, seconds, playing), pose.spread(), camera,
+                false, 0, 0, x, y, width, height, stageX, stageY, stageWidth, stageHeight);
+    }
+
+    /**
+     * Draws a standing figure that looks at the pointer, whichever way it has been turned.
+     */
+    public static void drawWatching(Canvas canvas, PlayerSkin skin, SceneCamera camera,
+                                    int mouseX, int mouseY, int x, int y, int width, int height) {
+        submit(canvas, state(skin, ScenePose.IDLE, 0, false), ScenePose.IDLE.spread(), camera,
+                true, mouseX, mouseY, x, y, width, height, x, y, width, height);
+    }
+
+    private static AvatarRenderState state(PlayerSkin skin, ScenePose pose, float seconds,
+                                           boolean playing) {
         AvatarRenderState state = new AvatarRenderState();
         state.skin = skin;
         state.boundingBoxHeight = BOX_HEIGHT;
         state.boundingBoxWidth = BOX_WIDTH;
         pose.apply(state, seconds, playing);
-        submit(canvas, state, pose.spread(), camera, mouseX, mouseY, x, y, width, height,
-                stageX, stageY, stageWidth, stageHeight);
+        return state;
     }
 
     /**
@@ -88,7 +103,7 @@ public final class PosedPlayer {
      * @param spread how wide the figure gets, in blocks, so it can be fitted whole
      */
     private static void submit(Canvas canvas, EntityRenderState state, float spread,
-                               SceneCamera camera, int mouseX, int mouseY,
+                               SceneCamera camera, boolean watch, int mouseX, int mouseY,
                                int x, int y, int width, int height,
                                int stageX, int stageY, int stageWidth, int stageHeight) {
         if (width <= 0 || height <= 0 || stageWidth <= 0 || stageHeight <= 0) {
@@ -101,25 +116,27 @@ public final class PosedPlayer {
             // A body at 180 degrees faces you; the game rotates by bodyRot - 180.
             float bodyTurn = camera.yaw() * DEGREES;
             living.bodyRot = 180 + bodyTurn;
+            // The head, in degrees and relative to the body. It keeps facing you as the
+            // view tilts, which is what vanilla's portrait does and what makes the tilt
+            // read as moving around the figure rather than tipping it over.
+            living.yRot = 0;
+            float nod = 0;
 
-            // Where the eyes have ended up on the panel, which is what the pointer is
-            // measured against. The figure stands in the middle of its box with its feet
-            // half a box below the centre, both moved by the pan, and the scale is pixels
-            // per block — so the eyes stay on the face at every zoom.
-            float centreX = x + width / 2.0F + camera.panX();
-            float feetY = y + height / 2.0F + camera.panY() + state.boundingBoxHeight / 2 * scale;
-            Gaze gaze = Gaze.towards(mouseX, mouseY, centreX, feetY, scale);
+            if (watch) {
+                // Where the eyes have ended up, which is what the pointer is measured
+                // against: the figure stands in the middle of its box with its feet half
+                // a box below the centre, both moved by the pan, and the scale is pixels
+                // per block — so the eyes stay on the face at every zoom.
+                float centreX = x + width / 2.0F + camera.panX();
+                float feetY = y + height / 2.0F + camera.panY() + state.boundingBoxHeight / 2 * scale;
+                Gaze gaze = Gaze.towards(mouseX, mouseY, centreX, feetY, scale);
+                living.yRot = gaze.headTurn(bodyTurn);
+                nod = gaze.headNod();
+            }
 
-            // The head, in degrees and relative to the body. It leaves the body wherever
-            // the player has turned it to and looks at the pointer regardless, which is
-            // also what keeps it facing you as the view tilts and makes the tilt read as
-            // moving around the figure rather than tipping it over.
-            living.yRot = gaze.headTurn(bodyTurn);
             // Vanilla leaves a gliding figure's head alone, because the glide already
             // owns its pitch; tilting it as well folds the neck.
-            living.xRot = living.hasPose(Pose.FALL_FLYING)
-                    ? 0
-                    : gaze.headNod() - camera.pitch() * DEGREES;
+            living.xRot = living.hasPose(Pose.FALL_FLYING) ? 0 : nod - camera.pitch() * DEGREES;
         }
 
         // Vanilla's base orientation: the picture-in-picture space has y running down, so

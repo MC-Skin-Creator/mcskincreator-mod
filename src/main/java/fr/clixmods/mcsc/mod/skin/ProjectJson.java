@@ -7,6 +7,7 @@
  */
 package fr.clixmods.mcsc.mod.skin;
 
+import java.util.Map;
 import java.util.Set;
 
 import com.google.gson.Gson;
@@ -17,6 +18,8 @@ import com.google.gson.JsonObject;
 import fr.clixmods.mcsc.mod.catalog.Catalog;
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
 import fr.clixmods.mcsc.mod.catalog.CatalogItem;
+import fr.clixmods.mcsc.mod.catalog.CatalogParser;
+import fr.clixmods.mcsc.mod.catalog.Rgb;
 import fr.clixmods.mcsc.mod.project.Layer;
 import fr.clixmods.mcsc.mod.project.SkinProject;
 import net.minecraft.world.entity.player.PlayerModelType;
@@ -112,6 +115,12 @@ public final class ProjectJson {
             adjustments.addProperty("lum", factor(layer.brightness()));
             entry.add("adj", adjustments);
         }
+        Map<String, Integer> colors = layer.changedColors();
+        if (!colors.isEmpty()) {
+            JsonObject table = new JsonObject();
+            colors.forEach((key, rgb) -> table.addProperty(key, Rgb.format(rgb)));
+            entry.add("colors", table);
+        }
         return entry;
     }
 
@@ -203,6 +212,9 @@ public final class ProjectJson {
             layer.setSaturation(percent(adj, "sat", 100));
             layer.setBrightness(percent(adj, "lum", 0));
         }
+        // A key the element no longer declares is let go: there is nothing left for
+        // the server to recolour with it.
+        CatalogParser.colors(entry.get("colors")).forEach(layer::setColor);
         return true;
     }
 

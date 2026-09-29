@@ -64,14 +64,24 @@ public final class ReadyMadeSkins {
             // A model was drawn for one of the two player models; an outfit is worn by
             // whichever body is already there.
             boolean posed = entry.kind() == CatalogModel.Kind.MODEL ? entry.slim() : slim;
-            List<byte[]> pieces = pieces(entry, catalog, sprites, posed, under);
+            List<Stacked> pieces = pieces(entry, catalog, sprites, posed, under);
             if (pieces == null) {
                 skins.add(missing);
                 continue;
             }
+            List<byte[]> sources = new ArrayList<>(pieces.size());
+            for (Stacked piece : pieces) {
+                sources.add(piece.source());
+            }
+            // Keyed on the atlas buffers rather than the recoloured ones: a recolour is
+            // a fresh array every time, and it is itself part of what is worth sparing.
             Blend blend = this.blends.get(entry);
-            if (blend == null || !blend.madeOf(pieces)) {
-                blend = new Blend(pieces, Composite.of(pieces));
+            if (blend == null || !blend.madeOf(sources)) {
+                List<byte[]> stacked = new ArrayList<>(pieces.size());
+                for (Stacked piece : pieces) {
+                    stacked.add(piece.colored());
+                }
+                blend = new Blend(sources, Composite.of(stacked));
             }
             kept.put(entry, blend);
             skins.add(blend.skin());
@@ -122,13 +132,29 @@ public final class ReadyMadeSkins {
         return null;
     }
 
+    /**
+     * One buffer to stack, as the atlas holds it, and the colour override to apply to
+     * it — applied only when the picture is actually blended.
+     */
+    private record Stacked(byte[] source, String categoryId, CatalogItem item,
+                           Map<String, Integer> colors, boolean slim) {
+        static Stacked plain(byte[] source) {
+            return new Stacked(source, null, null, Map.of(), false);
+        }
+
+        byte[] colored() {
+            return this.colors.isEmpty() ? this.source
+                    : Composite.recolor(this.categoryId, this.item, this.colors, this.slim, this.source);
+        }
+    }
+
     /** The pieces to stack, bottom first, or null when any of their pixels is missing. */
-    private static List<byte[]> pieces(CatalogModel entry, Catalog catalog,
+    private static List<Stacked> pieces(CatalogModel entry, Catalog catalog,
                                        Function<String, CategorySprites> sprites, boolean slim,
                                        byte[] under) {
-        List<byte[]> buffers = new ArrayList<>(entry.pieces().size() + 1);
+        List<Stacked> buffers = new ArrayList<>(entry.pieces().size() + 1);
         if (under != null) {
-            buffers.add(under);
+            buffers.add(Stacked.plain(under));
         }
         for (CatalogModel.Piece piece : entry.pieces()) {
             CatalogCategory category = catalog.category(piece.categoryId()).orElse(null);
@@ -152,7 +178,8 @@ public final class ReadyMadeSkins {
             if (buffer == null) {
                 return null;
             }
-            buffers.add(buffer);
+            // The piece's colour override, so the picture is the one choosing it gives.
+            buffers.add(new Stacked(buffer, piece.categoryId(), item, piece.colors(), slim));
         }
         return buffers.isEmpty() ? null : buffers;
     }
