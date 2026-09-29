@@ -114,7 +114,8 @@ class WindowPreviewTest {
         }
         // The first entry is the project in progress, so the preview shows both kinds of row.
         return new SkinsWindow(() -> new SkinsWindow.Library(skins, false, Component.empty()),
-                () -> "skin0", new SkinThumbnails(), skin -> { }, skin -> { }, () -> { });
+                () -> "skin0", new SkinThumbnails(), new SkinsWindow.Actions(
+                        skin -> { }, skin -> { }, skin -> { }, skin -> { }, () -> { }));
     }
 
     private static void write(String name, ModalWindow window, int pointerX, int pointerY)
