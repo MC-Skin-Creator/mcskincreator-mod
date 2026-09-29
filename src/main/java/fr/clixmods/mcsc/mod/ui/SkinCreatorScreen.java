@@ -681,8 +681,29 @@ public class SkinCreatorScreen extends Screen {
             this.preview.clear();
             return;
         }
+        requestStackAtlases();
         this.composed = Composite.of(this.project, this::atlasBuffer);
         show(this.composed);
+    }
+
+    /**
+     * Asks for the atlas of every category the stack draws from.
+     *
+     * <p>The library only fetches the region on screen, which covers what is picked from
+     * it but not a stack that arrived whole — a project put back on opening, a saved
+     * skin, an undo. Without this, such a stack composed as its skin alone: every other
+     * layer was waiting on pixels nobody had asked for.
+     */
+    private void requestStackAtlases() {
+        for (Layer layer : this.project.layers()) {
+            if (this.requestedAtlases.contains(layer.categoryId())) {
+                continue;
+            }
+            catalog.category(layer.categoryId()).ifPresent(category -> {
+                this.requestedAtlases.add(category.id());
+                requestAtlas(category);
+            });
+        }
     }
 
     // ------------------------------------------------------------------ the catalogue
