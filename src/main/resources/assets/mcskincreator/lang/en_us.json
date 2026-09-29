@@ -75,8 +75,6 @@
   "gui.mcskincreator.play.tooltip": "Set the character moving",
   "gui.mcskincreator.stop": "Stop",
   "gui.mcskincreator.stop.tooltip": "Stand the character still again",
-  "gui.mcskincreator.swing": "Swing",
-  "gui.mcskincreator.swing.tooltip": "Swing the hand, to see the arm move",
   "gui.mcskincreator.settings": "Settings",
   "gui.mcskincreator.reset_colors": "Original colours",
   "gui.mcskincreator.reset_colors.tooltip": "Put back the colours the element came with",

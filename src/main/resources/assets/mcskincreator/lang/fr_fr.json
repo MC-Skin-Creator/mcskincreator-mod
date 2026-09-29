@@ -75,8 +75,6 @@
   "gui.mcskincreator.play.tooltip": "Mettre le personnage en mouvement",
   "gui.mcskincreator.stop": "Arrêt",
   "gui.mcskincreator.stop.tooltip": "Remettre le personnage debout",
-  "gui.mcskincreator.swing": "Frapper",
-  "gui.mcskincreator.swing.tooltip": "Donner un coup, pour voir le bras bouger",
   "gui.mcskincreator.settings": "Réglages",
   "gui.mcskincreator.reset_colors": "Couleurs d'origine",
   "gui.mcskincreator.reset_colors.tooltip": "Remettre les couleurs livrées avec l'élément",

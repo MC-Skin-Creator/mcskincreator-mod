@@ -299,14 +299,6 @@ public class ScenePanel extends Element {
                     () -> this.pose, this::choosePose));
         }
 
-        if (this.cameraMode == CameraMode.FIRST_PERSON) {
-            PixelButton swing = new PixelButton(Component.translatable("gui.mcskincreator.swing"),
-                    PixelButton.Style.NORMAL, this.gameCamera::swing);
-            swing.fit(canvas);
-            swing.withTooltip(Component.translatable("gui.mcskincreator.swing.tooltip"));
-            docked.add(swing);
-        }
-
         PixelButton recentre = new PixelButton(
                 Component.translatable("gui.mcskincreator.recentre"),
                 PixelButton.Style.GHOST, this::recentre);
