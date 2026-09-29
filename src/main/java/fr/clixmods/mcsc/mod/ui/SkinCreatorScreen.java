@@ -737,9 +737,8 @@ public class SkinCreatorScreen extends Screen {
         }
 
         List<TextWindow.Line> lines = new ArrayList<>();
-        lines.add(new TextWindow.Line(tile.label(), false));
-        lines.add(new TextWindow.Line(Component.translatable("provenance.mcskincreator.category",
-                name(tile.category().name())), false));
+        lines.add(new TextWindow.Line(Component.translatable("provenance.mcskincreator.body",
+                tile.label(), name(tile.category().name())), false));
 
         ItemCredit credit = this.credits.get(creditKey(tile));
         CatalogWork work = credit != null && credit.hasWork()
@@ -750,9 +749,7 @@ public class SkinCreatorScreen extends Screen {
         } else {
             lines.add(new TextWindow.Line(Component.translatable("provenance.mcskincreator.work",
                     work.title().isBlank() ? tile.label().getString() : work.title(),
-                    work.author()), false));
-            lines.add(new TextWindow.Line(Component.translatable("provenance.mcskincreator.licence",
-                    licenceName(work)), false));
+                    work.author(), licenceName(work)), false));
             if (work.hasUrl()) {
                 lines.add(new TextWindow.Line(Component.literal(work.url()), false));
             }
