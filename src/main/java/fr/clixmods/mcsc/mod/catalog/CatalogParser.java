@@ -156,7 +156,7 @@ public final class CatalogParser {
             String category = string(json, "cat");
             String item = string(json, "preset");
             if (!category.isBlank() && !item.isBlank()) {
-                pieces.add(new CatalogModel.Piece(category, item));
+                pieces.add(new CatalogModel.Piece(category, item, colors(json.get("colors"))));
             }
         }
         return List.copyOf(pieces);
@@ -223,7 +223,9 @@ public final class CatalogParser {
             if (!id.isBlank()) {
                 String crop = string(json, "thumbCrop");
                 items.add(new CatalogItem(id, text(json, "name"), atlasIndex, slimIndex,
-                        crop.isBlank() ? null : ThumbCrop.of(crop), string(json, "credit")));
+                        crop.isBlank() ? null : ThumbCrop.of(crop), string(json, "credit"),
+                        colors(json.get("colors")), blankToNull(string(json, "map")),
+                        blankToNull(string(json, "mapSlim"))));
             }
         }
         return List.copyOf(items);
@@ -237,6 +239,33 @@ public final class CatalogParser {
             return CatalogText.EMPTY;
         }
         return new CatalogText(base, english, spanish);
+    }
+
+    /**
+     * A table of colour keys, {@code {"main": "#359e61"}}, in the order it was written.
+     *
+     * <p>A key whose value is not a {@code #rrggbb} is left out rather than failing the
+     * element: the server would refuse to compose it anyway, and one malformed key
+     * should not cost the element its other colours.
+     */
+    public static Map<String, Integer> colors(JsonElement element) {
+        if (element == null || !element.isJsonObject()) {
+            return Map.of();
+        }
+        Map<String, Integer> colors = new LinkedHashMap<>();
+        for (Map.Entry<String, JsonElement> entry : element.getAsJsonObject().entrySet()) {
+            JsonElement value = entry.getValue();
+            if (entry.getKey().isBlank() || !value.isJsonPrimitive()
+                    || !value.getAsJsonPrimitive().isString()) {
+                continue;
+            }
+            Rgb.parse(value.getAsString()).ifPresent(rgb -> colors.put(entry.getKey(), rgb));
+        }
+        return colors;
+    }
+
+    private static String blankToNull(String value) {
+        return value.isBlank() ? null : value;
     }
 
     private static String string(JsonObject json, String key) {

@@ -22,6 +22,12 @@ import fr.clixmods.mcsc.mod.ui.Canvas;
  * skin, and the whole point of a pixel editor is that it is not — so the thumbnail is
  * centred in its box at the largest whole multiple that fits rather than stretched to
  * fill it.
+ *
+ * <p>And it never draws outside that box: a crop too big for its box even at a scale of
+ * one is drawn at a whole <em>fraction</em> — a half, a third — rather than clipped, so
+ * no caller needs a scissor. That matters more than it sounds: a scissor flushes the
+ * interface's draw batch, so one per thumbnail is one flush per thumbnail, and a grid of
+ * them crawls.
  */
 public final class Thumbnail {
     private Thumbnail() {
@@ -42,9 +48,25 @@ public final class Thumbnail {
         // Widening the crop rescues those; the ones drawn only on faces a front view
         // cannot show are past rescuing, and come out empty either way.
         ThumbCrop shown = sprites.covers(index, crop) ? crop : ThumbCrop.ALL;
-        int scale = Math.max(1, Math.min(boxWidth / shown.width(), boxHeight / shown.height()));
-        int drawnWidth = shown.width() * scale;
-        int drawnHeight = shown.height() * scale;
+        int drawnWidth;
+        int drawnHeight;
+        int scale = Math.min(boxWidth / shown.width(), boxHeight / shown.height());
+        if (scale >= 1) {
+            drawnWidth = shown.width() * scale;
+            drawnHeight = shown.height() * scale;
+        } else {
+            // Too big for its box even at one, so it is halved, thirded, quartered —
+            // whichever whole fraction first fits. Narrowing the source instead, which
+            // is what this did, does not shrink a body: it cuts the middle out of one,
+            // so every layer row showed a torso and nothing else.
+            int shrink = 2;
+            while (divide(shown.width(), shrink) > boxWidth
+                    || divide(shown.height(), shrink) > boxHeight) {
+                shrink++;
+            }
+            drawnWidth = divide(shown.width(), shrink);
+            drawnHeight = divide(shown.height(), shrink);
+        }
 
         canvas.blit(sprites.texture(),
                 boxX + (boxWidth - drawnWidth) / 2, boxY + (boxHeight - drawnHeight) / 2,
@@ -53,6 +75,11 @@ public final class Thumbnail {
                 shown.width(), shown.height(),
                 sprites.sheetWidth(), sprites.sheetHeight());
         return true;
+    }
+
+    /** Rounds up, so a crop never shrinks to nothing and never loses its last row. */
+    private static int divide(int value, int by) {
+        return Math.max(1, (value + by - 1) / by);
     }
 
     /** The proportions a thumbnail box wants, so a tile can be sized before it draws. */
