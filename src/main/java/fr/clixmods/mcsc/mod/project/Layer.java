@@ -8,6 +8,7 @@
 package fr.clixmods.mcsc.mod.project;
 
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
+import fr.clixmods.mcsc.mod.catalog.ThumbCrop;
 import fr.clixmods.mcsc.mod.catalog.CatalogItem;
 import net.minecraft.network.chat.Component;
 
@@ -33,6 +34,16 @@ public final class Layer {
     private final Component categoryName;
     private final int atlasIndex;
     private final int slimAtlasIndex;
+    /**
+     * The part of the body this layer's picture shows.
+     *
+     * <p>Kept on the layer because the row that draws it has the layer and not the
+     * category it came from. Without it the row drew the whole 16 by 32 front view into
+     * a box fifteen pixels square, at the only whole scale that fits — which is one — so
+     * what you saw was the middle fifteen rows of the body. For anything worn on the
+     * head, that is fifteen rows of nothing, and the picture looked broken.
+     */
+    private final ThumbCrop thumbCrop;
 
     private boolean visible = true;
     private int opacity = 100;
@@ -48,6 +59,7 @@ public final class Layer {
         this.categoryName = Component.literal(category.name().forLanguage(languageCode));
         this.atlasIndex = item.atlasIndex();
         this.slimAtlasIndex = item.slimAtlasIndex();
+        this.thumbCrop = category.thumbCrop(item);
     }
 
     private Layer(Layer source) {
@@ -58,6 +70,7 @@ public final class Layer {
         this.categoryName = source.categoryName;
         this.atlasIndex = source.atlasIndex;
         this.slimAtlasIndex = source.slimAtlasIndex;
+        this.thumbCrop = source.thumbCrop;
         this.visible = source.visible;
         this.opacity = source.opacity;
         this.hue = source.hue;
@@ -88,6 +101,11 @@ public final class Layer {
 
     public Component categoryName() {
         return this.categoryName;
+    }
+
+    /** The part of the body this layer's picture shows. */
+    public ThumbCrop thumbCrop() {
+        return this.thumbCrop;
     }
 
     /** The element's buffer in its category's atlas, for the model on show. */

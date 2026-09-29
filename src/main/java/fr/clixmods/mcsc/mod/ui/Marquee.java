@@ -29,18 +29,33 @@ public final class Marquee {
      *
      * @param active true while the owner is hovered or focused
      */
-    public void draw(Paint paint, Component text, int x, int y, int maxWidth, int color, boolean active) {
+    public void draw(Paint paint, Component text, int x, int y, int maxWidth, int color,
+                     boolean active) {
+        slide(paint, text, x, y, maxWidth, color, active, false);
+    }
+
+    /** The same, at the half size the layer rows and the tile labels are set in. */
+    public void drawSmall(Paint paint, Component text, int x, int y, int maxWidth, int color,
+                          boolean active) {
+        slide(paint, text, x, y, maxWidth, color, active, true);
+    }
+
+    private void slide(Paint paint, Component text, int x, int y, int maxWidth, int color,
+                       boolean active, boolean small) {
         Canvas canvas = paint.canvas();
-        int full = canvas.textWidth(text);
+        int full = small ? canvas.smallTextWidth(text) : canvas.textWidth(text);
+        int line = small ? canvas.smallLineHeight() : canvas.lineHeight();
         if (full <= maxWidth) {
             this.startedAt = -1L;
-            canvas.text(text, x, y, color);
+            write(canvas, text, x, y, color, small);
             return;
         }
 
         if (!active) {
             this.startedAt = -1L;
-            canvas.text(Component.literal(cut(canvas, text.getString(), maxWidth)), x, y, color);
+            String cut = small ? cutSmall(canvas, text.getString(), maxWidth)
+                    : cut(canvas, text.getString(), maxWidth);
+            write(canvas, Component.literal(cut), x, y, color, small);
             return;
         }
 
@@ -51,9 +66,18 @@ public final class Marquee {
         int offset = offset(paint.time() - this.startedAt, overflow);
 
         // Clipped rather than cut: while it moves, the whole name goes past.
-        canvas.pushScissor(x, y - 1, maxWidth, canvas.lineHeight() + 2);
-        canvas.text(text, x - offset, y, color);
+        canvas.pushScissor(x, y - 1, maxWidth, line + 2);
+        write(canvas, text, x - offset, y, color, small);
         canvas.popScissor();
+    }
+
+    private static void write(Canvas canvas, Component text, int x, int y, int color,
+                              boolean small) {
+        if (small) {
+            canvas.textSmall(text, x, y, color);
+        } else {
+            canvas.text(text, x, y, color);
+        }
     }
 
     /** How far along the label has slid, given how long the pointer has been on it. */
@@ -88,5 +112,17 @@ public final class Marquee {
             return ELLIPSIS;
         }
         return canvas.trimToWidth(text, room) + ELLIPSIS;
+    }
+
+    /** The same, measured at the half size. */
+    public static String cutSmall(Canvas canvas, String text, int maxWidth) {
+        if (canvas.smallTextWidth(text) <= maxWidth) {
+            return text;
+        }
+        int room = maxWidth - canvas.smallTextWidth(ELLIPSIS);
+        if (room <= 0) {
+            return ELLIPSIS;
+        }
+        return canvas.trimToSmallWidth(text, room) + ELLIPSIS;
     }
 }

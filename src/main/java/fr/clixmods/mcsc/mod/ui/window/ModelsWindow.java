@@ -157,10 +157,13 @@ public class ModelsWindow extends ModalWindow {
             Thumbnail.draw(canvas, this.sprites.get(), this.index, ThumbCrop.ALL,
                     boxX, boxY, boxWidth, boxHeight);
 
-            canvas.pushScissor(boxX, boxY + boxHeight, boxWidth, canvas.lineHeight());
-            canvas.textCentered(this.label, boxX + boxWidth / 2, boxY + boxHeight,
+            // Cut to the tile rather than clipped to it. A scissor flushes the
+            // interface's draw batch, so one per tile was one flush per tile — which is
+            // why this window crawled with a few dozen models in it.
+            canvas.textCentered(Component.literal(fr.clixmods.mcsc.mod.ui.Marquee.cut(
+                            canvas, this.label.getString(), boxWidth)),
+                    boxX + boxWidth / 2, boxY + boxHeight,
                     hot ? Palette.GOLD : Palette.INK_DIM);
-            canvas.popScissor();
         }
 
         @Override

@@ -131,6 +131,17 @@ the title screen shows the **Skin Creator** panel against its right edge.
 Requires a JDK 21. Gradle downloads the Java 25 toolchain needed by the 26.2
 target on its own.
 
+The mod composes skins with
+[`mcsc-engine`](https://github.com/MC-Skin-Creator/mcskincreator-engine), published
+to GitHub Packages — which asks for a token even for a public package. Put a personal
+token with the `read:packages` scope in `~/.gradle/gradle.properties` before
+building, or the build stops on a 401 while resolving it:
+
+```properties
+gpr.user=your-github-account
+gpr.token=ghp_…
+```
+
 ```sh
 ./gradlew build            # every supported Minecraft version
 ./gradlew :1.21.11:build   # a single version
