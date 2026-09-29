@@ -19,7 +19,6 @@ import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import fr.clixmods.mcsc.mod.remote.SavedSkin;
 
 /** The project in progress, as it is written down between two openings of the editor. */
 class CurrentProjectTest {
