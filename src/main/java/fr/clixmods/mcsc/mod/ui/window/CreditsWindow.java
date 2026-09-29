@@ -19,6 +19,7 @@ import fr.clixmods.mcsc.mod.ui.Paint;
 import fr.clixmods.mcsc.mod.ui.Prose;
 import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 
@@ -171,9 +172,37 @@ public class CreditsWindow extends ModalWindow {
         }
     }
 
-    /** Nothing but the close cross: there is nothing to decide in here. */
+    /**
+     * The credits as plain text, one work per line, source address last where there is
+     * one.
+     */
+    private String plainText() {
+        StringBuilder text = new StringBuilder();
+        for (Entry entry : this.entries.get()) {
+            if (text.length() > 0) {
+                text.append('\n');
+            }
+            text.append(Component.translatable("credits.mcskincreator.work",
+                    entry.title(), entry.author(), entry.licence(),
+                    String.join(", ", entry.elements())).getString());
+            if (entry.hasUrl()) {
+                text.append(" — ").append(entry.url());
+            }
+        }
+        return text.toString();
+    }
+
+    /**
+     * Copy, because nothing in a window can be selected. Disabled rather than absent
+     * when there is nothing to credit, so the window still says what it offers.
+     */
     @Override
     protected List<PixelButton> footer(Canvas canvas, Runnable close) {
-        return List.of();
+        String text = plainText();
+        PixelButton copy = new PixelButton(Component.translatable("credits.mcskincreator.copy"),
+                PixelButton.Style.NORMAL,
+                () -> Minecraft.getInstance().keyboardHandler.setClipboard(text));
+        copy.setEnabled(!text.isEmpty());
+        return List.of(copy);
     }
 }
