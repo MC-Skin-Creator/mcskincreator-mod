@@ -194,6 +194,12 @@ public final class Metrics {
     /** A window is 600 site px wide at most and 88 % of the screen tall. */
     public static final int WINDOW_MAX_WIDTH = ui(600);
     public static final double WINDOW_MAX_HEIGHT_RATIO = 0.88;
+    /**
+     * A window's margin, from its outer edge to its content. The panel inset alone put
+     * text a pixel or two off the bevel, which is where a column can afford to put it
+     * and a dialogue cannot: a window is read, not scanned.
+     */
+    public static final int WINDOW_PAD = PANEL_INSET + PAD;
 
     /** A notification stays up for 2.4 s. */
     public static final long TOAST_MILLIS = 2400L;

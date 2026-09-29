@@ -29,6 +29,7 @@ import fr.clixmods.mcsc.mod.ui.panel.LayersPanel;
 import fr.clixmods.mcsc.mod.ui.panel.LibraryPanel;
 import fr.clixmods.mcsc.mod.ui.panel.ScenePanel;
 import fr.clixmods.mcsc.mod.ui.panel.TopBar;
+import fr.clixmods.mcsc.mod.ui.window.ModalWindow;
 import net.minecraft.network.chat.Component;
 
 /**
@@ -56,6 +57,9 @@ public final class EditorPreview {
 
     private Catalog catalog = Catalog.EMPTY;
     private boolean laidOut;
+    private ModalWindow window;
+    private int pointerX = -1;
+    private int pointerY = -1;
 
     /** The language the mod speaks longest, which is the one worth laying out against. */
     public static final String LONGEST_LANGUAGE = "fr_fr";
@@ -67,7 +71,7 @@ public final class EditorPreview {
     public EditorPreview(String language) {
         Translations.install(language);
 
-        this.topBar = new TopBar(this.history, () -> null, () -> { }, () -> { },
+        this.topBar = new TopBar(this.history, EditorPreview::mark, () -> { }, () -> { },
                 () -> !this.catalog.models().isEmpty(), () -> { }, () -> { }, () -> { });
         this.library = new LibraryPanel(this::invalidate, text -> Component.literal(text.base()),
                 id -> null, this.project::isSlim, item -> false, tile -> { }, outfit -> { },
@@ -108,6 +112,42 @@ public final class EditorPreview {
             }
         }
         return this;
+    }
+
+    /** Opens a window over the editor, the way the screen does. */
+    public EditorPreview withWindow(ModalWindow window) {
+        this.window = window;
+        return this;
+    }
+
+    /** Puts the pointer somewhere, so a hovered state can be looked at too. */
+    public EditorPreview pointingAt(int x, int y) {
+        this.pointerX = x;
+        this.pointerY = y;
+        return this;
+    }
+
+    /**
+     * The mod's own icon, read straight out of the resources.
+     *
+     * <p>In the game it is a texture {@code Logo} uploads; here it is the same file
+     * handed to the canvas under the same kind of name.
+     */
+    public static TopBar.Mark mark() {
+        return MARK_IMAGE == null ? null : new TopBar.Mark(MARK_TEXTURE, MARK_IMAGE.getWidth());
+    }
+
+    private static final net.minecraft.resources.Identifier MARK_TEXTURE =
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("mcskincreator", "preview/icon");
+    private static final BufferedImage MARK_IMAGE = readMark();
+
+    private static BufferedImage readMark() {
+        try (java.io.InputStream stream =
+                     EditorPreview.class.getResourceAsStream("/assets/mcskincreator/icon.png")) {
+            return stream == null ? null : javax.imageio.ImageIO.read(stream);
+        } catch (java.io.IOException failure) {
+            return null;
+        }
     }
 
     private void invalidate() {
@@ -159,6 +199,9 @@ public final class EditorPreview {
     private BufferedImage paint(int width, int height, int scale) {
         ImageCanvas canvas = new ImageCanvas(width, height, scale);
         canvas.supply(Tiles.texture(), grain());
+        if (MARK_IMAGE != null) {
+            canvas.supply(MARK_TEXTURE, MARK_IMAGE);
+        }
         // The game's own ground is behind this screen; the preview needs something
         // there to tell a panel's edge from the end of the picture.
         canvas.fill(0, 0, width, height, 0xFF202225);
@@ -172,8 +215,13 @@ public final class EditorPreview {
             this.chrome.layout(canvas, width, height);
         }
 
-        Paint paint = new Paint(canvas, -1, -1, 0L, null);
+        Paint paint = new Paint(canvas, this.window == null ? this.pointerX : -1,
+                this.window == null ? this.pointerY : -1, 0L, null);
         this.chrome.draw(paint, 0.0F);
+        if (this.window != null) {
+            this.window.layout(canvas, width, height, () -> { });
+            this.window.draw(new Paint(canvas, this.pointerX, this.pointerY, 0L, null), width, height);
+        }
         return canvas.image();
     }
 

@@ -216,6 +216,6 @@ public class ColorWindow extends ModalWindow {
                             close.run();
                         }),
                 new PixelButton(Component.translatable("gui.mcskincreator.confirm"),
-                        PixelButton.Style.NORMAL, close));
+                        PixelButton.Style.PRIMARY, close));
     }
 }

@@ -69,7 +69,7 @@ public class CreditsWindow extends ModalWindow {
 
     @Override
     protected int contentHeight(Canvas canvas) {
-        int body = width() - Metrics.PANEL_INSET * 2;
+        int body = bodyWidth();
         int height = Prose.wrap(canvas, this.notice.get(), body).size()
                 * (canvas.lineHeight() + 1) + Metrics.PAD;
         for (Entry entry : this.entries.get()) {

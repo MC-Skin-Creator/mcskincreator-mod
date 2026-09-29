@@ -178,6 +178,7 @@
   "export.mcskincreator.name_hint": "Enregistré en PNG dans le dossier mcskincreator du jeu. Un fichier du même nom est remplacé.",
   "export.mcskincreator.account": "Appliquer sur mon compte",
   "export.mcskincreator.account_detail": "Envoie le skin à Minecraft. Il devient votre vrai skin, pour tout le monde.",
+  "export.mcskincreator.or_file": "ou le garder sur cet ordinateur",
   "export.mcskincreator.no_session": "Appliquer sur votre compte demande une session connectée avec Microsoft. Celle-ci ne l'est pas : le skin ne peut qu'être enregistré en fichier.",
   "licence.mcskincreator.unknown": "Inconnue",
   "licence.mcskincreator.inconnue": "Inconnue",

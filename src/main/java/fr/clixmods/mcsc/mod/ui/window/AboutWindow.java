@@ -58,10 +58,6 @@ public class AboutWindow extends ModalWindow {
         this.opener = opener;
     }
 
-    private int bodyWidth() {
-        return width() - Metrics.PAD * 2;
-    }
-
     private List<String> intro(Canvas canvas) {
         return Prose.wrap(canvas, Component.translatable("about.mcskincreator.what"), bodyWidth());
     }
