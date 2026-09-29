@@ -55,6 +55,7 @@ import fr.clixmods.mcsc.mod.ui.panel.ScenePanel;
 import fr.clixmods.mcsc.mod.ui.panel.TopBar;
 import fr.clixmods.mcsc.mod.ui.widget.Dropdown;
 import fr.clixmods.mcsc.mod.ui.widget.ItemTile;
+import fr.clixmods.mcsc.mod.ui.window.AboutWindow;
 import fr.clixmods.mcsc.mod.ui.window.CardWindow;
 import fr.clixmods.mcsc.mod.ui.window.ConfirmWindow;
 import fr.clixmods.mcsc.mod.ui.window.ModalWindow;
@@ -74,6 +75,7 @@ import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Util;
 import net.minecraft.world.entity.player.PlayerModelType;
 import org.lwjgl.glfw.GLFW;
 
@@ -970,10 +972,8 @@ public class SkinCreatorScreen extends Screen {
     }
 
     private void openAbout() {
-        open(new TextWindow("window.mcskincreator.about", List.of(
-                TextWindow.Line.of("about.mcskincreator.what"),
-                TextWindow.Line.of("about.mcskincreator.catalog"),
-                TextWindow.Line.warning("about.mcskincreator.local_only")), null));
+        open(new AboutWindow(MCSkinCreatorClient.version(), "clixmods",
+                uri -> Util.getPlatform().openUri(uri)));
     }
 
     private void openFooterLink(String link) {
