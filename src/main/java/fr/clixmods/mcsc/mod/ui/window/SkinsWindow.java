@@ -217,6 +217,11 @@ public class SkinsWindow extends ModalWindow {
         }
 
         @Override
+        public boolean clickSound() {
+            return true;
+        }
+
+        @Override
         public boolean mouseDown(double mouseX, double mouseY, int button) {
             // The remove button sits on top of the row, and the row is offered the press
             // first: the strip it occupies has to be left to the button.

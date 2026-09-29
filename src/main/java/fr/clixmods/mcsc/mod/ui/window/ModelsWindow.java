@@ -181,6 +181,11 @@ public class ModelsWindow extends ModalWindow {
         }
 
         @Override
+        public boolean clickSound() {
+            return true;
+        }
+
+        @Override
         public boolean mouseDown(double mouseX, double mouseY, int button) {
             return button == 0 && contains(mouseX, mouseY) && activate();
         }
