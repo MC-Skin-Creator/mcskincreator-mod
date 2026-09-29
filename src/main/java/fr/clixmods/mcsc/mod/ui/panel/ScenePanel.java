@@ -113,8 +113,28 @@ public class ScenePanel extends Element {
         this.hoveredLabel = hoveredLabel;
     }
 
+    /** What the middle column is showing, which is not always what was last chosen. */
     public View view() {
-        return this.view;
+        return offersViews() ? this.view : View.MODEL;
+    }
+
+    /**
+     * Whether the view can be chosen at all under the camera that is looking.
+     *
+     * <p>Not in the in-game camera. The game draws the world across the whole window and
+     * centres the character in it, and there is no public way to hand it half the window
+     * instead — so splitting the column left the figure straddling the rule, under the
+     * sheet. The choice is kept rather than reset, and comes back with the next camera.
+     * First person keeps it: the arm sits in its corner whatever the width, and holding
+     * it up against the sheet is what the split is for.
+     */
+    private boolean offersViews() {
+        return this.cameraMode != CameraMode.IN_GAME;
+    }
+
+    /** The height of the view bar, or none when there is no view to choose. */
+    private int barHeight() {
+        return offersViews() ? Metrics.TAB_HEIGHT + Metrics.PAD_TIGHT : 0;
     }
 
     /**
@@ -179,7 +199,7 @@ public class ScenePanel extends Element {
     public void layout(Canvas canvas) {
         this.controls.clear();
 
-        int barHeight = Metrics.TAB_HEIGHT + Metrics.PAD_TIGHT;
+        int barHeight = barHeight();
         int cursorX = this.x + Metrics.PAD_TIGHT;
         int barY = this.y + Metrics.PAD_TIGHT;
 
@@ -201,7 +221,10 @@ public class ScenePanel extends Element {
         // shows whenever the scene is wide enough for it. Below that width the same
         // choice becomes a dropdown rather than spilling off the bar: a control that
         // runs past the edge of its strip is a control nobody can reach.
-        if (segmentedWidth + Metrics.ui(90) <= this.width) {
+        if (!offersViews()) {
+            // Nothing to choose, so no bar to choose it on: a strip with a rule and
+            // nothing in it would only cover the top of the world.
+        } else if (segmentedWidth + Metrics.ui(90) <= this.width) {
             for (PixelButton button : viewButtons) {
                 button.setBounds(cursorX, barY, button.width(), Metrics.TAB_HEIGHT);
                 this.controls.add(button);
@@ -237,7 +260,7 @@ public class ScenePanel extends Element {
      * proportions at any window size and any of the four GUI scales.
      */
     private void layoutModel(int viewTop, int viewHeight) {
-        int space = this.view == View.BOTH ? this.width / 2 : this.width;
+        int space = view() == View.BOTH ? this.width / 2 : this.width;
         int inset = Metrics.PAD;
         int usableWidth = Math.max(0, space - inset * 2);
         int usableHeight = (int) Math.max(0, (viewHeight - inset * 2) * Metrics.SCENE_MODEL_SHARE);
@@ -476,7 +499,7 @@ public class ScenePanel extends Element {
                     Palette.VOID);
         }
 
-        switch (this.view) {
+        switch (view()) {
             case MODEL -> this.figure.draw(canvas, shot, paint.mouseX(), paint.mouseY(), delta);
             case TEXTURE -> drawTexture(canvas, this.x, this.viewport[1], this.width, this.viewport[3]);
             case BOTH -> {
@@ -491,7 +514,9 @@ public class ScenePanel extends Element {
         // the figure. Floating it was the site's idea and it cost more than it gave: a
         // strip with nothing under it reads as three loose boxes, and it was over the
         // one thing on this screen worth looking at.
-        Surface.rule(canvas, this.x, this.y + Metrics.TAB_HEIGHT + Metrics.PAD_TIGHT, this.width);
+        if (offersViews()) {
+            Surface.rule(canvas, this.x, this.y + barHeight(), this.width);
+        }
 
         // The two corner boxes are backdrops, so they go down before what sits on
         // them. Drawing them afterwards is what left the dock looking like an empty
