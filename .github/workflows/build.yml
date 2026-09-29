@@ -17,6 +17,11 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same branch or PR makes the run in progress obsolete.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     # One job per Stonecutter target: a version that stops compiling, or a test that
@@ -48,6 +53,10 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          # Read-only is the default off the default branch, which would mean the
+          # cache is never written here: main only runs on a release.
+          cache-read-only: false
 
       - name: Build
         # Points Gradle at the JDK installed above rather than downloading another one.
