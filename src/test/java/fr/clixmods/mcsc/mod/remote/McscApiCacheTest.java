@@ -97,6 +97,8 @@ class McscApiCacheTest {
         for (String etag : new String[] {"\"0123456789abcdef0123456789abcdef\"",
                 "W/\"0123456789abcdef0123456789abcdef\""}) {
             this.conditions.clear();
+            Files.deleteIfExists(this.folder.resolve("catalog.json"));
+            Files.deleteIfExists(this.folder.resolve("catalog.etag"));
             this.handler = exchange -> reply(exchange, 200, gzip(CATALOG), "gzip", etag);
             this.api.catalog().get();
             assertNull(this.conditions.get(0));
