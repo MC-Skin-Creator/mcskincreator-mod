@@ -67,7 +67,7 @@ panel on the title and pause menus has no entity and asks `SkinManager` for a su
 instead, so it wraps that supplier with `AppliedSkin.over(…)`. Missing the second door
 is what left the menu preview showing the old skin while the player in the world already
 wore the new one. Wrapping the supplier rather than its result is deliberate:
-`PlayerSkinWidget` keeps the supplier and calls it as it draws, so a panel built before
+`MenuFigure` keeps the supplier and calls it as it draws, so a panel built before
 the upload updates without being rebuilt.
 
 Three further choices are deliberate:
@@ -238,13 +238,15 @@ whatever is hovered.
 
 **The interface owns almost no pixels of its own.** The figure is drawn by the game
 from a render state the mod fills in, the thumbnails are folded out of the category
-atlases the API already serves, and the stack being edited is composed by the server. One
+atlases the API already serves, and the stack being edited is composed from those same
+buffers by a library shared with the site (see below). One
 texture is drawn from nothing: the stone grain under the panels, from deterministic
 noise, because a tile generated from a function cannot go out of step with the palette
 it is tinted by and a PNG of the same thing can.
 
-The one exception is the pictures of the ready-made stacks — the starter models and
-the outfits — which the mod stacks and folds itself (`Composite`, `ReadyMadeSkins`).
+The pictures of the ready-made stacks — the starter models and the outfits — go the
+same way (`Composite`, `ReadyMadeSkins`): there are two hundred of them on screen at
+once, and a request each is not a thing to ask of a service.
 The catalogue offers two hundred and odd of them, and asking the server for two hundred
 compositions to fill one panel is not a thing to do to a service, or to a player waiting
 on it. The blend copies the server's, half rounded to even like the
@@ -423,8 +425,8 @@ in behind the editor while a hat was being chosen. Somebody editing a skin is no
 playing, and the pause is not theirs to lose.
 
 Screens tick regardless of the pause (checked against `Minecraft.tick`, where the
-`screen.tick()` call sits outside the pause guard), so the composition debounce, the
-search and the camera all keep running. What does stop is the character's own animation
+`screen.tick()` call sits outside the pause guard), so the composition, the search
+debounce and the camera all keep running. What does stop is the character's own animation
 — which is why the first-person swing plays out on a server and stands still at home.
 That is the right way round: nobody wants to be eaten for the sake of a wave.
 
@@ -454,9 +456,10 @@ are added there, never removed or renamed, and a client compiled against it keep
 working. A mod is installed on somebody's machine and is a version — or ten — behind,
 so it is the second one it calls, and only the second one.
 
-That decides what the mod can be built on. The eleven routes of the contract are
-all used: the catalogue and its atlases, the search, an element's provenance, the
-composed texture and the front view, and the five routes of the saved-skin library.
+That decides what the mod can be built on. Only the routes
+that read or render are used: the catalogue and its atlases, the search, an element's
+provenance, and the front view. The five routes of the saved-skin library are not: see
+below.
 The routes outside it are left alone even where they would be convenient — the
 editor's autosave, the PNG import, the share image, the random draws, and the
 `POST /credits` that would group the works of a whole stack in one call. The mod
@@ -464,8 +467,8 @@ groups them itself, out of the catalogue it already holds, rather than lean on a
 route that may move.
 
 **The project document is the site's, to the letter.** It is one shape everywhere:
-composed by `POST /textures`, stored by `PUT /skins/{id}`, and read back from
-storage. Its rules are the server's validator, and three of them are silent when
+written to the local library, and drawn as a standing figure
+by `POST /thumbnails`. Its rules are the server's validator, and three of them are silent when
 broken — the model is a `slim` boolean rather than a `model` string, a layer names
 its element with `cat` and `preset`, and opacity and the adjustments are factors
 rather than the whole percentages this mod's sliders work in. Writing them any other
@@ -473,10 +476,91 @@ way is refused with a 400 naming the path, which is how the first version of thi
 was found: nothing ever composed. `ProjectJson` is therefore the only place that
 writes or reads a project, and it has a test per rule.
 
-**The saved skins are per installation, not per account.** There is no account yet.
-The storage routes ask for an `X-Client-Id` header, a UUID, and refuse the call
-outright without one; the site draws it in the browser, and the mod draws it once and
-keeps it in `config/mcskincreator-client.txt`. That file is the way back to the
-library rather than the library itself — losing it leaves the skins on the server and
-loses the door to them. The day accounts exist, one will gather several of these ids
-without this side of the contract changing (issue #9).
+**The saved skins are local files, and only that.** The mod stores nothing on the
+server: no `PUT /skins`, no `X-Client-Id`, no identifier drawn per installation. A skin
+is `config/mcskincreator/skins/<id>.json` and its front view `<id>.png` beside it,
+drawn once per version through `POST /thumbnails` (a render, not a store). Skins saved
+on the server by earlier builds are not migrated; `config/mcskincreator-client.txt` is
+no longer read and can be deleted.
+
+## 9. The texture engine is a shared library, not a port
+
+The calculation that turns a stack of layers into a 64x64 sheet already existed three
+times over — the reference in JavaScript, the browser's TypeScript, and the server's
+Java — held together by tests comparing them byte for byte. A fourth written here
+would have been a fourth to watch, and the day one drifted the player would see one
+skin in the game and another on the site. Half of it was already here: `Composite`
+was a copy of the site's blend, down to rounding a half to even the way a
+`Uint8ClampedArray` does.
+
+So it was taken out of the site into `fr.clixmods.mcsc:mcsc-engine`, and the mod
+depends on it. **Parity stops being a test and becomes the same bytecode.** The
+library knows nothing of files, images, JSON or Minecraft — it is handed pixels and
+gives back pixels — which is what lets its dependency tree be empty and lets it ride
+inside this jar.
+
+Two consequences, neither obvious from the build file:
+
+- **composing happens in the game, not over HTTP.** `POST /textures` was one round
+  trip per change, which a 300 ms debounce made tolerable for a burst of clicks and
+  which was never going to work under a dragged slider. `Composite` does it in a
+  fraction of a frame, so the preview simply follows the stack. What the API is still
+  asked for is data: the catalogue, the atlases;
+- **the library ships inside the mod jar** (`include`, Fabric's Jar-in-Jar). The
+  player installs one file and never learns the library exists. Leaving that line out
+  compiles and then crashes in game, which is why it has its own paragraph in
+  `CLAUDE.md`.
+
+The thumbnails went the same way: the 16x32 front view and the crops the library
+frames with are the library's calls, not a second copy of them. What is left of
+`FrontSprite` is the conversion between an atlas's bytes and the ARGB a texture is
+uploaded from.
+
+Colours are the part not done here: the catalogue the mod reads carries no colour
+keys, so a layer holds only its hue, saturation and brightness. Recolouring an
+element by its zone map is the same library call the site makes — it needs the
+catalogue to carry the keys, which is issue #7's job, not another engine.
+
+## 10. There is always a project in progress
+
+The editor used to start empty on every opening and forget the stack on closing. It
+now keeps one **project in progress**, which outlives the window: closing and reopening
+the editor puts it back exactly as it was left. It lives in two places, for two
+reasons. `config/mcskincreator-project.json` brings it back at once and offline. The
+player's library, a folder on this machine, is where it can be *seen*: it is an entry of "My skins"
+under its own identifier, marked as the project in progress, with no delete cross.
+Edits are written down after a short debounce and on closing, and the entry's date
+moves with them: it says when the project last changed.
+
+**One project is one entry.** Nothing files a copy behind the player's back: exporting
+a file or a front view, and applying to the account, write the project in progress
+down and nothing more. A first version did file a copy on every export, and a library
+of near-identical entries was the result. Keeping a version is the player's call, and
+has its own button: every row can be **duplicated** (the copy is filed as "(copy)" and
+not opened) and **renamed**; every row but the project in progress can be deleted.
+
+What starts a new project:
+
+- **The first opening.** The account's skin cannot be taken apart into layers, unless
+  it *is* one of the catalogue's models. So its pixels are compared with every model's
+  picture, composed locally from the atlases through `mcsc-engine` (section 9),
+  and a match opens that model. Anything else starts from the plain skin
+  (`skin-uni`).
+- **"New"**, which starts from the plain skin. The project left behind stays in the
+  library; a project nobody touched is reused rather than filed away.
+- **The account changing elsewhere.** The file remembers a fingerprint of the skin the
+  account wore the last time the mod looked. When the account now wears another one,
+  the project in progress is kept in the library, a new one starts for the new skin as
+  on a first opening, and a window says so. A skin the mod applied itself updates the
+  fingerprint, so it is never taken for a change. A skin that cannot be read (offline, a
+  default skin, a development account) is never taken for one either.
+
+Opening a saved skin makes it the project in progress; the one being left is written
+down first.
+
+The account's skin is read from Mojang's public profile (`sessionserver.mojang.com`)
+and its pixels from `textures.minecraft.net`, not from the running game: the game's
+profile is the one it started with, and the question is whether the account has moved
+since. Neither request carries the session token, which still goes to one address only
+(section 1). The texture is only downloaded when its address is one the mod has not
+already seen.

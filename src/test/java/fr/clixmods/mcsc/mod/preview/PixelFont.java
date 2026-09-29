@@ -192,6 +192,47 @@ final class PixelFont {
         drawGlyphs(raster, text, x, y, argb);
     }
 
+    /**
+     * The same string at half the size, drawn on the screen's grid rather than the
+     * interface's.
+     *
+     * <p>This is the preview's half of {@code Canvas#textSmall}. The game gets it by
+     * halving its matrix, which puts one font pixel on one screen pixel at an even GUI
+     * scale; here the glyph is laid down in screen pixels of that size directly, which
+     * comes to the same picture. At an odd scale neither is exact — the game smears it
+     * and this rounds it — and the editor takes an even one for that reason.
+     */
+    void drawSmall(Raster raster, String text, int x, int y, int argb) {
+        int unit = Math.max(1, raster.scale() / 2);
+        int cursor = x * raster.scale();
+        int top = y * raster.scale();
+        for (int offset = 0; offset < text.length(); ) {
+            int codepoint = text.codePointAt(offset);
+            offset += Character.charCount(codepoint);
+            Glyph glyph = this.glyphs.get(codepoint);
+            if (glyph != null) {
+                drawGlyphSmall(raster, glyph, cursor, top + glyph.top() * unit, unit, argb);
+            }
+            cursor += advance(codepoint) * unit;
+        }
+    }
+
+    private static void drawGlyphSmall(Raster raster, Glyph glyph, int deviceX, int deviceY,
+                                       int unit, int argb) {
+        for (int row = 0; row < glyph.drawHeight(); row++) {
+            int sampleY = glyph.sourceY() + row * glyph.sourceHeight() / glyph.drawHeight();
+            for (int column = 0; column < glyph.drawWidth(); column++) {
+                int sampleX = glyph.sourceX() + column * glyph.sourceWidth() / glyph.drawWidth();
+                int sample = glyph.sheet().getRGB(sampleX, sampleY);
+                int alpha = (sample >>> 24) * ((argb >>> 24) & 0xFF) / 0xFF;
+                if (alpha != 0) {
+                    raster.blendUnit(deviceX + column * unit, deviceY + row * unit, unit,
+                            (alpha << 24) | (argb & 0x00FFFFFF));
+                }
+            }
+        }
+    }
+
     private static int shadowOf(int argb) {
         return (argb & 0xFF000000)
                 | (((argb >> 16) & 0xFF) / 4) << 16

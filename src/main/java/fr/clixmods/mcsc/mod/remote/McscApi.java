@@ -16,19 +16,21 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.zip.GZIPInputStream;
-
-import com.google.gson.JsonParser;
 
 import fr.clixmods.mcsc.mod.MCSkinCreatorClient;
 import fr.clixmods.mcsc.mod.catalog.Catalog;
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
 import fr.clixmods.mcsc.mod.catalog.CatalogParser;
+import net.fabricmc.loader.api.FabricLoader;
 
 /**
  * The mod's side of the MC Skin Creator HTTP API.
@@ -40,14 +42,18 @@ import fr.clixmods.mcsc.mod.catalog.CatalogParser;
  * from the render thread would freeze the game for as long as the server takes, and
  * that is the first thing that goes wrong in a mod that talks to an API.
  *
- * <p>Every route of the {@code /api/v1} contract is here, and nothing that is not in
- * it: the editor's autosave, the PNG import, the share image and the random draws
+ * <p>Only routes of the {@code /api/v1} contract that read or render are here: nothing
+ * the player makes is stored on the server, the saved skins live on this machine. And
+ * nothing that is not in the contract either: the editor's autosave, the PNG import, the share image and the random draws
  * answer under {@code /api} only, which follows the site's jar and promises nothing to
  * a mod installed months ago. What the contract holds is described in
  * {@code site/API.md} of the site's repository.
  *
- * <p>Nothing here caches. Keeping a downloaded atlas on disk is issue #3's job, and
- * this class is the seam it plugs into.
+ * <p>Every request asks for gzip and every answer is decompressed according to its
+ * {@code Content-Encoding}, because {@link HttpClient} does neither on its own. The
+ * catalogue and the atlases are kept on disk when a cache folder is given, see
+ * {@link DiskCache}: the catalogue is revalidated with its {@code ETag} at each launch,
+ * and an atlas, whose address carries its hash, is downloaded once per hash.
  */
 public final class McscApi implements AutoCloseable {
     /**
@@ -69,9 +75,6 @@ public final class McscApi implements AutoCloseable {
     public static final int MIN_SCALE = 1;
     public static final int MAX_SCALE = 16;
 
-    /** The header every storage call carries: without it the server answers 400. */
-    static final String CLIENT_HEADER = "X-Client-Id";
-
     private static final String JSON = "application/json";
     private static final String IMAGE = "application/octet-stream, image/png";
 
@@ -83,8 +86,15 @@ public final class McscApi implements AutoCloseable {
 
     private final HttpClient http;
     private final String baseUrl;
+    /** Null when nothing is to be kept, which is what the tests that do not care get. */
+    private final DiskCache cache;
 
     public McscApi(String baseUrl) {
+        this(baseUrl, null);
+    }
+
+    public McscApi(String baseUrl, Path cacheDirectory) {
+        this.cache = cacheDirectory == null ? null : new DiskCache(cacheDirectory);
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         // HttpClient does not follow redirects unless told to, and a deployment may
         // well answer one - a bare host sent to www, or a path normalised. Left alone,
@@ -102,7 +112,8 @@ public final class McscApi implements AutoCloseable {
      */
     public static synchronized McscApi shared() {
         if (shared == null) {
-            shared = new McscApi(configuredBaseUrl());
+            shared = new McscApi(configuredBaseUrl(),
+                    FabricLoader.getInstance().getGameDir().resolve("cache").resolve("mcskincreator"));
             MCSkinCreatorClient.LOGGER.info("MC Skin Creator API at {}", shared.baseUrl);
         }
         return shared;
@@ -127,7 +138,50 @@ public final class McscApi implements AutoCloseable {
 
     /** {@code GET /catalog} */
     public CompletableFuture<Catalog> catalog() {
-        return getJson("/catalog").thenApply(json -> unchecked(() -> CatalogParser.parse(json)));
+        if (this.cache == null) {
+            return getJson("/catalog").thenApply(json -> unchecked(() -> CatalogParser.parse(json)));
+        }
+        return CompletableFuture.supplyAsync(this::cachedCatalog).thenCompose(cached -> {
+            HttpRequest.Builder builder = request("/catalog").header("Accept", JSON);
+            // Only a cache that reads back as a catalogue is worth a conditional request:
+            // a 304 for one that does not would leave nothing to show.
+            if (cached.isPresent()) {
+                this.cache.etag().ifPresent(etag -> builder.header("If-None-Match", etag));
+            }
+            return exchange(builder.GET().build(), "/catalog").thenApply(reply -> {
+                if (reply.status() == 304 && cached.isPresent()) {
+                    return cached.get();
+                }
+                if (reply.status() / 100 != 2) {
+                    throw new CompletionException(new ApiException(reply.status(), "/catalog"));
+                }
+                String body = text(reply.body());
+                Catalog fresh = unchecked(() -> CatalogParser.parse(body));
+                this.cache.storeCatalog(body, reply.headers().firstValue("ETag").orElse(null));
+                return fresh;
+            }).exceptionally(failure -> {
+                // No network, or an answer that is not usable: the last good catalogue
+                // beats an empty screen.
+                if (cached.isPresent()) {
+                    MCSkinCreatorClient.LOGGER.warn("Using the cached catalogue: {}", failure.toString());
+                    return cached.get();
+                }
+                throw failure instanceof CompletionException ce ? ce : new CompletionException(failure);
+            });
+        });
+    }
+
+    private Optional<Catalog> cachedCatalog() {
+        Optional<String> body = this.cache.catalog();
+        if (body.isEmpty()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(CatalogParser.parse(body.get()));
+        } catch (IOException | RuntimeException unreadable) {
+            this.cache.forgetCatalog();
+            return Optional.empty();
+        }
     }
 
     /**
@@ -170,29 +224,39 @@ public final class McscApi implements AutoCloseable {
         }
 
         URI target = this.origin().resolve(path);
+        // The address ends in the hash of the pixels, so a file kept under it is never stale.
+        String hash = path.substring(path.lastIndexOf('/') + 1);
+        if (this.cache != null) {
+            Optional<byte[]> kept = this.cache.atlas(category.id(), hash);
+            if (kept.isPresent()) {
+                try {
+                    return CompletableFuture.completedFuture(slice(kept.get(), target.toString()));
+                } catch (IOException damaged) {
+                    this.cache.forgetAtlas(category.id(), hash);
+                }
+            }
+        }
+
         HttpRequest request = HttpRequest.newBuilder(target)
                 .timeout(REQUEST_TIMEOUT)
                 .header("User-Agent", userAgent())
                 .header("Accept", "application/octet-stream")
+                .header("Accept-Encoding", "gzip")
                 .GET()
                 .build();
-        return send(request, target.toString())
-                .thenApply(bytes -> unchecked(() -> slice(gunzip(bytes), target.toString())));
+        return send(request, target.toString()).thenApply(bytes -> unchecked(() -> {
+            byte[] atlas = gunzip(bytes);
+            List<byte[]> buffers = slice(atlas, target.toString());
+            if (this.cache != null) {
+                this.cache.storeAtlas(category.id(), hash, atlas);
+            }
+            return buffers;
+        }));
     }
 
     /** The scheme and host the API lives on, which the atlas addresses hang off. */
     private URI origin() {
         return URI.create(this.baseUrl).resolve("/");
-    }
-
-    /**
-     * {@code POST /textures}: the server composes the project and answers the skin.
-     *
-     * <p>One round trip per change, which is why callers debounce. Issue #8 replaces
-     * this with local composition through {@code mcsc-engine}.
-     */
-    public CompletableFuture<byte[]> compose(String projectJson) {
-        return post("/textures", projectJson);
     }
 
     /**
@@ -204,63 +268,6 @@ public final class McscApi implements AutoCloseable {
      */
     public CompletableFuture<byte[]> frontView(String projectJson, int scale) {
         return post("/thumbnails?x=" + clampScale(scale), projectJson);
-    }
-
-    // ------------------------------------------------------------------ the library
-
-    /** {@code GET /skins}: the player's saved skins, the last created first. */
-    public CompletableFuture<List<SavedSkin>> skins() {
-        HttpRequest request = request("/skins").header("Accept", JSON).header(CLIENT_HEADER, ClientId.get())
-                .GET().build();
-        return send(request, "/skins")
-                .thenApply(bytes -> unchecked(() -> SavedSkin.parseList(text(bytes))));
-    }
-
-    /**
-     * {@code PUT /skins/{id}}: creates the entry or replaces it where it stands.
-     *
-     * <p>The server validates the project and composes its texture as it writes, so a
-     * refusal here is a refusal of the project itself — which is the one place a
-     * mistake in what the mod writes shows up as a status rather than as a wrong
-     * picture.
-     */
-    public CompletableFuture<SavedSkin> save(SavedSkin skin) {
-        String path = "/skins/" + segment(skin.id());
-        HttpRequest request = request(path)
-                .header("Content-Type", JSON)
-                .header("Accept", JSON)
-                .header(CLIENT_HEADER, ClientId.get())
-                .PUT(HttpRequest.BodyPublishers.ofString(skin.body().toString(), StandardCharsets.UTF_8))
-                .build();
-        return send(request, path).thenApply(bytes -> {
-            SavedSkin written = SavedSkin.of(JsonParser.parseString(text(bytes)));
-            // The answer is the entry as it was stored; what was sent stands in only if
-            // the server answered with something this version cannot read.
-            return written == null ? skin : written;
-        });
-    }
-
-    /** {@code DELETE /skins/{id}} */
-    public CompletableFuture<Void> delete(String id) {
-        String path = "/skins/" + segment(id);
-        HttpRequest request = request(path).header(CLIENT_HEADER, ClientId.get()).DELETE().build();
-        return send(request, path).thenApply(ignored -> null);
-    }
-
-    /** {@code GET /skins/{id}/texture.png}: the sheet the server composed as it wrote. */
-    public CompletableFuture<byte[]> skinTexture(String id) {
-        return getSkinImage("/skins/" + segment(id) + "/texture.png");
-    }
-
-    /** {@code GET /skins/{id}/thumbnail.png}: that skin, seen from the front. */
-    public CompletableFuture<byte[]> skinThumbnail(String id, int scale) {
-        return getSkinImage("/skins/" + segment(id) + "/thumbnail.png?x=" + clampScale(scale));
-    }
-
-    private CompletableFuture<byte[]> getSkinImage(String path) {
-        HttpRequest request = request(path).header("Accept", IMAGE)
-                .header(CLIENT_HEADER, ClientId.get()).GET().build();
-        return send(request, path);
     }
 
     // ------------------------------------------------------------------ plumbing
@@ -300,20 +307,47 @@ public final class McscApi implements AutoCloseable {
     }
 
     private CompletableFuture<byte[]> send(HttpRequest request, String path) {
+        return exchange(request, path).thenApply(reply -> {
+            if (reply.status() / 100 != 2) {
+                throw new CompletionException(new ApiException(reply.status(), path));
+            }
+            return reply.body();
+        });
+    }
+
+    /** An answer with its body already decompressed, whatever the status. */
+    private record Reply(int status, java.net.http.HttpHeaders headers, byte[] body) {
+    }
+
+    private CompletableFuture<Reply> exchange(HttpRequest request, String path) {
         return this.http.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
                 .thenApply(response -> {
-                    if (response.statusCode() / 100 != 2) {
-                        throw new java.util.concurrent.CompletionException(
-                                new ApiException(response.statusCode(), path));
+                    byte[] body = response.body();
+                    // Only a success has a body worth reading; an error page is not
+                    // decoded, so a broken one cannot hide the status.
+                    if (response.statusCode() / 100 == 2 && isGzip(response)) {
+                        body = unchecked(() -> ungzip(response.body()));
                     }
-                    return response.body();
+                    return new Reply(response.statusCode(), response.headers(), body);
                 });
+    }
+
+    private static boolean isGzip(HttpResponse<?> response) {
+        return response.headers().firstValue("Content-Encoding")
+                .map(value -> value.trim().equalsIgnoreCase("gzip")).orElse(false);
+    }
+
+    private static byte[] ungzip(byte[] body) throws IOException {
+        try (GZIPInputStream gzip = new GZIPInputStream(new ByteArrayInputStream(body))) {
+            return gzip.readAllBytes();
+        }
     }
 
     private HttpRequest.Builder request(String path) {
         return HttpRequest.newBuilder(URI.create(this.baseUrl + path))
                 .timeout(REQUEST_TIMEOUT)
-                .header("User-Agent", userAgent());
+                .header("User-Agent", userAgent())
+                .header("Accept-Encoding", "gzip");
     }
 
     private static String userAgent() {

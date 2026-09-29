@@ -12,15 +12,17 @@ import java.util.Optional;
 
 import com.mojang.authlib.GameProfile;
 
+import fr.clixmods.mcsc.mod.MCSkinCreatorClient;
 import fr.clixmods.mcsc.mod.skin.AppliedSkin;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.PlayerSkinWidget;
+import net.minecraft.client.gui.components.SpriteIconButton;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 
 /**
  * The skin entry as it sits on a vanilla menu: the player name, the player model
@@ -29,8 +31,7 @@ import net.minecraft.network.chat.Component;
  *
  * <p>Everything here is a widget, which is what makes it work from
  * {@code ScreenEvents.AFTER_INIT}: a mod can add widgets to someone else's screen
- * but never draw on it, and {@link PlayerSkinWidget} draws the model itself. That
- * also keeps the whole panel clear of the 26.x render-state rewrite.
+ * but never draw on it, and {@link MenuFigure} draws the model itself.
  */
 final class SkinPanel {
     private static final int PANEL_WIDTH = 120;
@@ -41,11 +42,9 @@ final class SkinPanel {
     private static final int GAP = 4;
     private static final int MARGIN = 8;
 
-    /**
-     * Room kept under the fallback button for the copyright line, which vanilla
-     * puts in the bottom right corner, ten pixels tall, on both versions.
-     */
-    private static final int BOTTOM_CLEARANCE = 14;
+    /** The mark, a 32 pixel sprite in the game's GUI atlas, drawn at 16 like the vanilla icons. */
+    private static final Identifier ICON = Identifier.fromNamespaceAndPath(MCSkinCreatorClient.MOD_ID, "icon");
+    private static final int ICON_SIZE = 16;
 
     private static final int PANEL_HEIGHT = NAME_HEIGHT + GAP + SKIN_HEIGHT + GAP + BUTTON_HEIGHT;
 
@@ -76,11 +75,11 @@ final class SkinPanel {
         int lowestTop = scaledHeight - PANEL_HEIGHT - MARGIN;
 
         if (x < menu.right() + GAP || lowestTop < TOP_CLEARANCE) {
-            // A small window at a large GUI scale leaves no room beside the menu.
-            // Keep the button on the right edge and drop it under the menu rather
-            // than letting the panel overlap vanilla.
-            int y = Math.min(menu.bottom() + GAP, scaledHeight - BUTTON_HEIGHT - BOTTOM_CLEARANCE);
-            widgets.add(openButton(client, screen, x, y));
+            // A small window at a large GUI scale leaves no room beside the menu for
+            // the panel. Shrink the entry to the mark alone, in a square like the
+            // language and accessibility buttons, and put it at the end of the menu's
+            // last row - beside the accessibility button on the title screen.
+            addCompact(client, screen, widgets, menu);
             return;
         }
 
@@ -88,15 +87,47 @@ final class SkinPanel {
 
         widgets.add(playerName(client, x, y));
         widgets.add(skinPreview(client, x + (PANEL_WIDTH - SKIN_WIDTH) / 2, y + NAME_HEIGHT + GAP));
-        widgets.add(openButton(client, screen, x, y + PANEL_HEIGHT - BUTTON_HEIGHT));
+        addOpenButton(client, screen, widgets, x, y + PANEL_HEIGHT - BUTTON_HEIGHT);
     }
 
-    private static Button openButton(Minecraft client, Screen screen, int x, int y) {
-        return Button
+    /**
+     * The full-width button: the mark and the label, laid out by the game.
+     *
+     * <p>Both entries are {@code SpriteIconButton}s, the class behind the language and
+     * accessibility buttons, rather than a button with a widget drawn over it: the mark
+     * is then part of the button, and nothing that moves the buttons of a menu can leave
+     * one behind.
+     */
+    private static void addOpenButton(Minecraft client, Screen screen, List<AbstractWidget> widgets,
+                                      int x, int y) {
+        widgets.add(openButton(client, screen, x, y, PANEL_WIDTH, false));
+    }
+
+    /** The square button: the mark alone, named by its tooltip. */
+    private static void addCompact(Minecraft client, Screen screen, List<AbstractWidget> widgets, Bounds menu) {
+        int right = 0;
+        for (AbstractWidget widget : widgets) {
+            // The last row's rightmost widget, small icon buttons included.
+            if (widget.getHeight() >= BUTTON_HEIGHT && widget.getY() + widget.getHeight() == menu.bottom()) {
+                right = Math.max(right, widget.getX() + widget.getWidth());
+            }
+        }
+        Button button = openButton(client, screen, right + GAP, menu.bottom() - BUTTON_HEIGHT,
+                BUTTON_HEIGHT, true);
+        button.setTooltip(Tooltip.create(Component.translatable("menu.mcskincreator.open")));
+        widgets.add(button);
+    }
+
+    private static Button openButton(Minecraft client, Screen screen, int x, int y, int width,
+                                     boolean iconOnly) {
+        Button button = SpriteIconButton
                 .builder(Component.translatable("menu.mcskincreator.open"),
-                        ignored -> ScreenCompat.setScreen(client, new SkinCreatorScreen(screen)))
-                .bounds(x, y, PANEL_WIDTH, BUTTON_HEIGHT)
+                        ignored -> ScreenCompat.setScreen(client, new SkinCreatorScreen(screen)), iconOnly)
+                .width(width)
+                .sprite(ICON, ICON_SIZE, ICON_SIZE)
                 .build();
+        button.setPosition(x, y);
+        return button;
     }
 
     private static StringWidget playerName(Minecraft client, int x, int y) {
@@ -109,7 +140,7 @@ final class SkinPanel {
         return name;
     }
 
-    private static PlayerSkinWidget skinPreview(Minecraft client, int x, int y) {
+    private static MenuFigure skinPreview(Minecraft client, int x, int y) {
         // createLookup already falls back to the default skin and keeps polling
         // until the real one is downloaded, so the panel fills in on its own and
         // offline players get Steve or Alex instead of an empty box. The flag would
@@ -121,7 +152,7 @@ final class SkinPanel {
         // puts the applied skin here too - the mixin cannot, since a menu has no player
         // entity to draw from.
         GameProfile profile = client.getGameProfile();
-        PlayerSkinWidget preview = new PlayerSkinWidget(SKIN_WIDTH, SKIN_HEIGHT, client.getEntityModels(),
+        MenuFigure preview = new MenuFigure(SKIN_WIDTH, SKIN_HEIGHT, client.font,
                 AppliedSkin.over(profile.id(),
                         client.getSkinManager().createLookup(profile, false)));
         preview.setPosition(x, y);

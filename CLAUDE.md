@@ -54,13 +54,15 @@ src/main/java/fr/clixmods/mcsc/mod/
 ├── catalog/                   what the catalogue says: regions, categories, elements, crops,
 │                               and the ready-made models and outfits it offers
 ├── skin/                      pixels: front sprites, category and model sheets, the previewed
-│                               skin, the blend behind a model's picture, textures
-├── project/                   what is being edited: the layer stack and its history
+│                               skin, the stack composed through mcsc-engine, textures
+├── project/                   what is being edited: the layer stack, its history, and the
+│                               project in progress that outlives the editor
 ├── scene/                     how the character is looked at: the camera, the backdrop,
 │                               the animations in the game's own terms, the render state
 │                               the game draws from, and the game camera the two world
 │                               views borrow
-├── account/                   the Mojang upload, and the only code that holds the session token
+├── account/                   the Mojang upload, and the only code that holds the session token;
+│                               also reads, without it, which skin the account wears
 ├── mixin/                     the three mixins: the skin worn before Mojang propagates it,
 │                               the character posed in the world for the in-game view,
 │                               and the HUD left undrawn while a world view is open
@@ -74,7 +76,8 @@ src/main/java/fr/clixmods/mcsc/mod/
     ├── EditorScale.java       the GUI scale this screen takes for itself, and gives back
     ├── SkinCreatorScreen.java the editor: project, catalogue, requests, windows, input
     ├── Figure.java, PlayerFigure.java   the player in the scene, and the game's way of drawing one
-    ├── MenuButtons.java, SkinPanel.java   the entry on the vanilla menus
+    ├── MenuButtons.java, SkinPanel.java, MenuFigure.java   the entry on the vanilla menus,
+    │                           and its figure that watches the pointer
     ├── widget/                button, tabs, tile, field, slider, checkbox, dropdown, layer row
     ├── panel/                 top bar, library, scene, layers
     └── window/                the modal base and the windows built on it
@@ -85,7 +88,8 @@ and there never should be.
 
 `src/test/java/` holds the tests, and is shared the same way: every target compiles
 and runs all of them. They cover the pure logic — the layer stack and its history,
-the project body sent to the server, the catalogue reader and its fallbacks — and
+what that stack composes to, the project document, the catalogue reader and its
+fallbacks — and
 need no game, though they do resolve against the target's Minecraft jar for
 `Component` and `PlayerModelType`. Nothing that draws is tested: that is what
 running the game is for.
@@ -131,6 +135,16 @@ force Java 25 on every target.
 Gradle itself runs on Java 21 and downloads the Java 25 toolchain for the 26.x
 targets on its own.
 
+## No local builds
+
+**Do not build, test or run anything locally while developing** — no `./gradlew build`,
+`test`, `buildAndCollect` or `runClient`, on any target. GitHub Actions does that and
+its result is trusted. To check a change, push the branch, open the pull request, let
+CI run and read whether it passes. Do not reproduce CI on your own machine.
+
+The commands below are reference for a human's machine, not something to run
+during development.
+
 ## Commands
 
 All of these were run and verified in this repository.
@@ -148,6 +162,12 @@ All of these were run and verified in this repository.
 `buildAndCollect` copies the jar and nothing more: it does not run the tests, which
 is why CI asks for `build` as well as `buildAndCollect`. A test report lands in
 `versions/<target>/build/reports/tests/test/`.
+
+**Do not run the tests, or a full build, locally.** CI does it on every pull request
+(see **CI**), so a local run only duplicates it. To check that a change works, open
+the pull request (a draft is enough) and read the result there. The one exception is
+the UI preview described above, which only `./gradlew :1.21.11:test` writes: run it
+when the change draws something and you need to see it.
 
 Switching the active version (note the spaces — the task name is a sentence):
 
@@ -211,6 +231,7 @@ and `}` are load-bearing: breaking them silently changes what a target compiles.
 | Draw a widget | `Renderable#render` | `Renderable#extractRenderState` | `Canvas` |
 | Centered text | `drawCenteredString` | `centeredText` | `SkinCreatorScreen` |
 | Draw an entity | `GuiGraphics#submitEntityRenderState` | `GuiGraphicsExtractor#entity` | `Canvas` |
+| Widget draw hook | `AbstractWidget#renderWidget` | `extractWidgetRenderState` | `MenuFigure` |
 | Screen backdrop hook | `renderBackground(GuiGraphics, …)` | `extractBackground(GuiGraphicsExtractor, …)` | `SkinCreatorScreen` |
 | Hide the game HUD | `Options.hideGui` | `Gui.hud.toggle()` / `isHidden()` | `scene/GameCamera` |
 | Draw the HUD | `Gui#render` | `Gui#extractRenderState` | `mixin/GuiMixin` |
@@ -247,8 +268,10 @@ the entity route".
 2. Read the existing conditionals around the code you are touching.
 3. Prefer a shared implementation.
 4. Add version-specific code only for a real incompatibility.
-5. **Build every target** (`./gradlew build`). A change is not done because the
-   active target compiles.
+5. **Every target must build, and CI is what checks it** — not you locally, see
+   **No local builds**. A change is not done because one target compiles.
+5. **Every target must build.** Do not run it locally: CI builds and tests each
+   target on the pull request, and a change is not done until every one is green.
 
 ## Mixins
 
@@ -342,6 +365,47 @@ table — because the same version runs on Java 21 and on Java 25 alike. It is p
 through the JUnit BOM, so the engine, the parameterised runner and the launcher all
 follow that one number.
 
+### `mcsc-engine`, and the two lines it takes
+
+The texture engine — `fr.clixmods.mcsc:mcsc-engine`, from the public repository
+[`mcskincreator-engine`](https://github.com/MC-Skin-Creator/mcskincreator-engine) —
+is the site's own composition, taken out of it so this mod does not write a fourth
+port of the same calculation. It is the only third-party code that ships to players
+with the mod, and it carries nothing of its own: its build fails on a single
+production dependency, because this jar travels inside ours.
+
+```kotlin
+val engine = "fr.clixmods.mcsc:mcsc-engine:${property("deps.mcsc_engine")}"
+implementation(engine)   // compile against it
+include(engine)          // and put it inside the jar
+```
+
+**`include` is not optional.** With `implementation` alone the mod compiles, the
+tests pass, and the game dies on a `NoClassDefFoundError`: nothing put the library
+in the shipped jar, and Minecraft resolves no Maven dependency at startup. The build
+gives no warning whatsoever; the first sign is a crash report from a player. What to
+check after touching this is the jar itself — `META-INF/jars/mcsc-engine-<version>.jar`
+has to be in it, and `fabric.mod.json` has to name it.
+
+**The version is pinned, and there is no `SNAPSHOT`.** The engine decides what a
+player's skin looks like, and the mod sits on one version for months.
+
+**GitHub Packages asks for a token even for a public package**, which is the one
+thing this dependency adds to the build. Locally, put a personal token with the
+`read:packages` scope in `~/.gradle/gradle.properties`:
+
+```properties
+gpr.user=your-github-account
+gpr.token=ghp_…
+```
+
+CI passes the same two under `-Pgpr.user` / `-Pgpr.token`, from `github.actor` and
+the run's `GITHUB_TOKEN`; `GITHUB_ACTOR` and `GITHUB_TOKEN` are read as a fallback,
+for a shell that exports them. Without credentials the build fails on **401** while
+resolving `mcsc-engine` — never on a compile error, which is worth knowing because
+the message says nothing about a token. The repository declaration is scoped to `fr.clixmods.mcsc`, so
+nothing else is ever looked up there.
+
 ## Adding a Minecraft version
 
 1. Add the node in `settings.gradle.kts` (`versions(…)` or `version(alias, value)`).
@@ -350,20 +414,22 @@ follow that one number.
 3. Extend `requiredJava` in `build.gradle.kts` if that version needs a different
    Java level.
 4. Add the version to the CI matrix in `.github/workflows/build.yml`.
-5. `./gradlew :<version>:build`, then fix what the compiler reports, keeping shared
-   code shared.
-6. `./gradlew build` — every target, not just the new one.
+5. Open the pull request and fix what CI's compiler reports for the new target,
+   keeping shared code shared.
+6. Every target's CI job must be green, not just the new one.
 
 ## CI
 
 `.github/workflows/build.yml` runs **one job per Stonecutter target** on every pull
-request and on pushes to `feature/**` and `fix/**`, with `fail-fast: false` so one
+request (not on plain pushes, which would run each commit twice), with `fail-fast: false` so one
 broken version does not mask another. Each job compiles that target and runs its
 tests, uploads the test report when something failed, and uploads its jar as a
 **workflow artifact** (`retention-days: 7`) so a PR can be test-installed before it
 merges — this is not a release: no tag, no GitHub release,
 `mod.version` unchanged. It deliberately does not run on `main` or `develop`, where
-`release.yml` compiles the same commit anyway. No secret is declared.
+`release.yml` compiles the same commit anyway. Both workflows take `packages: read`
+and hand the run's `GITHUB_TOKEN` to Gradle, which is what resolving `mcsc-engine`
+needs; no other secret is declared.
 
 ## Branch model
 
@@ -429,6 +495,12 @@ skips `**.md` and `LICENSE`):
 | `main` | derived from the commits | tag `vX.Y.Z`, GitHub release, every target's jar attached, `mod.version` committed back to `main` |
 | `develop` | next version + `-dev.<run number>` | GitHub **pre-release**, jars attached, nothing committed |
 
+While the mod is below `1.0.0` a `main` release is published as a GitHub
+**pre-release** titled `vX.Y.Z (beta)`, so it never claims to be the stable line;
+`1.0.0`, cut by hand, is the first one that does not carry it. Releases are
+serialised (`concurrency: release`), so two merges in a row cannot compute the same
+number.
+
 A merge into `main` whose commits earn nothing produces no release and no noise.
 A merge into `develop` always produces a build, so there is always a permanent link
 to the latest state — `-dev.` builds are previews and are not tested.
@@ -437,7 +509,7 @@ to the latest state — `-dev.` builds are previews and are not tested.
 next release, not a patch on the last one.
 
 `.github/workflows/build.yml` is unrelated to releases: it is the per-target matrix
-that checks pull requests and work branches. Its jars are short-lived workflow
+that checks pull requests. Its jars are short-lived workflow
 artifacts for testing a PR, not a release artifact.
 
 ### Things worth knowing before touching this
@@ -461,5 +533,7 @@ e.g. `mcskincreator-0.1.0+mc1.21.11.jar`, `mcskincreator-0.1.0+mc26.2.jar`
 (`+mc26.1.2` for the 26.1 target, built against its last hotfix), and for
 a development build `mcskincreator-0.2.0-dev.7+mc1.21.11.jar`.
 
-Publishing to Modrinth/CurseForge is still not set up; building and publishing are
-separate concerns (see issue #15).
+Stable releases are also uploaded to Modrinth (project `pYSOnbJQ`) by two `mc-publish`
+steps at the end of `release.yml`, one per Minecraft version, using the `MODRINTH_TOKEN`
+repository secret. Without that secret the steps are skipped. `-dev` builds are never
+uploaded. CurseForge is still not set up (see issue #15).

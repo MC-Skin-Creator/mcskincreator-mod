@@ -81,7 +81,7 @@ class MaterialsSheetTest {
         int width = labelWidth + HEIGHTS.length * (SAMPLE_WIDTH + gap) + gap;
         int height = rowHeight * materials.size() + 20;
 
-        ImageCanvas canvas = new ImageCanvas(width, height);
+        ImageCanvas canvas = new ImageCanvas(width, height, SCALE);
         canvas.supply(fr.clixmods.mcsc.mod.style.Tiles.texture(), grain());
         canvas.fill(0, 0, width, height, Palette.VOID);
 
@@ -105,7 +105,7 @@ class MaterialsSheetTest {
         }
 
         Files.createDirectories(OUTPUT);
-        ImageIO.write(new EditorPreview().magnify(canvas.image(), SCALE), "png",
+        ImageIO.write(canvas.image(), "png",
                 OUTPUT.resolve("materials.png").toFile());
     }
 

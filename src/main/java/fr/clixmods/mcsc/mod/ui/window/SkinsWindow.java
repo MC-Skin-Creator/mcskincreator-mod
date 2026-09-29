@@ -10,11 +10,12 @@ package fr.clixmods.mcsc.mod.ui.window;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import fr.clixmods.mcsc.mod.remote.SavedSkin;
+import fr.clixmods.mcsc.mod.project.SavedSkin;
 import fr.clixmods.mcsc.mod.skin.SkinThumbnails;
 import fr.clixmods.mcsc.mod.style.Metrics;
 import fr.clixmods.mcsc.mod.style.Palette;
@@ -28,15 +29,23 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
 /**
- * The player's library: the skins kept on the server, and what can be done with them.
+ * The player's library: the skins kept on this machine, and what can be done with them.
  *
- * <p>The list is the server's, in the server's order — last created first — and the
- * picture on each row is the one the server composed when it stored that skin. Nothing
- * is recomposed to draw this window.
+ * <p>Every entry is a project, and every project is one entry: nothing in the editor
+ * files a second copy behind the player's back. The list comes most recently changed
+ * first, and the picture on each row is the one kept beside that skin. Nothing is recomposed
+ * to draw this window.
  *
- * <p>A row is opened by clicking it and removed by the cross on its right, which is
- * drawn at rest rather than revealed on hover: what can be pressed is visible, and a
- * removal that can be reached without being seen is how a skin goes missing.
+ * <p>A row is opened by clicking it. Its actions sit on its right, drawn at rest rather
+ * than revealed on hover — what can be pressed is visible, and a removal that can be
+ * reached without being seen is how a skin goes missing: rename, duplicate, and the
+ * cross that removes it. Duplicating is how a version is put aside before it is edited
+ * further.
+ *
+ * <p>One row is the project in progress — the skin on the editor right now, which
+ * follows the editing. It says so in place of its date, and it has no cross: there is
+ * always a project in progress, and removing the one being edited would pull the stack
+ * out from under the editor.
  */
 public class SkinsWindow extends ModalWindow {
     /** The height of a row: the front view at two pixels per texel, plus its padding. */
@@ -44,7 +53,7 @@ public class SkinsWindow extends ModalWindow {
     private static final int PICTURE_WIDTH = 16 * SkinThumbnails.SCALE;
     private static final int PICTURE_HEIGHT = 32 * SkinThumbnails.SCALE;
 
-    private static final DateTimeFormatter DAY = DateTimeFormatter.ISO_LOCAL_DATE;
+    private static final DateTimeFormatter CHANGED = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     /**
      * What the window has to show right now.
@@ -58,19 +67,35 @@ public class SkinsWindow extends ModalWindow {
     }
 
     private final Supplier<Library> library;
+    private final Supplier<String> currentId;
     private final SkinThumbnails thumbnails;
     private final Consumer<SavedSkin> onOpen;
+    private final Consumer<SavedSkin> onRename;
+    private final Consumer<SavedSkin> onDuplicate;
     private final Consumer<SavedSkin> onDelete;
-    private final Runnable onSave;
+    private final Runnable onNew;
 
-    public SkinsWindow(Supplier<Library> library, SkinThumbnails thumbnails,
-                       Consumer<SavedSkin> onOpen, Consumer<SavedSkin> onDelete, Runnable onSave) {
+    /** What each row, and the footer, can do. */
+    public record Actions(Consumer<SavedSkin> open, Consumer<SavedSkin> rename,
+                          Consumer<SavedSkin> duplicate, Consumer<SavedSkin> delete,
+                          Runnable startNew) {
+    }
+
+    /**
+     * @param currentId the identifier of the project in progress, or null while there
+     *                  is none yet
+     */
+    public SkinsWindow(Supplier<Library> library, Supplier<String> currentId, SkinThumbnails thumbnails,
+                       Actions actions) {
         super("window.mcskincreator.skins", null);
         this.library = library;
+        this.currentId = currentId;
         this.thumbnails = thumbnails;
-        this.onOpen = onOpen;
-        this.onDelete = onDelete;
-        this.onSave = onSave;
+        this.onOpen = actions.open();
+        this.onRename = actions.rename();
+        this.onDuplicate = actions.duplicate();
+        this.onDelete = actions.delete();
+        this.onNew = actions.startNew();
     }
 
     private List<SavedSkin> skins() {
@@ -89,20 +114,39 @@ public class SkinsWindow extends ModalWindow {
     @Override
     protected void layoutBody(Canvas canvas, int left, int top, int width) {
         int cursorY = top;
+        String current = this.currentId.get();
         for (SavedSkin skin : skins()) {
-            SkinRow row = new SkinRow(skin, this.thumbnails, this.onOpen);
+            boolean inProgress = skin.id().equals(current);
+            SkinRow row = new SkinRow(skin, inProgress, this.thumbnails, this.onOpen);
             row.setBounds(left, cursorY, width, ROW);
             addBodyChild(row);
 
-            PixelButton remove = new PixelButton(Component.literal("x"), PixelButton.Style.NORMAL,
-                    () -> this.onDelete.accept(skin))
-                    .withTooltip(Component.translatable("skins.mcskincreator.delete.tooltip"));
-            remove.fit(canvas);
-            remove.setBounds(left + width - Metrics.PAD_TIGHT - remove.width(),
-                    cursorY + (ROW - Metrics.BUTTON_HEIGHT_COMPACT) / 2,
-                    remove.width(), Metrics.BUTTON_HEIGHT_COMPACT);
-            addBodyChild(remove);
-            row.setActionsWidth(remove.width() + Metrics.PAD_TIGHT * 2);
+            // Right to left, so the cross stays on the far edge where it always was. The
+            // project in progress has no cross: there is always one, and it is the one
+            // on the editor.
+            List<PixelButton> actions = new ArrayList<>();
+            if (!inProgress) {
+                actions.add(new PixelButton(Component.literal("x"), PixelButton.Style.NORMAL,
+                        () -> this.onDelete.accept(skin))
+                        .withTooltip(Component.translatable("skins.mcskincreator.delete.tooltip")));
+            }
+            actions.add(new PixelButton(Component.translatable("skins.mcskincreator.duplicate"),
+                    PixelButton.Style.NORMAL, () -> this.onDuplicate.accept(skin))
+                    .withTooltip(Component.translatable("skins.mcskincreator.duplicate.tooltip")));
+            actions.add(new PixelButton(Component.translatable("skins.mcskincreator.rename"),
+                    PixelButton.Style.NORMAL, () -> this.onRename.accept(skin))
+                    .withTooltip(Component.translatable("skins.mcskincreator.rename.tooltip")));
+
+            int right = left + width - Metrics.PAD_TIGHT;
+            for (PixelButton action : actions) {
+                action.fit(canvas);
+                right -= action.width();
+                action.setBounds(right, cursorY + (ROW - Metrics.BUTTON_HEIGHT_COMPACT) / 2,
+                        action.width(), Metrics.BUTTON_HEIGHT_COMPACT);
+                addBodyChild(action);
+                right -= Metrics.PAD_TIGHT;
+            }
+            row.setActionsWidth(left + width - right + Metrics.PAD_TIGHT);
 
             cursorY += ROW + Metrics.PAD_TIGHT;
         }
@@ -126,21 +170,27 @@ public class SkinsWindow extends ModalWindow {
 
     @Override
     protected List<PixelButton> footer(Canvas canvas, Runnable close) {
-        return List.of(new PixelButton(Component.translatable("skins.mcskincreator.save"),
-                PixelButton.Style.NORMAL, this.onSave));
+        return List.of(new PixelButton(Component.translatable("skins.mcskincreator.new"),
+                PixelButton.Style.PRIMARY, () -> {
+                    this.onNew.run();
+                    close.run();
+                }));
     }
 
-    /** One entry: its picture, its name, the day it was saved. The row is the button. */
+    /** One entry: its picture, its name, when it last changed. The row is the button. */
     private static final class SkinRow extends Element {
         private final SavedSkin skin;
+        private final boolean inProgress;
         private final SkinThumbnails thumbnails;
         private final Consumer<SavedSkin> onOpen;
         private final Marquee marquee = new Marquee();
 
         private int actionsWidth;
 
-        private SkinRow(SavedSkin skin, SkinThumbnails thumbnails, Consumer<SavedSkin> onOpen) {
+        private SkinRow(SavedSkin skin, boolean inProgress, SkinThumbnails thumbnails,
+                        Consumer<SavedSkin> onOpen) {
             this.skin = skin;
+            this.inProgress = inProgress;
             this.thumbnails = thumbnails;
             this.onOpen = onOpen;
         }
@@ -174,26 +224,41 @@ public class SkinsWindow extends ModalWindow {
             int textY = this.y + (this.height - canvas.lineHeight() * 2 - Metrics.PAD_TIGHT) / 2;
             this.marquee.draw(paint, Component.literal(this.skin.name()), textX, textY, textWidth,
                     hot ? Palette.INK_HOVERED : Palette.INK, hot);
-            canvas.textFlat(Component.literal(day(this.skin.at())), textX,
-                    textY + canvas.lineHeight() + Metrics.PAD_TIGHT, Palette.INK_FAINT);
+            int subtitleY = textY + canvas.lineHeight() + Metrics.PAD_TIGHT;
+            if (this.inProgress) {
+                canvas.textFlat(Component.translatable("skins.mcskincreator.in_progress"), textX,
+                        subtitleY, Palette.LIME);
+            } else {
+                canvas.textFlat(Component.literal(changed(this.skin.at())), textX, subtitleY,
+                        Palette.INK_FAINT);
+            }
         }
 
         /**
-         * The day the entry was saved.
+         * When the entry last changed, to the minute: two versions of the same skin
+         * edited on the same day are exactly the ones this has to tell apart.
          *
          * <p>Written the one way that reads the same in every language, since this is a
          * date the mod prints itself rather than a sentence it can translate.
          */
-        private static String day(long at) {
+        private static String changed(long at) {
             if (at <= 0) {
                 return "";
             }
-            return DAY.format(Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault()).toLocalDate());
+            return CHANGED.format(Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault()));
+        }
+
+        @Override
+        public boolean clickSound() {
+            return true;
         }
 
         @Override
         public boolean mouseDown(double mouseX, double mouseY, int button) {
-            return button == 0 && contains(mouseX, mouseY) && activate();
+            // The remove button sits on top of the row, and the row is offered the press
+            // first: the strip it occupies has to be left to the button.
+            boolean onActions = mouseX >= this.x + this.width - this.actionsWidth;
+            return button == 0 && contains(mouseX, mouseY) && !onActions && activate();
         }
 
         @Override
@@ -204,7 +269,9 @@ public class SkinsWindow extends ModalWindow {
 
         @Override
         public List<Component> tooltip() {
-            return List.of(Component.translatable("skins.mcskincreator.open.tooltip"));
+            return List.of(Component.translatable(this.inProgress
+                    ? "skins.mcskincreator.in_progress.tooltip"
+                    : "skins.mcskincreator.open.tooltip"));
         }
     }
 }

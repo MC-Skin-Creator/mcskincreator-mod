@@ -5,40 +5,31 @@
  * Proprietary, source-available. See the LICENSE file at the root of this
  * repository.
  */
-package fr.clixmods.mcsc.mod.remote;
+package fr.clixmods.mcsc.mod.project;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonParser;
-
-import fr.clixmods.mcsc.mod.catalog.CatalogFormatException;
 
 /**
- * One entry of the player's library, as {@code /api/v1/skins} keeps it: a name, a
- * date, and the project itself.
+ * One entry of the player's library: a name, a date, and the project itself.
  *
  * <p>{@code data} is exactly what {@link fr.clixmods.mcsc.mod.skin.ProjectJson} writes
- * and reads, which is what makes a skin saved in the game open on the site and the
- * other way round. The server composes its texture on every write and serves it at
- * {@code /skins/{id}/texture.png}, so nothing here carries pixels.
+ * and reads. An entry lives in a file on this machine, see {@link SkinLibrary}, and
+ * nowhere else; nothing here carries pixels.
  *
- * @param at when the entry was last saved <em>on purpose</em>. The site does not move
- *           it on an autosave, and neither does the mod: it is what tells a version
- *           deliberately put aside from one that merely drifted.
+ * @param at when the entry last changed. The mod moves it on every write, since every
+ *           project in its library is one entry that saves itself, and the date worth
+ *           showing is the last change.
  */
 public record SavedSkin(String id, String name, long at, JsonObject data) {
-    /** What the server accepts as an identifier: {@code [A-Za-z0-9_-]{1,64}}. */
+    /** A fresh identifier, also the name of the entry's file: letters, digits and dashes. */
     public static String newId() {
         return UUID.randomUUID().toString();
     }
 
-    /** The body of {@code PUT /api/v1/skins/{id}}. */
+    /** What is written to the entry's file, besides its identifier. */
     public JsonObject body() {
         JsonObject body = new JsonObject();
         body.addProperty("name", this.name);
@@ -51,23 +42,9 @@ public record SavedSkin(String id, String name, long at, JsonObject data) {
         return new SavedSkin(this.id, name, System.currentTimeMillis(), this.data);
     }
 
-    /** Reads {@code GET /api/v1/skins}, newest first — the order the server sends. */
-    public static List<SavedSkin> parseList(String json) throws CatalogFormatException {
-        JsonArray array;
-        try {
-            array = JsonParser.parseString(json).getAsJsonArray();
-        } catch (JsonParseException | IllegalStateException cause) {
-            throw new CatalogFormatException("not a list of skins", cause);
-        }
-
-        List<SavedSkin> skins = new ArrayList<>(array.size());
-        for (JsonElement element : array) {
-            SavedSkin skin = of(element);
-            if (skin != null) {
-                skins.add(skin);
-            }
-        }
-        return List.copyOf(skins);
+    /** One entry on its own, as the mod also writes it down: null when it is not one. */
+    public static SavedSkin parseOne(JsonElement element) {
+        return of(element);
     }
 
     /** @return the entry, or null when it carries no identifier or no project */

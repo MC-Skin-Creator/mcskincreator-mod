@@ -131,6 +131,16 @@ public abstract class Element {
         return false;
     }
 
+    /**
+     * Whether a click this element took should make the game's button sound.
+     *
+     * <p>Buttons, tabs, tiles and rows answer to a press and say so; a slider, a field
+     * or the scene are dragged or typed into, and clicking them clicks nothing.
+     */
+    public boolean clickSound() {
+        return false;
+    }
+
     public void mouseDrag(double mouseX, double mouseY, double dragX, double dragY, int button) {
     }
 

@@ -1,109 +1,62 @@
-<img src="src/main/resources/assets/mcskincreator/icon.png" width="96" align="right" alt="MC Skin Creator">
+<p align="center">
+  <img src="src/main/resources/assets/mcskincreator/icon.png" width="128" alt="MC Skin Creator">
+</p>
 
-# MC Skin Creator - Minecraft mod
+<h1 align="center">MC Skin Creator</h1>
 
-Fabric client mod that brings the [MC Skin Creator](https://github.com/MC-Skin-Creator)
-skin editor into the game.
+<p align="center">
+  Create your Minecraft skin without leaving the game.
+</p>
 
-## Status: the editor, and the skin on your account
+MC Skin Creator brings the [skin editor of the website](https://mcskincreator.app/)
+into Minecraft. Pick pieces, stack them, see the result on your character, and wear it
+on your account in one click.
 
-The editor stacks a skin out of layers, shows it on a player model, and can put it
-on your Minecraft account — the real one, the one everybody sees — and on your player
-here, immediately, without restarting the game. The upload is the only thing the mod
-does that leaves your machine, it happens once per press of a button, and it never
-happens on its own.
+## What you can do
 
-The screen takes its arrangement from the site — the same three zones, the same
-gestures — and its paint from Minecraft: every surface on it is one of the game's own
-interface sprites, so a resource pack that restyles the game restyles this screen too.
-The rules it follows are in [`INTERFACE.md`](INTERFACE.md).
+- **Open the editor from the menus.** A Skin Creator button sits on the title screen and
+  the pause menu.
+- **Browse a big library of pieces.** Hair, faces, clothes, accessories and more, with a
+  search across everything. Names come in your language, and the "i" on a piece tells
+  you who made it.
+- **Try before you commit.** Point at a piece to see it on your character, who turns
+  around as you move the mouse.
+- **Build your skin in layers.** Reorder, hide, duplicate or remove pieces, and change
+  their colours, opacity, hue, saturation and brightness.
+- **Start from something ready-made.** Take a complete starter character, or add an outfit
+  on top of what you are wearing. Changed your mind? Undo brings it back.
+- **Keep your skins.** My skins stores your creations, and they are the same ones you
+  see on the website.
+- **Save a picture of your skin.** Export the skin file, or the character seen from the
+  front.
+- **Wear it for real.** Apply the skin to your Minecraft account, classic or slim arms.
+  You see it on your own character right away, no restart. Other players see it a little
+  later, once Minecraft's servers catch up.
 
-What is in:
+It is available in English, French and Spanish, and it only runs on your own game:
+nothing to install on a server, nothing changed for other players.
 
-- a **Skin Creator** panel on the right of the title screen and the pause menu
-- the **library**, left: regions, the categories of a region as a fixed row of
-  icons, search across every region, and a scrolling grid of elements in inventory
-  slots, named in your language
-- the **scene**, middle: the player model, which turns under the mouse and never
-  goes away — it shrinks, it never hides. Point at an element to try it on
-- the **layers**, right: the stack grouped by region, drag to reorder, show and
-  hide, duplicate and remove, and an inspector for opacity, hue, saturation and
-  brightness
-- **where every element comes from**: the "i" on a thumbnail opens the work it was
-  cut out of — title, author, licence — and the starter models it is a piece of
-- the **outfits** the site offers, on their own shelf in the library between the
-  body and the head: picked like any element, and they go on over what you are
-  already wearing
-- the **starter models**, under **Models** in the top bar: a whole character, which
-  replaces your stack. Either that or an outfit is one undo to take back
-- **My skins**: the skins kept on the server, opened, saved and deleted from the
-  game. They are the same entries the site's own library holds
-- three columns while the window is wide enough, drawers below that, either side
-  column foldable
-- undo and redo over 60 states, with one entry per gesture rather than per frame
-- export into `<game>/mcskincreator/`: the composed 64x64 sheet, or the character
-  seen from the front
-- **applying the skin to your Minecraft account**, through Mojang's own endpoint, with
-  the classic or slim model you chose. The button confirms first and says what it will
-  cost, it locks between two uploads, and it is absent — with the reason — when the
-  session is not signed in with Microsoft
-- **and you wear it straight away**, without restarting: once Mojang has accepted the
-  upload the mod puts those same pixels on your player here. Other players still wait
-  for Minecraft's profile servers, which is what the confirmation warns about
-- English, French and Spanish, with a label and a tooltip for every control
-- multi-version builds through [Stonecutter](https://stonecutter.kikugie.dev/):
-  **Minecraft 1.21.10, 1.21.11, 26.1, 26.2 and 26.3** from the same code
-- CI building every supported version on each push and pull request
+## Your Minecraft session
 
-What is not in yet: the pixel drawing tools, per-element colours, importing a
-texture, the MC Skin Creator account the saved skins will hang off, and the local
-fitting room — trying a skin on in your own client without touching the account.
-They all live in the
-[issues](https://github.com/MC-Skin-Creator/mcskincreator-mod/issues).
+Applying a skin is the one thing that needs your session token, so here is where it goes:
 
-### What the mod does with your session
+- it is read when you press **Apply** and sent to exactly one address, Mojang's own skin
+  endpoint (`api.minecraftservices.com`), the call the official launcher makes;
+- it is never sent to the MC Skin Creator back-end, never logged and never written to disk;
+- the mod never uploads on its own, on a timer or in a batch.
 
-Applying a skin is the one thing here that needs your Minecraft session token, so it
-is worth saying plainly where it goes.
+The code that touches it is two short files,
+[`GameSession`](src/main/java/fr/clixmods/mcsc/mod/account/GameSession.java) and
+[`MojangSkins`](src/main/java/fr/clixmods/mcsc/mod/account/MojangSkins.java), and nothing
+outside that package can reach the token. [`SECURITY.md`](SECURITY.md) has every address
+the mod contacts, what it stores on your disk, and how to report a vulnerability.
 
-- The token is read at the moment you press **Apply** and sent to exactly one address,
-  `https://api.minecraftservices.com/minecraft/profile/skins` — the same call the
-  official launcher makes for its own account.
-- It is never sent to the MC Skin Creator back-end, never written to a log, never put
-  in a crash report, and never kept in a field between two uploads.
-- Two files hold all of it, and they are short on purpose:
-  [`MojangSkins`](src/main/java/fr/clixmods/mcsc/mod/account/MojangSkins.java) and
-  [`GameSession`](src/main/java/fr/clixmods/mcsc/mod/account/GameSession.java). Nothing
-  outside that package can reach the token at all.
-- Uploading happens once per press. The mod never uploads on its own, on a timer, or
-  in a batch, and it locks the button between two uploads so a session cannot be
-  rate-limited by an impatient click.
-
-A dedicated `SECURITY.md` is [issue #13](https://github.com/MC-Skin-Creator/mcskincreator-mod/issues/13).
-
-The editor reads the MC Skin Creator API at `https://mcskincreator.app/api/v1`, and
-uses every route of that contract: the catalogue and its atlases, the search, an
-element's provenance, the composed texture and front view, and the five routes of
-the saved-skin library. Nothing outside `/api/v1` is called — the rest of the site's
-API travels with its own front end and promises nothing to a mod. Point the mod at
-another deployment - a local back-end, say - with a system property or an
-environment variable, whichever is easier to set where you launch the game:
-
-```sh
--Dmcskincreator.api=http://localhost:3000/api/v1
-MCSKINCREATOR_API=http://localhost:3000/api/v1
-```
-
-Neither is needed to play. When the library does not arrive, the screen says which
-address the mod tried and what came back, so a wrong address reads differently from
-a network that is down.
-
-The saved skins have no account behind them yet. The mod draws a client identifier
-once, keeps it in `config/mcskincreator-client.txt`, and sends it with every call to
-the library — exactly as the site does in the browser. Deleting that file does not
-delete the skins on the server, but it does lose the way back to them.
+The editor reads the MC Skin Creator API (`https://mcskincreator.app/api/v1`) for the
+catalogue, search, textures and the saved-skin library.
 
 ## Install
+
+Requires [Fabric Loader](https://fabricmc.net/use/) and the Fabric API.
 
 | Minecraft | Java | Fabric Loader | Fabric API |
 |---|---|---|---|
@@ -113,50 +66,27 @@ delete the skins on the server, but it does lose the way back to them.
 | 26.2 | 25 | 0.19.3 or newer | 0.160.0+26.2 |
 | 26.3 | 25 | 0.19.3 or newer | 0.161.0+26.3 |
 
-Drop the jar matching your Minecraft version into `.minecraft/mods/`.
+Drop the jar matching your Minecraft version into `.minecraft/mods/`. You know it is
+loaded when the title screen shows the **Skin Creator** panel against its right edge.
 
-Builds are published on the [releases](https://github.com/MC-Skin-Creator/mcskincreator-mod/releases)
-page, one jar per supported Minecraft version:
-
-- **releases** (`v0.2.0`) are cut from `main` and are the ones to use;
-- **pre-releases** (`v0.2.0-dev.7`) are cut from `develop` on every merge. They are
-  previews of the next release, built but not tested. Use them to try something
-  early, not to play.
-
-You know the mod is loaded when the log prints `MC Skin Creator 0.1.0 loaded` and
-the title screen shows the **Skin Creator** panel against its right edge.
-
-> The 1.21.11 jar is the one that has been exercised in a real game. The others
-> compile, pass the tests and carry the right metadata, but have not been run yet.
-> The 26.1 jar is built against 26.1.2 and named after it, and declares every 26.1
-> release.
-
-## Build from source
-
-Requires a JDK 21. Gradle downloads the Java 25 toolchain needed by the 26.x
-targets on its own.
-
-```sh
-./gradlew build            # every supported Minecraft version
-./gradlew :1.21.11:build   # a single version
-./gradlew buildAndCollect  # all versions, jars collected in build/libs/<mod version>/
-```
-
-Jars are named `mcskincreator-<mod version>+mc<minecraft version>.jar`. The mod
-version and the Minecraft version are independent: supporting a new game version is
-not a new version of the mod.
-
-Supported versions and their dependencies are declared in
-[`stonecutter.properties.toml`](stonecutter.properties.toml) — the only file to
-touch when adding a version or bumping a dependency. The reasoning behind the
-toolchain is in [`DECISIONS.md`](DECISIONS.md), the working rules for the
-multi-version source tree are in [`CLAUDE.md`](CLAUDE.md), and the rules the
-interface follows are in [`INTERFACE.md`](INTERFACE.md).
+Jars come from the [releases](https://github.com/MC-Skin-Creator/mcskincreator-mod/releases)
+page, one per Minecraft version. **Releases** (`v0.2.0`) are the ones to use.
+**Pre-releases** (`v0.2.0-dev.7`) are built from `develop` on every merge and are not
+tested: to try something early, not to play.
 
 ## License
 
-Proprietary, source-available - see [`LICENSE`](LICENSE). The code is readable and
-auditable by anyone; redistribution and forks are not allowed.
+Proprietary, source-available: see [`LICENSE`](LICENSE). The code is public so that
+anyone can read and audit what a mod that handles a session token does.
+
+- Modpacks may include the unmodified official jar, as long as the modpack is free.
+- Forks are allowed only to propose a change through a pull request. Contributions are
+  not expected, and there is no promise to review them.
+- Any other redistribution, modified version or commercial use is not allowed.
+
+The official channels are this repository's releases, plus Modrinth and CurseForge under
+the copyright holder's account. A jar from anywhere else is not covered and should not
+be trusted.
 
 Minecraft is a trademark of Mojang Studios. This project is not affiliated with or
 endorsed by Mojang Studios or Microsoft.
