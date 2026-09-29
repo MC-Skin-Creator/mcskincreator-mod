@@ -312,12 +312,6 @@ public class ScenePanel extends Element {
             play.withTooltip(Component.translatable(this.playing
                     ? "gui.mcskincreator.stop.tooltip" : "gui.mcskincreator.play.tooltip"));
             staged.add(play);
-        } else {
-            PixelButton swing = new PixelButton(Component.translatable("gui.mcskincreator.swing"),
-                    PixelButton.Style.NORMAL, this.gameCamera::swing);
-            swing.fit(canvas);
-            swing.withTooltip(Component.translatable("gui.mcskincreator.swing.tooltip"));
-            staged.add(swing);
         }
 
         PixelButton recentre = new PixelButton(
@@ -358,16 +352,6 @@ public class ScenePanel extends Element {
                 width, height);
         this.figure.stage(this.stage[0], this.stage[1], this.stage[2], this.stage[3]);
     }
-
-    /**
-     * The dock, top right: the camera, the backdrop, the animation, and putting the view
-     * back.
-     *
-     * <p>Laid out right to left and wrapped onto as many rows as it takes, because the
-     * scene is the column that gives up its width first — on a phone in portrait it is
-     * the whole screen and on a desktop with both panels open it is a third of it, and
-     * the same row of controls has to sit in both.
-     */
 
     private void chooseBackdrop(SceneBackdrop backdrop) {
         if (this.backdrop == backdrop) {
