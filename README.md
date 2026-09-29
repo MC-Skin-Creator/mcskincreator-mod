@@ -57,11 +57,7 @@ outside that package can reach the token. [`SECURITY.md`](SECURITY.md) has every
 the mod contacts, what it stores on your disk, and how to report a vulnerability.
 
 The editor reads the MC Skin Creator API (`https://mcskincreator.app/api/v1`) for the
-catalogue, search, textures and the saved-skin library. The saved skins have no account
-behind them yet: the mod draws a random client identifier once, keeps it in
-`config/mcskincreator-client.txt` and sends it with library calls, as the site does in the
-browser. Deleting that file does not delete the skins on the server, but it loses the way
-back to them.
+catalogue, search, textures and the saved-skin library.
 
 ## Install
 
@@ -74,9 +70,6 @@ Requires [Fabric Loader](https://fabricmc.net/use/) and the Fabric API.
 
 Drop the jar matching your Minecraft version into `.minecraft/mods/`. You know it is
 loaded when the title screen shows the **Skin Creator** panel against its right edge.
-
-> The 1.21.11 jar is the one exercised in a real game. The 26.2 jar compiles but has not
-> been run yet: treat it as experimental.
 
 Jars come from the [releases](https://github.com/MC-Skin-Creator/mcskincreator-mod/releases)
 page, one per Minecraft version. **Releases** (`v0.2.0`) are the ones to use.
@@ -116,17 +109,6 @@ touch when adding a version or bumping a dependency. The reasoning behind the
 toolchain is in [`DECISIONS.md`](DECISIONS.md), the working rules for the
 multi-version source tree are in [`CLAUDE.md`](CLAUDE.md), and the rules the
 interface follows are in [`INTERFACE.md`](INTERFACE.md).
-
-Point the mod at another deployment, a local back-end say, with a system property or an
-environment variable:
-
-```sh
--Dmcskincreator.api=http://localhost:3000/api/v1
-MCSKINCREATOR_API=http://localhost:3000/api/v1
-```
-
-The token goes to Mojang's endpoint whatever this is set to. When the library does not
-arrive, the screen says which address the mod tried and what came back.
 
 ## License
 
