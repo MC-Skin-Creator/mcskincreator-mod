@@ -16,6 +16,13 @@ val requiredJava: JavaVersion = when {
     else -> JavaVersion.VERSION_21
 }
 
+// Mojang renamed ResourceLocation to Identifier in 1.21.11 and changed nothing else about
+// it. A pure rename used in a dozen files is a replacement, not a conditional in each of
+// them: the sources say Identifier, and older targets read ResourceLocation.
+sc.replacements.regex(sc.current.parsed >= "1.21.11") {
+    replace("\\bResourceLocation\\b", "Identifier", "\\bIdentifier\\b", "ResourceLocation")
+}
+
 repositories {
     // The texture engine lives on GitHub Packages, which asks for a token even for a
     // public package. A contributor puts one in ~/.gradle/gradle.properties as

@@ -10,6 +10,8 @@ package fr.clixmods.mcsc.mod.ui.widget;
 import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
 
+import com.mojang.blaze3d.platform.InputConstants;
+
 import fr.clixmods.mcsc.mod.style.Metrics;
 import fr.clixmods.mcsc.mod.style.Palette;
 import fr.clixmods.mcsc.mod.style.Surface;
@@ -17,7 +19,6 @@ import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
 import fr.clixmods.mcsc.mod.ui.Paint;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
 
 /**
  * A settings slider: what it is and what it reads on one line, the rail under it.
@@ -157,8 +158,8 @@ public class Slider extends Element {
     @Override
     public boolean keyDown(int key, int modifiers) {
         int step = switch (key) {
-            case GLFW.GLFW_KEY_LEFT, GLFW.GLFW_KEY_DOWN -> -1;
-            case GLFW.GLFW_KEY_RIGHT, GLFW.GLFW_KEY_UP -> 1;
+            case InputConstants.KEY_LEFT, InputConstants.KEY_DOWN -> -1;
+            case InputConstants.KEY_RIGHT, InputConstants.KEY_UP -> 1;
             default -> 0;
         };
         if (step == 0) {

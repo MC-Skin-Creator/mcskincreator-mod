@@ -60,8 +60,11 @@ Requires [Fabric Loader](https://fabricmc.net/use/) and the Fabric API.
 
 | Minecraft | Java | Fabric Loader | Fabric API |
 |---|---|---|---|
+| 1.21.10 | 21 | 0.19.3 or newer | 0.138.4+1.21.10 |
 | 1.21.11 | 21 | 0.19.3 or newer | 0.141.6+1.21.11 |
+| 26.1, 26.1.1, 26.1.2 | 25 | 0.19.3 or newer | 0.155.3+26.1.2 |
 | 26.2 | 25 | 0.19.3 or newer | 0.160.0+26.2 |
+| 26.3 | 25 | 0.19.3 or newer | 0.161.0+26.3 |
 
 Drop the jar matching your Minecraft version into `.minecraft/mods/`. You know it is
 loaded when the title screen shows the **Skin Creator** panel against its right edge.

@@ -249,13 +249,12 @@ public final class GameCamera {
     /**
      * Whether the game is currently drawing its own HUD.
      *
-     * <p>The one thing in this class the two targets disagree about: 1.21.11 keeps the
-     * flag on {@code Options}, 26.2 moved it into {@code Hud} behind a getter and a
-     * toggle. Both are public, so it stays a rename rather than becoming a reason for a
-     * mixin.
+     * <p>Where the targets disagree about the HUD: up to 26.1 the flag lives on
+     * {@code Options}, 26.2 moved it into {@code Hud} behind a getter and a toggle.
+     * Both are public, so it stays a rename rather than becoming a reason for a mixin.
      */
     private boolean hudHidden() {
-        //? if >=26.1 {
+        //? if >=26.2 {
         /*return this.client.gui.hud.isHidden();
         *///?} else {
         return this.client.options.hideGui;
@@ -263,7 +262,7 @@ public final class GameCamera {
     }
 
     private void hideHud(boolean hidden) {
-        //? if >=26.1 {
+        //? if >=26.2 {
         /*if (this.client.gui.hud.isHidden() != hidden) {
             this.client.gui.hud.toggle();
         }
