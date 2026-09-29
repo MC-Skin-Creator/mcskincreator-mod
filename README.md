@@ -76,45 +76,11 @@ page, one per Minecraft version. **Releases** (`v0.2.0`) are the ones to use.
 **Pre-releases** (`v0.2.0-dev.7`) are built from `develop` on every merge and are not
 tested: to try something early, not to play.
 
-## Build from source
-
-Requires a JDK 21. Gradle downloads the Java 25 toolchain needed by the 26.2
-target on its own.
-
-The mod composes skins with
-[`mcsc-engine`](https://github.com/MC-Skin-Creator/mcskincreator-engine), published
-to GitHub Packages — which asks for a token even for a public package. Put a personal
-token with the `read:packages` scope in `~/.gradle/gradle.properties` before
-building, or the build stops on a 401 while resolving it:
-
-```properties
-gpr.user=your-github-account
-gpr.token=ghp_…
-```
-
-```sh
-./gradlew build            # every supported Minecraft version
-./gradlew :1.21.11:build   # a single version
-./gradlew buildAndCollect  # all versions, jars collected in build/libs/<mod version>/
-```
-
-Jars are named `mcskincreator-<mod version>+mc<minecraft version>.jar`. The mod
-version and the Minecraft version are independent: supporting a new game version is
-not a new version of the mod.
-
-CI builds and tests every supported version on each pull request. Supported versions
-and their dependencies are declared in
-[`stonecutter.properties.toml`](stonecutter.properties.toml) — the only file to
-touch when adding a version or bumping a dependency. The reasoning behind the
-toolchain is in [`DECISIONS.md`](DECISIONS.md), the working rules for the
-multi-version source tree are in [`CLAUDE.md`](CLAUDE.md), and the rules the
-interface follows are in [`INTERFACE.md`](INTERFACE.md).
-
 ## License
 
 Proprietary, source-available: see [`LICENSE`](LICENSE). The code is public so that
-anyone can read and audit what a mod that handles a session token does. You may build
-it for your own use; redistribution, forks and commercial use are not allowed. The
+anyone can read and audit what a mod that handles a session token does. Redistribution,
+forks and commercial use are not allowed. The
 official channels are this repository's releases, plus Modrinth and CurseForge under
 the copyright holder's account. A jar from anywhere else is not covered and should not
 be trusted.
