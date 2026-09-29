@@ -42,6 +42,7 @@ import fr.clixmods.mcsc.mod.remote.SearchResults;
 import fr.clixmods.mcsc.mod.scene.GameCamera;
 import fr.clixmods.mcsc.mod.skin.AppliedSkin;
 import fr.clixmods.mcsc.mod.skin.CategorySprites;
+import fr.clixmods.mcsc.mod.skin.Composite;
 import fr.clixmods.mcsc.mod.skin.Highlight;
 import fr.clixmods.mcsc.mod.skin.ReadyMadeSkins;
 import fr.clixmods.mcsc.mod.skin.PreviewSkin;
@@ -362,7 +363,40 @@ public class SkinCreatorScreen extends Screen {
         // rather than left to paint over the element and then reset the texture.
         this.highlight.drop();
         this.highlighting = false;
+        if (LibraryPanel.OUTFIT_SHEET.equals(tile.category().id())) {
+            previewOutfit(tile);
+            return;
+        }
         show(this.sprites.get(tile.category().id()), tile.item().atlasIndex(this.project.isSlim()));
+    }
+
+    /**
+     * An outfit's tile picture stands the clothes on a mannequin, which is right for a
+     * thumbnail and wrong for the model: pointing at one has to show it over the skin
+     * being worn, which is what wearing it would do.
+     */
+    private void previewOutfit(ItemTile tile) {
+        CatalogModel outfit = catalog.outfits().stream()
+                .filter(candidate -> candidate.id().equals(tile.item().id()))
+                .findFirst().orElse(null);
+        byte[] worn = null;
+        if (outfit != null) {
+            byte[] body = this.composed != null ? this.composed : Composite.of(
+                    this.project.layers().stream().filter(Layer::visible)
+                            .map(layer -> layerBuffer(layer)).toList());
+            worn = ReadyMadeSkins.of(List.of(outfit), catalog, this.sprites::get,
+                    this.project.isSlim(), body).get(0);
+        }
+        boolean drawn = false;
+        for (int offset = 3; worn != null && offset < worn.length && !drawn; offset += 4) {
+            drawn = worn[offset] != 0;
+        }
+        if (drawn) {
+            show(worn);
+        } else {
+            // Its categories are still downloading: leave the skin as it is.
+            showTopLocally();
+        }
     }
 
     /**
