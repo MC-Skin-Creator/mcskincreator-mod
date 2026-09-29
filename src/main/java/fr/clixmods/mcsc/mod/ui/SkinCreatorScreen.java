@@ -1098,7 +1098,7 @@ public class SkinCreatorScreen extends Screen {
     /** Opens the saved skins, and asks the server for them each time it is opened. */
     private void openSkins() {
         open(new SkinsWindow(() -> this.skins, this.skinThumbnails,
-                this::openSavedSkin, this::deleteSavedSkin, this::openSaveName));
+                this::openSavedSkin, this::askDeleteSavedSkin,this::openSaveName));
         loadSkins();
     }
 
@@ -1184,6 +1184,24 @@ public class SkinCreatorScreen extends Screen {
                     this.composed = texture;
                     show(texture);
                 }));
+    }
+
+    /**
+     * Asks before removing a saved skin, unless shift is held: a deliberate press that
+     * says it does not want the question. Read when the button is released, which is
+     * when it fires, since a modifier is not part of a mouse event.
+     */
+    private void askDeleteSavedSkin(SavedSkin skin) {
+        if (Minecraft.getInstance().hasShiftDown()) {
+            deleteSavedSkin(skin);
+            return;
+        }
+        open(new ConfirmWindow("window.mcskincreator.delete_skin", List.of(
+                new TextWindow.Line(Component.translatable("delete_skin.mcskincreator.what", skin.name()), false),
+                TextWindow.Line.warning("delete_skin.mcskincreator.irreversible"),
+                TextWindow.Line.of("delete_skin.mcskincreator.shortcut")),
+                () -> Component.translatable("delete_skin.mcskincreator.confirm"),
+                () -> true, () -> deleteSavedSkin(skin), this.window));
     }
 
     private void deleteSavedSkin(SavedSkin skin) {
