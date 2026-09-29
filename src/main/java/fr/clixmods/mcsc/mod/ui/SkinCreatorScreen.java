@@ -92,7 +92,6 @@ import com.mojang.blaze3d.platform.NativeImage;
 import fr.clixmods.mcsc.mod.skin.SkinBlend;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.util.Util;
 import net.minecraft.world.entity.player.PlayerModelType;
 
 /**
@@ -1148,7 +1147,7 @@ public class SkinCreatorScreen extends Screen {
 
     private void openAbout() {
         open(new AboutWindow(MCSkinCreatorClient.version(), "clixmods",
-                uri -> Util.getPlatform().openUri(uri)));
+                ScreenCompat::openUri));
     }
 
     /**

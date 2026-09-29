@@ -70,7 +70,7 @@ src/main/java/fr/clixmods/mcsc/mod/
 └── ui/
     ├── Canvas.java            the drawing surface, as an interface: everything paints through it
     ├── GameCanvas.java        the implementation that paints on the game, and the only file the interface versions
-    ├── ScreenCompat.java      the two call renames outside drawing
+    ├── ScreenCompat.java      the call renames outside drawing
     ├── Element.java, Paint.java   the widget base and the per-frame context
     ├── EditorChrome.java      where the four zones go: columns, drawers, paint order, hit list
     ├── EditorScale.java       the GUI scale this screen takes for itself, and gives back
@@ -245,6 +245,7 @@ differ from their neighbours in a few more places:
 | Hide the game HUD | `Options.hideGui` up to 26.1, `Gui.hud` from 26.2 | `scene/GameCamera` |
 | Draw the HUD | `Gui#render` on 1.21.x, `Gui#extractRenderState(GuiGraphicsExtractor, DeltaTracker)` on 26.1, `(DeltaTracker, boolean, boolean)` from 26.2 | `mixin/GuiMixin` |
 | Keyboard | GLFW up to 26.2, SDL on 26.3 with other key codes | `InputConstants` everywhere, never `org.lwjgl.glfw` |
+| Open a link or a folder | `Util.getPlatform().openUri`/`openPath` up to 26.2 (`net.minecraft.Util` on 1.21.10, `net.minecraft.util.Util` after), `Blaze3D.openUri`/`openPath` on 26.3 | `ScreenCompat` |
 | Swing the arm | `swing(hand)` and `attackArm`/`attackTime` up to 26.2, `swing(hand, SwingAnimation, boolean)` and `currentSwing`/`swingAnimation` on 26.3 | `scene/GameCamera`, `scene/ScenePose` |
 
 Key codes are the one trap here that compiles: 26.3 moved from GLFW to SDL, so a

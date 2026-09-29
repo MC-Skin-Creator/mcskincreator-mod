@@ -7,21 +7,30 @@
  */
 package fr.clixmods.mcsc.mod.ui;
 
+import java.net.URI;
+import java.nio.file.Path;
 import java.util.List;
 
 import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
+//? if >=26.3 {
+/*import com.mojang.blaze3d.Blaze3D;
+*///?} elif >=1.21.11 {
+import net.minecraft.util.Util;
+//?} else {
+/*import net.minecraft.Util;
+*///?}
 
 /**
- * The two calls whose names differ between the supported Minecraft versions.
+ * The calls outside drawing whose names differ between the supported Minecraft versions.
  *
- * <p>Both are plain renames with identical behavior, so they are isolated here
+ * <p>All are plain renames with identical behavior, so they are isolated here
  * rather than scattered as conditionals across the screens that use them. Anything
  * that behaves the same on every target belongs in normal shared code, not in here.
  */
-final class ScreenCompat {
+public final class ScreenCompat {
     private ScreenCompat() {
     }
 
@@ -40,6 +49,28 @@ final class ScreenCompat {
         /*return Screens.getWidgets(screen);
         *///?} else {
         return Screens.getButtons(screen);
+        //?}
+    }
+
+    /**
+     * {@code Util.getPlatform().openUri} moved to {@code Blaze3D.openUri} in 26.3. The
+     * {@code Util} class itself moved from {@code net.minecraft} to
+     * {@code net.minecraft.util} in 1.21.11, which is why its import is versioned too.
+     */
+    public static void openUri(URI uri) {
+        //? if >=26.3 {
+        /*Blaze3D.openUri(uri);
+        *///?} else {
+        Util.getPlatform().openUri(uri);
+        //?}
+    }
+
+    /** {@code Util.getPlatform().openPath} moved to {@code Blaze3D.openPath} in 26.3. */
+    public static void openPath(Path path) {
+        //? if >=26.3 {
+        /*Blaze3D.openPath(path);
+        *///?} else {
+        Util.getPlatform().openPath(path);
         //?}
     }
 }
