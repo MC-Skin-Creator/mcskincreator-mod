@@ -65,8 +65,8 @@ src/main/java/fr/clixmods/mcsc/mod/
     ├── EditorScale.java       the GUI scale this screen takes for itself, and gives back
     ├── SkinCreatorScreen.java the editor: project, catalogue, requests, windows, input
     ├── Figure.java, PlayerFigure.java   the player in the scene, and the game's way of drawing one
-    ├── MenuButtons.java, SkinPanel.java, MenuFigure.java, LogoIcon.java   the entry on the vanilla menus,
-    │                           its figure that watches the pointer, and the mark drawn on its button
+    ├── MenuButtons.java, SkinPanel.java, MenuFigure.java   the entry on the vanilla menus,
+    │                           and its figure that watches the pointer
     ├── widget/                button, tabs, tile, field, slider, checkbox, dropdown, layer row
     ├── panel/                 top bar, library, scene, layers
     └── window/                the modal base and the windows built on it

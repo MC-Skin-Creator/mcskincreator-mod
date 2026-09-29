@@ -12,14 +12,17 @@ import java.util.Optional;
 
 import com.mojang.authlib.GameProfile;
 
+import fr.clixmods.mcsc.mod.MCSkinCreatorClient;
 import fr.clixmods.mcsc.mod.skin.AppliedSkin;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.SpriteIconButton;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 
 /**
  * The skin entry as it sits on a vanilla menu: the player name, the player model
@@ -39,8 +42,9 @@ final class SkinPanel {
     private static final int GAP = 4;
     private static final int MARGIN = 8;
 
-    /** Where the mark sits inside the wide button, from its left edge. */
-    private static final int ICON_INSET = 6;
+    /** The mark, a 32 pixel sprite in the game's GUI atlas, drawn at 16 like the vanilla icons. */
+    private static final Identifier ICON = Identifier.fromNamespaceAndPath(MCSkinCreatorClient.MOD_ID, "icon");
+    private static final int ICON_SIZE = 16;
 
     private static final int PANEL_HEIGHT = NAME_HEIGHT + GAP + SKIN_HEIGHT + GAP + BUTTON_HEIGHT;
 
@@ -86,38 +90,44 @@ final class SkinPanel {
         addOpenButton(client, screen, widgets, x, y + PANEL_HEIGHT - BUTTON_HEIGHT);
     }
 
-    /** The full-width button: the mark at its left edge, the label centred as vanilla does. */
+    /**
+     * The full-width button: the mark and the label, laid out by the game.
+     *
+     * <p>Both entries are {@code SpriteIconButton}s, the class behind the language and
+     * accessibility buttons, rather than a button with a widget drawn over it: the mark
+     * is then part of the button, and nothing that moves the buttons of a menu can leave
+     * one behind.
+     */
     private static void addOpenButton(Minecraft client, Screen screen, List<AbstractWidget> widgets,
                                       int x, int y) {
-        widgets.add(openButton(client, screen, x, y, PANEL_WIDTH, Component.translatable("menu.mcskincreator.open")));
-        widgets.add(new LogoIcon(client, x + ICON_INSET, y + (BUTTON_HEIGHT - LogoIcon.SIZE) / 2));
+        widgets.add(openButton(client, screen, x, y, PANEL_WIDTH, false));
     }
 
     /** The square button: the mark alone, named by its tooltip. */
     private static void addCompact(Minecraft client, Screen screen, List<AbstractWidget> widgets, Bounds menu) {
         int right = 0;
-        int y = menu.bottom() - BUTTON_HEIGHT;
         for (AbstractWidget widget : widgets) {
             // The last row's rightmost widget, small icon buttons included.
             if (widget.getHeight() >= BUTTON_HEIGHT && widget.getY() + widget.getHeight() == menu.bottom()) {
                 right = Math.max(right, widget.getX() + widget.getWidth());
             }
         }
-        int x = right + GAP;
-        Button button = openButton(client, screen, x, y, BUTTON_HEIGHT, Component.empty());
+        Button button = openButton(client, screen, right + GAP, menu.bottom() - BUTTON_HEIGHT,
+                BUTTON_HEIGHT, true);
         button.setTooltip(Tooltip.create(Component.translatable("menu.mcskincreator.open")));
         widgets.add(button);
-        widgets.add(new LogoIcon(client, x + (BUTTON_HEIGHT - LogoIcon.SIZE) / 2,
-                y + (BUTTON_HEIGHT - LogoIcon.SIZE) / 2));
     }
 
     private static Button openButton(Minecraft client, Screen screen, int x, int y, int width,
-                                     Component label) {
-        return Button
-                .builder(label,
-                        ignored -> ScreenCompat.setScreen(client, new SkinCreatorScreen(screen)))
-                .bounds(x, y, width, BUTTON_HEIGHT)
+                                     boolean iconOnly) {
+        Button button = SpriteIconButton
+                .builder(Component.translatable("menu.mcskincreator.open"),
+                        ignored -> ScreenCompat.setScreen(client, new SkinCreatorScreen(screen)), iconOnly)
+                .width(width)
+                .sprite(ICON, ICON_SIZE, ICON_SIZE)
                 .build();
+        button.setPosition(x, y);
+        return button;
     }
 
     private static StringWidget playerName(Minecraft client, int x, int y) {
