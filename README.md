@@ -74,9 +74,14 @@ tested: to try something early, not to play.
 ## License
 
 Proprietary, source-available: see [`LICENSE`](LICENSE). The code is public so that
-anyone can read and audit what a mod that handles a session token does. Redistribution,
-forks and commercial use are not allowed. The
-official channels are this repository's releases, plus Modrinth and CurseForge under
+anyone can read and audit what a mod that handles a session token does.
+
+- Modpacks may include the unmodified official jar, as long as the modpack is free.
+- Forks are allowed only to propose a change through a pull request. Contributions are
+  not expected, and there is no promise to review them.
+- Any other redistribution, modified version or commercial use is not allowed.
+
+The official channels are this repository's releases, plus Modrinth and CurseForge under
 the copyright holder's account. A jar from anywhere else is not covered and should not
 be trusted.
 
