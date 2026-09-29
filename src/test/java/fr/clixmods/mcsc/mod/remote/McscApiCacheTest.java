@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -190,14 +191,16 @@ class McscApiCacheTest {
         }
     }
 
-    private static byte[] gzip(String text) throws IOException {
+    private static byte[] gzip(String text) {
         return gzip(text.getBytes(StandardCharsets.UTF_8));
     }
 
-    private static byte[] gzip(byte[] bytes) throws IOException {
+    private static byte[] gzip(byte[] bytes) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try (GZIPOutputStream gzip = new GZIPOutputStream(out)) {
             gzip.write(bytes);
+        } catch (IOException cause) {
+            throw new UncheckedIOException(cause);
         }
         return out.toByteArray();
     }
