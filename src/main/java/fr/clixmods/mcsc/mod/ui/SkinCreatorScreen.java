@@ -70,10 +70,12 @@ import net.minecraft.client.User;
 import net.minecraft.client.gui.GuiGraphics;
 //?}
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.player.PlayerModelType;
 import org.lwjgl.glfw.GLFW;
 
@@ -1527,6 +1529,9 @@ public class SkinCreatorScreen extends Screen {
 
         for (Element element : targets) {
             if (element.mouseDown(mouseX, mouseY, event.button())) {
+                if (element.clickSound()) {
+                    playClick();
+                }
                 this.pressed = element;
                 this.focused = element.focusable() ? element : null;
                 blurEverythingBut(targets, element);
@@ -1548,6 +1553,11 @@ public class SkinCreatorScreen extends Screen {
         this.focused = null;
         blurEverythingBut(targets, null);
         return true;
+    }
+
+    /** The game's own button click, so the editor answers a press the way every menu does. */
+    private void playClick() {
+        this.minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
     }
 
     private static void blurEverythingBut(List<Element> targets, Element keep) {
@@ -1694,7 +1704,11 @@ public class SkinCreatorScreen extends Screen {
 
         if (this.focused != null && (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_SPACE)
                 && !this.focused.capturesTyping()) {
-            return this.focused.activate();
+            boolean done = this.focused.activate();
+            if (done && this.focused.clickSound()) {
+                playClick();
+            }
+            return done;
         }
 
         // No shortcut fires while someone is typing: searching for "band" is not a

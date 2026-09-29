@@ -150,6 +150,11 @@ public class ItemTile extends Element {
     }
 
     @Override
+    public boolean clickSound() {
+        return true;
+    }
+
+    @Override
     public boolean mouseDown(double mouseX, double mouseY, int button) {
         if (!contains(mouseX, mouseY)) {
             return false;
