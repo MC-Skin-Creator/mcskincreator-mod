@@ -11,8 +11,10 @@ import java.util.List;
 import java.util.function.Consumer;
 
 import fr.clixmods.mcsc.mod.style.Metrics;
+import fr.clixmods.mcsc.mod.style.Palette;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Paint;
+import fr.clixmods.mcsc.mod.ui.Prose;
 import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
 import fr.clixmods.mcsc.mod.ui.widget.TextInput;
 import net.minecraft.network.chat.Component;
@@ -29,10 +31,21 @@ public class NameWindow extends ModalWindow {
     private final TextInput field;
     private final Consumer<String> onAccept;
     private final Runnable onCancel;
+    private final Component hint;
 
     public NameWindow(String titleKey, String initial, Consumer<String> onAccept,
                       Runnable onCancel, ModalWindow returnsTo) {
+        this(titleKey, initial, null, onAccept, onCancel, returnsTo);
+    }
+
+    /**
+     * @param hint a sentence set under the field, or null for none: where the file will
+     *             land, which the name alone does not say
+     */
+    public NameWindow(String titleKey, String initial, Component hint, Consumer<String> onAccept,
+                      Runnable onCancel, ModalWindow returnsTo) {
         super(titleKey, returnsTo);
+        this.hint = hint;
         this.onAccept = onAccept;
         this.onCancel = onCancel;
         this.field = new TextInput(Component.translatable("gui.mcskincreator.name_placeholder"),
@@ -58,7 +71,15 @@ public class NameWindow extends ModalWindow {
 
     @Override
     protected int contentHeight(Canvas canvas) {
-        return Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD;
+        return Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD + hintHeight(canvas);
+    }
+
+    private int hintHeight(Canvas canvas) {
+        if (this.hint == null) {
+            return 0;
+        }
+        int rows = Prose.wrap(canvas, this.hint, bodyWidth()).size();
+        return rows * (canvas.lineHeight() + 1);
     }
 
     @Override
@@ -69,6 +90,15 @@ public class NameWindow extends ModalWindow {
 
     @Override
     protected void drawBody(Paint paint, int left, int top, int width) {
+        if (this.hint == null) {
+            return;
+        }
+        Canvas canvas = paint.canvas();
+        int cursorY = top + Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD_TIGHT;
+        for (String row : Prose.wrap(canvas, this.hint, width)) {
+            canvas.text(Component.literal(row), left, cursorY, Palette.INK_MUTED);
+            cursorY += canvas.lineHeight() + 1;
+        }
     }
 
     @Override
@@ -80,7 +110,7 @@ public class NameWindow extends ModalWindow {
                             close.run();
                         }),
                 new PixelButton(Component.translatable("gui.mcskincreator.confirm"),
-                        PixelButton.Style.NORMAL, () -> {
+                        PixelButton.Style.PRIMARY, () -> {
                             if (accept()) {
                                 close.run();
                             }

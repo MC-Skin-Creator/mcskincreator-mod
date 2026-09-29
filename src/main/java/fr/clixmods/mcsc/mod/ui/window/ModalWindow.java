@@ -29,8 +29,9 @@ import net.minecraft.network.chat.Component;
  * list returns to the list rather than to a bare screen.
  *
  * <p>The frame is the panel the game puts behind its own pop-ups, and the cross is
- * the game's close button. What is the mod's own is the arrangement — header, body,
- * footer with the accepting action last — which is the site's.
+ * the game's close button. What is the mod's own is the arrangement — a dark header
+ * band, the body, a ruled-off footer with the accepting action last and green — which
+ * is the site's.
  *
  * <p>Closing by clicking the backdrop only counts when the gesture <em>started</em> on
  * the backdrop. Otherwise selecting text in a field and letting go outside the window
@@ -53,7 +54,9 @@ public abstract class ModalWindow {
     private int height;
     private int bodyTop;
     private int bodyHeight;
+    private int bodyWidth;
     private boolean pressStartedOnBackdrop;
+    private boolean hasFooter;
 
     protected ModalWindow(String titleKey, ModalWindow returnsTo) {
         this.titleKey = titleKey;
@@ -83,6 +86,15 @@ public abstract class ModalWindow {
 
     protected int bodyHeight() {
         return this.bodyHeight;
+    }
+
+    /**
+     * How wide the body is: the window less its margins, and less the rail when the
+     * body scrolls. What a subclass wraps its prose to, so a row measured for
+     * {@link #contentHeight} is the row {@link #drawBody} draws.
+     */
+    protected int bodyWidth() {
+        return this.bodyWidth;
     }
 
     protected int scrollOffset() {
@@ -136,7 +148,11 @@ public abstract class ModalWindow {
 
     protected abstract void drawBody(Paint paint, int left, int top, int width);
 
-    /** The footer buttons, right aligned, the primary one last. */
+    /**
+     * The footer buttons, right aligned, the primary one last. The primary one is
+     * {@link PixelButton.Style#PRIMARY}: in a row of identical grey buttons the one that
+     * does the thing is the one nobody can find.
+     */
     protected List<PixelButton> footer(Canvas canvas, Runnable close) {
         return List.of();
     }
@@ -156,52 +172,72 @@ public abstract class ModalWindow {
         this.scroll.reset();
     }
 
+    /** The frame's own thickness: the outline and the window's deeper bevel. */
+    private static final int FRAME = Metrics.OUTLINE + Metrics.WINDOW_BEVEL;
+
+    /** The header band: the frame, then the close cross with room above and below it. */
+    private static int headerHeight() {
+        return FRAME + Metrics.CROSS + Metrics.PAD_TIGHT * 2;
+    }
+
+    /** The footer, from its rule to the window's bottom edge; just the frame without one. */
+    private static int footerHeight(boolean buttons) {
+        return buttons
+                ? 1 + Metrics.PAD + Metrics.BUTTON_HEIGHT + Metrics.PAD_TIGHT + FRAME
+                : FRAME;
+    }
+
     public void layout(Canvas canvas, int screenWidth, int screenHeight, Runnable close) {
         clearChildren();
 
-        int headerHeight = canvas.lineHeight() + Metrics.PANEL_INSET + Metrics.PAD;
-        int footerHeight = Metrics.BUTTON_HEIGHT + Metrics.PAD;
+        int headerHeight = headerHeight();
         List<PixelButton> footer = footer(canvas, close);
-        if (footer.isEmpty()) {
-            footerHeight = Metrics.PAD;
-        }
+        int footerHeight = footerHeight(!footer.isEmpty());
+        int chrome = headerHeight + Metrics.PAD * 2 + footerHeight;
 
         this.width = Math.min(Metrics.WINDOW_MAX_WIDTH, screenWidth - Metrics.PAD * 4);
+        this.bodyWidth = this.width - Metrics.WINDOW_PAD * 2;
         int maximum = (int) (screenHeight * Metrics.WINDOW_MAX_HEIGHT_RATIO);
-        int wanted = headerHeight + contentHeight(canvas) + footerHeight + Metrics.PAD * 2;
-        this.height = Math.min(maximum, wanted);
+        int content = contentHeight(canvas);
+        this.height = Math.min(maximum, chrome + content);
         this.x = (screenWidth - this.width) / 2;
         this.y = (screenHeight - this.height) / 2;
 
-        this.bodyTop = this.y + headerHeight + Metrics.PAD_TIGHT;
-        this.bodyHeight = this.height - headerHeight - footerHeight - Metrics.PAD_TIGHT;
-        this.scroll.setContent(contentHeight(canvas), this.bodyHeight);
+        this.bodyTop = this.y + headerHeight + Metrics.PAD;
+        this.bodyHeight = this.height - chrome;
+        if (content > this.bodyHeight) {
+            // The rail takes its width out of the body rather than out of the text
+            // under it; the content is measured again at the width it will really have.
+            this.bodyWidth -= ScrollPane.BAR_WIDTH + Metrics.PAD_TIGHT;
+            content = contentHeight(canvas);
+        }
+        this.scroll.setContent(content, this.bodyHeight);
 
         this.closeButton = new PixelButton(Component.empty(), PixelButton.Style.CROSS, close);
         this.closeButton.fit(canvas);
         this.closeButton.withTooltip(Component.translatable("gui.mcskincreator.close.tooltip"));
         this.closeButton.setBounds(
-                this.x + this.width - Metrics.PANEL_INSET - this.closeButton.width(),
-                this.y + (headerHeight - this.closeButton.height()) / 2,
+                this.x + this.width - Metrics.WINDOW_PAD - this.closeButton.width(),
+                this.y + FRAME + (headerHeight - FRAME - this.closeButton.height()) / 2,
                 this.closeButton.width(), this.closeButton.height());
         addChild(this.closeButton);
 
-        int left = this.x + Metrics.PANEL_INSET;
-        layoutBody(canvas, left, this.bodyTop - this.scroll.offset(),
-                this.width - Metrics.PANEL_INSET * 2);
+        layoutBody(canvas, this.x + Metrics.WINDOW_PAD, this.bodyTop - this.scroll.offset(),
+                this.bodyWidth);
 
-        int cursorX = this.x + this.width - Metrics.PANEL_INSET;
+        int cursorX = this.x + this.width - Metrics.WINDOW_PAD;
         List<PixelButton> reversed = new ArrayList<>(footer);
         java.util.Collections.reverse(reversed);
         for (PixelButton button : reversed) {
             button.fit(canvas);
             cursorX -= button.width();
             button.setBounds(cursorX,
-                    this.y + this.height - Metrics.PANEL_INSET - Metrics.BUTTON_HEIGHT,
+                    this.y + this.height - FRAME - Metrics.PAD_TIGHT - Metrics.BUTTON_HEIGHT,
                     button.width(), Metrics.BUTTON_HEIGHT);
             addChild(button);
             cursorX -= Metrics.PAD_TIGHT;
         }
+        this.hasFooter = !footer.isEmpty();
     }
 
     public void draw(Paint paint, int screenWidth, int screenHeight) {
@@ -209,23 +245,33 @@ public abstract class ModalWindow {
         canvas.fill(0, 0, screenWidth, screenHeight, Palette.BACKDROP);
         Surface.window(canvas, this.x, this.y, this.width, this.height);
 
-        int headerHeight = canvas.lineHeight() + Metrics.PANEL_INSET + Metrics.PAD;
+        // The header is a dark band across the top, ruled off, the way the editor's own
+        // top bar is: a title floating on the stone read as the first line of the body.
+        int headerHeight = headerHeight();
+        int innerWidth = this.width - FRAME * 2;
+        Surface.flat(canvas, this.x + FRAME, this.y + FRAME, innerWidth, headerHeight - FRAME,
+                Palette.PANEL_HEADER);
+        Surface.rule(canvas, this.x + FRAME, this.y + headerHeight, innerWidth);
         String title = Component.translatable(this.titleKey).getString().toUpperCase(Locale.ROOT);
-        canvas.textTracked(title, this.x + Metrics.PANEL_INSET, this.y + Metrics.PANEL_INSET,
+        canvas.textTracked(title, this.x + Metrics.WINDOW_PAD,
+                this.y + FRAME + (headerHeight - FRAME - canvas.lineHeight()) / 2 + 1,
                 Palette.INK, Metrics.TITLE_TRACKING);
-        Surface.rule(canvas, this.x + Metrics.PANEL_INSET, this.y + headerHeight - Metrics.PAD_TIGHT,
-                this.width - Metrics.PANEL_INSET * 2);
+
+        if (this.hasFooter) {
+            Surface.rule(canvas, this.x + FRAME, this.y + this.height - footerHeight(true),
+                    innerWidth);
+        }
 
         canvas.pushScissor(this.x, this.bodyTop, this.width, this.bodyHeight);
-        drawBody(paint, this.x + Metrics.PANEL_INSET, this.bodyTop - this.scroll.offset(),
-                this.width - Metrics.PANEL_INSET * 2);
+        drawBody(paint, this.x + Metrics.WINDOW_PAD, this.bodyTop - this.scroll.offset(),
+                this.bodyWidth);
         for (Element child : this.body) {
             if (inBody(child)) {
                 child.draw(paint);
             }
         }
         canvas.popScissor();
-        this.scroll.drawBar(canvas, this.x + this.width - Metrics.PANEL_INSET,
+        this.scroll.drawBar(canvas, this.x + this.width - Metrics.WINDOW_PAD,
                 this.bodyTop, this.bodyHeight);
 
         for (Element child : this.chrome) {
@@ -257,7 +303,7 @@ public abstract class ModalWindow {
     /** @return true when the press took hold of the rail down the window's edge */
     public boolean barMouseDown(double mouseX, double mouseY) {
         return this.scroll.barMouseDown(mouseX, mouseY,
-                this.x + this.width - Metrics.PANEL_INSET, this.bodyTop, this.bodyHeight);
+                this.x + this.width - Metrics.WINDOW_PAD, this.bodyTop, this.bodyHeight);
     }
 
     /**

@@ -78,7 +78,7 @@ public class TextWindow extends ModalWindow {
 
     /** Wraps a paragraph to the body width, a note's band and gutter taken off first. */
     private List<String> wrapped(Canvas canvas, Line line) {
-        int body = width() - Metrics.PAD * 2;
+        int body = bodyWidth();
         return Prose.wrap(canvas, line.text(), line.warning() ? Prose.noteRoom(body) : body);
     }
 

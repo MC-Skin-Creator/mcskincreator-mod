@@ -21,6 +21,15 @@ on:
 
 permissions:
   contents: write
+  # The texture engine is read from GitHub Packages, which asks for a token even for
+  # a public package. Every jar of a release embeds it through Jar-in-Jar.
+  packages: read
+
+# A newer push to develop supersedes a pre-release still building. main is never
+# cancelled: a stable release may be halfway through tagging and pushing.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_name == 'develop' }}
 
 jobs:
   release:
@@ -90,6 +99,10 @@ jobs:
       - name: Set up Gradle
         if: steps.version.outputs.release == 'true'
         uses: gradle/actions/setup-gradle@v4
+        with:
+          # Off the default branch the cache is read-only by default, so develop
+          # would never populate it.
+          cache-read-only: false
 
       - name: Stamp the version
         if: steps.version.outputs.release == 'true'
@@ -107,6 +120,7 @@ jobs:
         run: >-
           ./gradlew buildAndCollect --stacktrace
           -Porg.gradle.java.installations.fromEnv=JAVA_HOME_21_X64,JAVA_HOME_25_X64
+          -Pgpr.user=${{ github.actor }} -Pgpr.token=${{ secrets.GITHUB_TOKEN }}
 
       - name: Record the version on main
         # Only stable releases write the number back, so the file on main always

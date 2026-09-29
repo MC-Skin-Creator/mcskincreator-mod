@@ -43,14 +43,16 @@ public class ConfirmWindow extends TextWindow {
 
     @Override
     protected List<PixelButton> footer(Canvas canvas, Runnable close) {
-        PixelButton confirm = new PixelButton(this.confirmLabel.get(), PixelButton.Style.NORMAL,
-                () -> {
+        boolean enabled = this.confirmEnabled.getAsBoolean();
+        // Green only while it can be pressed: a locked green button reads as a broken one.
+        PixelButton confirm = new PixelButton(this.confirmLabel.get(),
+                enabled ? PixelButton.Style.PRIMARY : PixelButton.Style.NORMAL, () -> {
                     this.onConfirm.run();
                     close.run();
                 });
         // Disabled rather than absent: what this button does is the reason the window is
         // open, and a window whose one action vanished explains nothing.
-        confirm.setEnabled(this.confirmEnabled.getAsBoolean());
+        confirm.setEnabled(enabled);
         return List.of(
                 new PixelButton(Component.translatable("gui.mcskincreator.cancel"),
                         PixelButton.Style.NORMAL, close),
