@@ -1,9 +1,11 @@
 name: release
 
-# Merging is what cuts a release: main produces a stable one, develop a
-# pre-release. Tags are created here rather than being the trigger. Doc-only
-# changes are excluded: develop builds unconditionally otherwise, and a jar
-# carries no doc content worth a pre-release.
+# Merging is what cuts a release. develop cuts a numbered beta on every merge that
+# earns one (feat: -> minor, fix:/perf: -> patch), so the version follows the
+# features by itself. main only cuts the stable releases, by hand, through the
+# dispatch input: 1.0.0 is the day the beta ends. Tags are created here rather
+# than being the trigger. Doc-only changes are excluded: a jar carries no doc
+# content worth a release.
 on:
   push:
     branches:
@@ -22,6 +24,11 @@ on:
 permissions:
   contents: write
 
+# Two merges in a row must not compute the same number at once.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -38,17 +45,14 @@ jobs:
         id: version
         env:
           MANUAL_VERSION: ${{ inputs.version }}
-          RUN_NUMBER: ${{ github.run_number }}
         run: |
           set -euo pipefail
 
           if [ "${{ github.ref_name }}" = 'develop' ]; then
-            # Every merge into develop gets a build, even one carrying no
-            # release-worthy commit. The -dev. suffix sorts below the release it
-            # previews, which is exactly what it is.
-            base=$(.github/scripts/next-version.sh --min-patch)
-            version="${base}-dev.${RUN_NUMBER}"
-            channel=dev
+            # A real version, not a build counter: each merge that earns one gets
+            # the next number, and nothing is cut for refactor/chore/docs/test.
+            version=$(.github/scripts/next-version.sh)
+            channel=beta
           elif [ -n "$MANUAL_VERSION" ]; then
             # The manual path exists for the versions no commit message should
             # decide on its own - 1.0.0 above all.
@@ -136,20 +140,10 @@ jobs:
 
           args=(--generate-notes --title "v${VERSION}")
 
-          if [ "$CHANNEL" = 'dev' ]; then
-            # Marked as a pre-release so it never displays as the latest version.
-            args+=(--prerelease --target "${{ github.sha }}")
-
-            # Generate the notes from the last stable release, so a dev build lists
-            # what it adds over the last thing that shipped rather than over the
-            # previous dev build. Skipped while no stable release exists: passing an
-            # empty --notes-start-tag fails the command.
-            # || true because grep exits 1 when there is no tag at all, and under
-            # pipefail that would kill the step before gh is ever reached.
-            last_stable=$(git tag --list 'v*' --sort=-v:refname | grep -v -- '-dev\.' | head -n 1 || true)
-            if [ -n "$last_stable" ]; then
-              args+=(--notes-start-tag "$last_stable")
-            fi
+          if [ "$CHANNEL" = 'beta' ]; then
+            # A pre-release never displays as the latest version, and the title
+            # says what it is. Tagged on the exact commit that earned it.
+            args=(--generate-notes --title "v${VERSION} (beta)" --prerelease --target "${{ github.sha }}")
           fi
 
           gh release create "v${VERSION}" "${args[@]}" build/libs/"${VERSION}"/*.jar
