@@ -7,6 +7,10 @@
  */
 package fr.clixmods.mcsc.mod.catalog;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /**
  * One element of the library: a single entry of a category.
  *
@@ -21,6 +25,9 @@ package fr.clixmods.mcsc.mod.catalog;
  *                       overrides what its category asks for
  * @param credit         the key of the work this element was cut out of, in the
  *                       catalogue's own table, or empty when it names none
+ * @param colors         the element's colour keys and the colour each one is drawn
+ *                       in, as {@code 0xRRGGBB}, in the catalogue's order; a layer can
+ *                       recolour these keys and no others
  */
 public record CatalogItem(
         String id,
@@ -28,7 +35,19 @@ public record CatalogItem(
         int atlasIndex,
         int slimAtlasIndex,
         ThumbCrop thumbCrop,
-        String credit) {
+        String credit,
+        Map<String, Integer> colors) {
+
+    public CatalogItem {
+        // Insertion order is the catalogue's, and the order the swatches are shown in.
+        colors = Collections.unmodifiableMap(new LinkedHashMap<>(colors));
+    }
+
+    /** An element with no colour key: nothing of it can be recoloured. */
+    public CatalogItem(String id, CatalogText name, int atlasIndex, int slimAtlasIndex,
+                       ThumbCrop thumbCrop, String credit) {
+        this(id, name, atlasIndex, slimAtlasIndex, thumbCrop, credit, Map.of());
+    }
 
     /** No slim buffer: the element is drawn the same on both models. */
     public static final int NONE = -1;

@@ -7,6 +7,11 @@
  */
 package fr.clixmods.mcsc.mod.project;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
 import fr.clixmods.mcsc.mod.catalog.CatalogItem;
 import net.minecraft.network.chat.Component;
@@ -24,6 +29,12 @@ import net.minecraft.network.chat.Component;
  * from the catalogue's {@link fr.clixmods.mcsc.mod.catalog.CatalogText} once, when
  * the layer is made, because that is the only moment the player's language is
  * relevant and the stack has no business re-deciding it every frame.
+ *
+ * <p>The colours are per key, and the keys are the element's: a layer can recolour
+ * what the catalogue says the element is made of and nothing else, because the server
+ * recolours by a map of those same keys and would have nothing to apply another to.
+ * The catalogue's own colour of each key is kept beside the chosen one, so a key put
+ * back to where it started is left out of the project again.
  */
 public final class Layer {
     private final String categoryId;
@@ -33,6 +44,10 @@ public final class Layer {
     private final Component categoryName;
     private final int atlasIndex;
     private final int slimAtlasIndex;
+    /** The element's colour of each key, in the catalogue's order. Never changes. */
+    private final Map<String, Integer> defaultColors;
+    /** The colour each key is shown in now, same keys, same order. */
+    private final Map<String, Integer> colors;
 
     private boolean visible = true;
     private int opacity = 100;
@@ -48,6 +63,8 @@ public final class Layer {
         this.categoryName = Component.literal(category.name().forLanguage(languageCode));
         this.atlasIndex = item.atlasIndex();
         this.slimAtlasIndex = item.slimAtlasIndex();
+        this.defaultColors = item.colors();
+        this.colors = new LinkedHashMap<>(item.colors());
     }
 
     private Layer(Layer source) {
@@ -58,6 +75,8 @@ public final class Layer {
         this.categoryName = source.categoryName;
         this.atlasIndex = source.atlasIndex;
         this.slimAtlasIndex = source.slimAtlasIndex;
+        this.defaultColors = source.defaultColors;
+        this.colors = new LinkedHashMap<>(source.colors);
         this.visible = source.visible;
         this.opacity = source.opacity;
         this.hue = source.hue;
@@ -135,14 +154,64 @@ public final class Layer {
         this.brightness = Math.max(-50, Math.min(50, brightness));
     }
 
+    /** The keys the element can be recoloured by, in the catalogue's order. */
+    public List<String> colorKeys() {
+        return List.copyOf(this.colors.keySet());
+    }
+
+    /** The colour {@code key} is shown in now, as {@code 0xRRGGBB}. */
+    public int color(String key) {
+        Integer rgb = this.colors.get(key);
+        if (rgb == null) {
+            throw new IllegalArgumentException("The element has no colour key " + key);
+        }
+        return rgb;
+    }
+
+    /** The colour the element was drawn in for {@code key}. */
+    public int defaultColor(String key) {
+        Integer rgb = this.defaultColors.get(key);
+        if (rgb == null) {
+            throw new IllegalArgumentException("The element has no colour key " + key);
+        }
+        return rgb;
+    }
+
+    /**
+     * Recolours one key.
+     *
+     * @return false, changing nothing, when the element has no such key — a stored
+     *     project can name one the catalogue has since dropped
+     */
+    public boolean setColor(String key, int rgb) {
+        if (!this.colors.containsKey(key)) {
+            return false;
+        }
+        this.colors.put(key, rgb & 0xFFFFFF);
+        return true;
+    }
+
+    /** Only the keys moved off the element's own colour: what the project carries. */
+    public Map<String, Integer> changedColors() {
+        Map<String, Integer> changed = new LinkedHashMap<>();
+        this.colors.forEach((key, rgb) -> {
+            if (!rgb.equals(this.defaultColors.get(key))) {
+                changed.put(key, rgb);
+            }
+        });
+        return Collections.unmodifiableMap(changed);
+    }
+
     /** True while nothing has been adjusted, which is what lets the JSON stay short. */
     public boolean isUnadjusted() {
         return this.hue == 0 && this.saturation == 100 && this.brightness == 0;
     }
 
+    /** Puts back everything the element came with: its colours, and no shift over them. */
     public void resetAdjustments() {
         this.hue = 0;
         this.saturation = 100;
         this.brightness = 0;
+        this.colors.putAll(this.defaultColors);
     }
 }

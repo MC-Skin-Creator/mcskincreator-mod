@@ -530,7 +530,8 @@ class CatalogParserTest {
         void aPieceNamesItsElementWithCatAndPreset() {
             assertEquals(List.of(
                             new CatalogModel.Piece("skin", "skin-sorceress"),
-                            new CatalogModel.Piece("top", "top-sorceress")),
+                            new CatalogModel.Piece("top", "top-sorceress",
+                                    java.util.Map.of("cloth", 0x4D1212))),
                     model("sorceress").pieces());
         }
 
@@ -585,6 +586,47 @@ class CatalogParserTest {
 
             assertEquals(List.of(), catalog.models());
             assertEquals(List.of(), catalog.outfits());
+        }
+    }
+
+    @Nested
+    class Colours {
+        private static final String COLOURED = """
+                {
+                  "categories": [
+                    {"id": "hat", "region": "head", "items": [
+                      {"id": "hat-green", "colors": {"main": "#359e61", "band": "#FFFFFF",
+                                                     "bad": "green", "worse": 12}},
+                      {"id": "hat-plain"}
+                    ]}
+                  ],
+                  "projects": [
+                    {"id": "ranger", "layers": [
+                      {"cat": "hat", "preset": "hat-green", "colors": {"main": "#ff0000"}}
+                    ]}
+                  ]
+                }
+                """;
+
+        @Test
+        void anElementCarriesItsKeysInOrderAndOnlyTheReadableOnes() {
+            CatalogItem green = category(COLOURED, "hat").items().get(0);
+
+            assertEquals(List.of("main", "band"), List.copyOf(green.colors().keySet()));
+            assertEquals(0x359E61, green.colors().get("main"));
+            assertEquals(0xFFFFFF, green.colors().get("band"));
+        }
+
+        @Test
+        void anElementWithoutKeysHasNone() {
+            assertTrue(category(COLOURED, "hat").items().get(1).colors().isEmpty());
+        }
+
+        @Test
+        void aPieceCarriesItsOverride() {
+            CatalogModel ranger = parse(COLOURED).models().get(0);
+
+            assertEquals(java.util.Map.of("main", 0xFF0000), ranger.pieces().get(0).colors());
         }
     }
 }

@@ -64,6 +64,10 @@ Every one of those values is a custom property in the site's own stylesheet, tra
 into [`Palette`](src/main/java/fr/clixmods/mcsc/mod/style/Palette.java) and derived from
 nothing. Nothing else in the source tree names a colour.
 
+The one fill that is not the interface's is a layer's colour swatch
+(`widget/ColorSwatch`), and it names no colour either: it shows the skin's, read from
+the layer, inside an ordinary slot.
+
 ### Drawing rules
 
 - Nothing is rounded, nothing is a gradient, nothing animates.
@@ -282,7 +286,9 @@ The ready-made stacks — the starter models and the outfits — are the one pla
 composes locally, because there are two hundred of them on screen at once and a
 request each is not a thing to ask for. Their pictures are what choosing one will put
 on the model, which is not always what the site shows for the same entry: the
-catalogue gives some pieces a colour override, and a layer here cannot hold one yet.
+catalogue gives some pieces a colour override, and recolouring is the server's, so the
+picture shows the element in the colours it was drawn in. The layers that choosing one
+stacks do take the override, and the composed skin is the site's.
 
 An outfit is clothes and nothing else, so its picture is stood on a body taken from
 the catalogue's own skin category. The site names one outright and the catalogue no
@@ -331,8 +337,7 @@ body.
 The interface is complete; several of the things it is an interface *to* are not.
 These are deliberate gaps, and each one follows the rule above about empty targets —
 the control is absent rather than dead. That is why there is no animation chooser in
-the scene dock, no colour swatches in the inspector (the catalogue carries no colour
-keys yet), and no random-outfit button. The starter models the site offers are
+the scene dock, and no random-outfit button. The starter models the site offers are
 there — that is what the **Models** button in the top bar opens — and the button
 itself disappears when the catalogue turns out to carry none.
 
@@ -348,7 +353,6 @@ project only ever sees a real `CatalogModel`.
 | Missing | Where it lands |
 |---|---|
 | The pixel drawing tools and their shortcuts | issues #7, #8 |
-| Per-element colours, and the swatch row that goes with them | issue #7 |
 | Composing locally instead of over the network | issue #8 |
 | Importing a texture | issue #8 |
 | The fitting room: the skin on your own client only | issue #11 |
