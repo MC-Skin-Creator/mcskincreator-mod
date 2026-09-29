@@ -3,11 +3,10 @@ name: build
 # main and develop are deliberately absent: the release workflow compiles every
 # target on those branches seconds later, on the same commit. A compile check is
 # worth running where it can still stop something - before a merge.
+#
+# Only pull requests trigger it: a push trigger as well would run every commit
+# twice once a PR is open.
 on:
-  push:
-    branches:
-      - 'feature/**'
-      - 'fix/**'
   pull_request:
 
 # Compiles and tests every Minecraft target and attaches the resulting jars as a
