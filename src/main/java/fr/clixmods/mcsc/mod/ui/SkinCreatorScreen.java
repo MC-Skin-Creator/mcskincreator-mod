@@ -384,8 +384,7 @@ public class SkinCreatorScreen extends Screen {
 
     /**
      * An outfit's clothes alone, to be laid over the worn skin like any element. Its tile
-     * picture stands them on a mannequin, which is right for a thumbnail and would cover
-     * the skin being worn.
+     * picture is those same clothes, drawn on their own.
      *
      * @return null while the categories it is made of are still downloading
      */
@@ -1019,10 +1018,10 @@ public class SkinCreatorScreen extends Screen {
         Catalog drawn = catalog;
         Map<String, CategorySprites> atlases = Map.copyOf(this.sprites);
         boolean slim = this.project.isSlim();
-        // An outfit is clothes: without a body under them its picture is empty sleeves.
-        byte[] body = ReadyMadeSkins.mannequin(drawn, atlases::get, slim);
+        // An outfit is clothes and nothing else: no body is stood under it, because the
+        // first skin of the catalogue is a candy-pink one and showed through every picture.
         this.outfitSheet.redraw(stamp(),
-                blends -> blends.of(drawn.outfits(), drawn, atlases::get, slim, body),
+                blends -> blends.of(drawn.outfits(), drawn, atlases::get, slim, null),
                 sheet -> {
                     CategorySprites previous = this.sprites.put(LibraryPanel.OUTFIT_SHEET, sheet);
                     if (previous != null) {

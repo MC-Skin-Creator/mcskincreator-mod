@@ -45,9 +45,9 @@ public final class ReadyMadeSkins {
      * The skin each entry stands for.
      *
      * @param sprites the sheet of a category, or null while its atlas is on its way
-     * @param under   a body to stack under every entry, or null for none. An outfit is
-     *                clothes and nothing else, so without one its thumbnail is a pair
-     *                of empty sleeves; a model carries its own skin and wants none.
+     * @param under   a body to stack under every entry, or null for none. Nothing
+     *                passes one today: a model carries its own skin, and an outfit is
+     *                drawn as the clothes alone.
      * @return one buffer per entry. An entry whose categories have not all arrived
      *         gets a transparent one rather than a half-dressed body — it is drawn
      *         again when they do.
@@ -108,28 +108,6 @@ public final class ReadyMadeSkins {
             }
             return true;
         }
-    }
-
-    /**
-     * A plain body to stand the clothes on: the first element of the category that
-     * holds the skin.
-     *
-     * <p>Taken from the catalogue rather than named outright. The site names one
-     * (<code>skin-clair</code>) and the catalogue no longer carries it, which is
-     * exactly the failure a hardcoded id gets you — a silently empty body.
-     *
-     * @return the buffer, or null when the skin category is not here yet
-     */
-    public static byte[] mannequin(Catalog catalog, Function<String, CategorySprites> sprites, boolean slim) {
-        for (CatalogCategory category : catalog.categories()) {
-            if (!category.single() || category.items().isEmpty()) {
-                continue;
-            }
-            CategorySprites sheet = sprites.apply(category.id());
-            CatalogItem first = category.items().get(0);
-            return sheet == null ? null : sheet.buffer(first.atlasIndex(slim));
-        }
-        return null;
     }
 
     /**
