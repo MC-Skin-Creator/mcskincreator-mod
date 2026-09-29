@@ -21,7 +21,7 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 
 import fr.clixmods.mcsc.mod.MCSkinCreatorClient;
-import net.fabricmc.loader.api.FabricLoader;
+import fr.clixmods.mcsc.mod.Platform;
 
 /**
  * The project in progress, which outlives the editor.
@@ -108,7 +108,7 @@ public final class CurrentProject {
     }
 
     private static Path file() {
-        return FabricLoader.getInstance().getConfigDir().resolve(FILE_NAME);
+        return Platform.configDir().resolve(FILE_NAME);
     }
 
     /**

@@ -29,8 +29,8 @@ import net.minecraft.resources.Identifier;
  * below it and the button that opens the editor, stacked against the right edge
  * and centred on the menu they stand next to.
  *
- * <p>Everything here is a widget, which is what makes it work from
- * {@code ScreenEvents.AFTER_INIT}: a mod can add widgets to someone else's screen
+ * <p>Everything here is a widget, which is what makes it work from the loader's
+ * "screen initialised" event: a mod can add widgets to someone else's screen
  * but never draw on it, and {@link MenuFigure} draws the model itself.
  */
 final class SkinPanel {
@@ -60,8 +60,13 @@ final class SkinPanel {
     private SkinPanel() {
     }
 
-    static void addTo(Minecraft client, Screen screen, int scaledWidth, int scaledHeight) {
-        List<AbstractWidget> widgets = ScreenCompat.widgets(screen);
+    /**
+     * Lays the entry out beside the menu of {@code screen}. {@code widgets} are the
+     * screen's own, and adding to the list puts a widget on the screen: the loader's
+     * hook in {@link MenuButtons} makes it so.
+     */
+    static void addTo(Minecraft client, Screen screen, List<AbstractWidget> widgets,
+                      int scaledWidth, int scaledHeight) {
         Optional<Bounds> found = menuBounds(widgets);
 
         if (found.isEmpty()) {

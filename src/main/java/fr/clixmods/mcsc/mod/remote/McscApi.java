@@ -27,10 +27,10 @@ import java.util.concurrent.CompletionException;
 import java.util.zip.GZIPInputStream;
 
 import fr.clixmods.mcsc.mod.MCSkinCreatorClient;
+import fr.clixmods.mcsc.mod.Platform;
 import fr.clixmods.mcsc.mod.catalog.Catalog;
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
 import fr.clixmods.mcsc.mod.catalog.CatalogParser;
-import net.fabricmc.loader.api.FabricLoader;
 
 /**
  * The mod's side of the MC Skin Creator HTTP API.
@@ -113,7 +113,7 @@ public final class McscApi implements AutoCloseable {
     public static synchronized McscApi shared() {
         if (shared == null) {
             shared = new McscApi(configuredBaseUrl(),
-                    FabricLoader.getInstance().getGameDir().resolve("cache").resolve("mcskincreator"));
+                    Platform.gameDir().resolve("cache").resolve("mcskincreator"));
             MCSkinCreatorClient.LOGGER.info("MC Skin Creator API at {}", shared.baseUrl);
         }
         return shared;

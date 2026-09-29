@@ -27,6 +27,7 @@ import com.google.gson.JsonParser;
 import com.mojang.blaze3d.platform.InputConstants;
 
 import fr.clixmods.mcsc.mod.MCSkinCreatorClient;
+import fr.clixmods.mcsc.mod.Platform;
 import fr.clixmods.mcsc.mod.account.AccountSkin;
 import fr.clixmods.mcsc.mod.account.WornSkin;
 import fr.clixmods.mcsc.mod.catalog.Catalog;
@@ -75,7 +76,6 @@ import fr.clixmods.mcsc.mod.ui.window.ModelsWindow;
 import fr.clixmods.mcsc.mod.ui.window.NameWindow;
 import fr.clixmods.mcsc.mod.ui.window.SkinsWindow;
 import fr.clixmods.mcsc.mod.ui.window.TextWindow;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.User;
 //? if >=26.1 {
@@ -263,7 +263,7 @@ public class SkinCreatorScreen extends Screen {
     private SkinsWindow.Library skins = SkinsWindow.Library.LOADING;
     /** Where they are kept: a folder on this machine, and nowhere else. */
     private final SkinLibrary skinLibrary = new SkinLibrary(
-            FabricLoader.getInstance().getConfigDir().resolve("mcskincreator").resolve("skins"));
+            Platform.configDir().resolve("mcskincreator").resolve("skins"));
 
     /** The query waiting to go to the server, and since when. */
     private String query = "";
