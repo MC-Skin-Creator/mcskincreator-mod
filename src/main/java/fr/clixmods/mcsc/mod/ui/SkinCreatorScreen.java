@@ -42,6 +42,7 @@ import fr.clixmods.mcsc.mod.remote.SearchResults;
 import fr.clixmods.mcsc.mod.scene.GameCamera;
 import fr.clixmods.mcsc.mod.skin.AppliedSkin;
 import fr.clixmods.mcsc.mod.skin.CategorySprites;
+import fr.clixmods.mcsc.mod.skin.Composite;
 import fr.clixmods.mcsc.mod.skin.Highlight;
 import fr.clixmods.mcsc.mod.skin.ReadyMadeSkins;
 import fr.clixmods.mcsc.mod.skin.PreviewSkin;
@@ -94,21 +95,15 @@ import org.lwjgl.glfw.GLFW;
  * scale, the player model, and a focus ring a keyboard can walk, which is also how
  * everything the site reveals on hover stays reachable without a mouse.
  *
- * <p>Nothing on screen waits on the network. Stacking an element shows it straight
- * away from the atlas buffer already in memory, and the server's composition replaces
- * it when it lands; a server that cannot compose costs a notification, not the
- * preview. Every texture this screen builds is released in {@link #removed()}, and a
- * reply arriving after it has gone is dropped rather than uploaded.
+ * <p>Nothing on screen waits on the network. The stack is composed here, by
+ * {@code mcsc-engine}, out of the atlas buffers already in memory: stacking an
+ * element, dragging a slider and reordering the stack all show on the next frame. A
+ * category whose pixels have not landed contributes nothing until they do, and then
+ * the sheet is composed again. Every texture this screen builds is released in
+ * {@link #removed()}, and a reply arriving after it has gone is dropped rather than
+ * uploaded.
  */
 public class SkinCreatorScreen extends Screen {
-
-    /**
-     * How long to wait before asking the server to compose.
-     *
-     * <p>One composition is one round trip, so a burst of clicks would be a burst of
-     * requests. Waiting for the picking to settle collapses them into one.
-     */
-    private static final long COMPOSE_DEBOUNCE_MS = 300;
 
     /**
      * How long to wait before asking the server what a search matches.
@@ -222,18 +217,15 @@ public class SkinCreatorScreen extends Screen {
     /** Rises with every search, so a slow answer cannot replace a newer one. */
     private int searchGeneration;
 
-    /** The stack waiting to be composed, and since when. */
-    private boolean composePending;
-    private long pendingSince;
-    /** Rises with every request, so a slow reply cannot overwrite a newer one. */
-    private int composeGeneration;
-    /** The last sheet the server sent back, which is what an export writes out. */
+    /** The composed sheet on the model, which is also what an export writes out. */
     private byte[] composed;
     /** The composed stack decoded, so a blend does not decode a PNG twenty times a second. */
     private NativeImage baseImage;
     private byte[] baseOf;
     /** The element under the pointer in the library, laid over the stack while it is. */
     private byte[] hovered;
+    /** The atlas revision the composed sheet was made from. */
+    private int composedAtlases = -1;
     /**
      * The project revision the preview is showing.
      *
@@ -368,7 +360,7 @@ public class SkinCreatorScreen extends Screen {
             this.hovered = null;
             this.hoveredLabel = null;
             this.showingItem = false;
-            showTopLocally();
+            showComposed();
             return;
         }
         this.hoveredLabel = tile.label();
@@ -431,7 +423,7 @@ public class SkinCreatorScreen extends Screen {
         }
         if (this.highlighting) {
             this.highlighting = false;
-            showTopLocally();
+            showComposed();
         }
     }
 
@@ -487,21 +479,16 @@ public class SkinCreatorScreen extends Screen {
         return sprites == null ? null : sprites.buffer(index);
     }
 
-    /**
-     * Puts the topmost visible layer on the model from the atlas buffer already in
-     * memory — it is a 64x64 skin in its own right — until the server's composition of
-     * the whole stack lands.
-     *
-     * <p>Picking therefore never waits on the network.
-     */
-    private void showTopLocally() {
+    /** An element's pixels, out of the sheet its category was uploaded from. */
+    private byte[] atlasBuffer(String categoryId, int atlasIndex) {
+        CategorySprites sheet = this.sprites.get(categoryId);
+        return sheet == null ? null : sheet.buffer(atlasIndex);
+    }
+
+    /** Puts the stack back on the model: what leaving a thumbnail or a layer row returns to. */
+    private void showComposed() {
         if (this.composed != null) {
             show(this.composed);
-            return;
-        }
-        Layer top = this.project.topVisible();
-        if (top != null) {
-            show(this.sprites.get(top.categoryId()), top.atlasIndex(this.project.isSlim()));
         }
     }
 
@@ -524,31 +511,22 @@ public class SkinCreatorScreen extends Screen {
         }
     }
 
-    /** Puts the stack back in the queue, restarting the wait. */
-    private void queueCompose() {
-        this.composePending = true;
-        this.pendingSince = System.currentTimeMillis();
-    }
-
     @Override
     public void tick() {
         super.tick();
         this.scene.tick();
         syncWorldPreview();
 
-        if (this.shownRevision != this.project.revision()) {
+        // Either the stack changed, or pixels it was missing have arrived: a layer can
+        // be stacked before its category's atlas is here, and that is the moment it
+        // goes into the sheet.
+        if (this.shownRevision != this.project.revision() || this.composedAtlases != this.atlasRevision) {
             this.shownRevision = this.project.revision();
+            this.composedAtlases = this.atlasRevision;
             this.preview.model(this.project.model());
-            // The composition on hand belongs to the stack as it was, so it goes, and
-            // the top layer stands in until the server answers for the new one.
-            this.composed = null;
+            // What was laid over the old stack no longer fits the new one.
             this.hovered = null;
-            if (this.project.isEmpty()) {
-                this.preview.clear();
-            } else {
-                showTopLocally();
-            }
-            queueCompose();
+            compose();
         }
 
         // Only while what needs them is on screen: a sheet is a few hundred stacks
@@ -561,10 +539,6 @@ public class SkinCreatorScreen extends Screen {
         }
 
         long now = System.currentTimeMillis();
-        if (this.composePending && now - this.pendingSince >= COMPOSE_DEBOUNCE_MS) {
-            this.composePending = false;
-            compose();
-        }
         if (this.searchPending && now - this.searchSince >= SEARCH_DEBOUNCE_MS) {
             this.searchPending = false;
             search();
@@ -613,31 +587,22 @@ public class SkinCreatorScreen extends Screen {
         }
     }
 
+    /**
+     * Composes the stack and puts it on the model.
+     *
+     * <p>Straight from {@link #tick()} rather than after a wait: the work is local and
+     * takes a fraction of a frame, so there is nothing to collapse into one request
+     * and nothing to be an edit behind. It used to be a round trip per change behind a
+     * debounce, which a dragged slider would never have survived.
+     */
     private void compose() {
         if (this.project.isEmpty()) {
             this.composed = null;
+            this.preview.clear();
             return;
         }
-        int generation = ++this.composeGeneration;
-        String body = ProjectJson.project(this.project);
-
-        McscApi.shared().compose(body).whenComplete((texture, failure) ->
-                Minecraft.getInstance().execute(() -> {
-                    if (this.closed || generation != this.composeGeneration) {
-                        return;
-                    }
-                    if (failure != null) {
-                        // The stack is already on the model, so this is a note rather
-                        // than a dead end: the preview is the top layer on its own.
-                        MCSkinCreatorClient.LOGGER.warn("Composing the project failed", failure);
-                        this.toasts.failed("compose",
-                                Component.translatable("preview.mcskincreator.compose_failed"));
-                        return;
-                    }
-                    this.toasts.succeeded("compose");
-                    this.composed = texture;
-                    show(texture);
-                }));
+        this.composed = Composite.of(this.project, this::atlasBuffer);
+        show(this.composed);
     }
 
     // ------------------------------------------------------------------ the catalogue
