@@ -346,13 +346,13 @@ version.
 ```
 feature/*  fix/*  ──►  develop  ──►  main
                           │            │
-                  beta pre-release    release
-                     v0.3.0          v1.0.0
+                     pre-release    release
+                    v0.2.0-dev.7     v0.2.0
 ```
 
 - `main` — stable only. The default branch. A push here can cut a release.
-- `develop` — integration. Every merge that earns a version (`feat`, `fix`,
-  `perf`) cuts a numbered beta pre-release.
+- `develop` — integration. Every push produces a pre-release build, except a
+  doc-only one.
 - `feature/*`, `fix/*` — where work happens. Pull requests target `develop`.
 - `release/*` and `hotfix/*` do not exist yet. They stabilise a version while
   development continues elsewhere, which is not yet a problem this project has.
@@ -398,18 +398,21 @@ skips `**.md` and `LICENSE`):
 
 | Branch | Version | Result |
 |---|---|---|
-| `develop` | derived from the commits | tag `vX.Y.Z`, GitHub **pre-release** titled `vX.Y.Z (beta)`, jars attached, nothing committed |
-| `main` | derived from the commits, or the dispatch input | tag `vX.Y.Z`, GitHub release, jars attached, `mod.version` committed back to `main` |
+| `main` | derived from the commits | tag `vX.Y.Z`, GitHub release, every target's jar attached, `mod.version` committed back to `main` |
+| `develop` | next version + `-dev.<run number>` | GitHub **pre-release**, jars attached, nothing committed |
 
-While the mod is in beta, **`develop` is where the version moves**: each merge that
-earns a number (`feat:`, `fix:`, `perf:`) gets the next one by itself, and a merge
-that earns none (`docs`, `chore`, `refactor`…) cuts nothing. The tag is a plain
-`vX.Y.Z` on the merge commit; the stable `main` release is the one cut by hand.
-Because the betas are tagged, the baseline of the next number is the previous beta,
-and merging `develop` into `main` finds nothing new to release.
+While the mod is below `1.0.0` a `main` release is published as a GitHub
+**pre-release** titled `vX.Y.Z (beta)`, so it never claims to be the stable line;
+`1.0.0`, cut by hand, is the first one that does not carry it. Releases are
+serialised (`concurrency: release`), so two merges in a row cannot compute the same
+number.
 
-Releases are serialised (`concurrency: release`), so two merges in a row cannot
-compute the same number.
+A merge into `main` whose commits earn nothing produces no release and no noise.
+A merge into `develop` always produces a build, so there is always a permanent link
+to the latest state — `-dev.` builds are previews and are not tested.
+
+`-dev.7` sorts below the `X.Y.Z` it previews, which is what it is: a preview of the
+next release, not a patch on the last one.
 
 `.github/workflows/build.yml` is unrelated to releases: it is the per-target matrix
 that checks pull requests and work branches. Its jars are short-lived workflow
@@ -432,8 +435,8 @@ artifacts for testing a PR, not a release artifact.
 mcskincreator-<mod version>+mc<minecraft version>.jar
 ```
 
-e.g. `mcskincreator-0.3.0+mc1.21.11.jar`, `mcskincreator-0.3.0+mc26.2.jar`, and
-the same shape for a beta — the beta is the release channel, not part of the name.
+e.g. `mcskincreator-0.1.0+mc1.21.11.jar`, `mcskincreator-0.1.0+mc26.2.jar`, and for
+a development build `mcskincreator-0.2.0-dev.7+mc1.21.11.jar`.
 
 Publishing to Modrinth/CurseForge is still not set up; building and publishing are
 separate concerns (see issue #15).
