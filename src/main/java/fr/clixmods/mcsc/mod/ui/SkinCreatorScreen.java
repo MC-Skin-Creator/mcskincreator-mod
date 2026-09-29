@@ -17,13 +17,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import fr.clixmods.mcsc.mod.MCSkinCreatorClient;
 import fr.clixmods.mcsc.mod.account.AccountSkin;
 import fr.clixmods.mcsc.mod.account.SkinUploadException;
+import fr.clixmods.mcsc.mod.account.WornSkin;
 import fr.clixmods.mcsc.mod.catalog.Catalog;
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
 import fr.clixmods.mcsc.mod.catalog.CatalogFormatException;
@@ -31,6 +35,7 @@ import fr.clixmods.mcsc.mod.catalog.CatalogItem;
 import fr.clixmods.mcsc.mod.catalog.CatalogModel;
 import fr.clixmods.mcsc.mod.catalog.CatalogText;
 import fr.clixmods.mcsc.mod.catalog.CatalogWork;
+import fr.clixmods.mcsc.mod.project.CurrentProject;
 import fr.clixmods.mcsc.mod.project.History;
 import fr.clixmods.mcsc.mod.project.Layer;
 import fr.clixmods.mcsc.mod.project.SkinProject;
@@ -48,6 +53,7 @@ import fr.clixmods.mcsc.mod.skin.ReadyMadeSheet;
 import fr.clixmods.mcsc.mod.skin.ReadyMadeSkins;
 import fr.clixmods.mcsc.mod.skin.PreviewSkin;
 import fr.clixmods.mcsc.mod.skin.ProjectJson;
+import fr.clixmods.mcsc.mod.skin.SkinPixels;
 import fr.clixmods.mcsc.mod.skin.SkinThumbnails;
 import fr.clixmods.mcsc.mod.style.Tiles;
 import fr.clixmods.mcsc.mod.ui.panel.LayersPanel;
@@ -118,6 +124,22 @@ public class SkinCreatorScreen extends Screen {
      * feels stalled.
      */
     private static final long SEARCH_DEBOUNCE_MS = 400;
+
+    /**
+     * How long an edit waits before the project in progress is written down.
+     *
+     * <p>Every edit is kept, but not every click is a write: a burst of them is one
+     * file and one request once the stack stops moving. Closing the editor writes
+     * whatever is still waiting.
+     */
+    private static final long PERSIST_DEBOUNCE_MS = 1500;
+
+    /**
+     * How long the first opening waits for the models' pixels before comparing the
+     * account's skin with what has arrived. An atlas that never comes must not leave
+     * the player without a project.
+     */
+    private static final long MATCH_TIMEOUT_MS = 15_000;
 
     /** How many matches to ask for: the whole library rather than a first page. */
     private static final int SEARCH_PAGE_SIZE = 500;
@@ -213,6 +235,29 @@ public class SkinCreatorScreen extends Screen {
     private ItemTile creditTile;
     private boolean loadingCredit;
 
+    /**
+     * The project in progress as it is stored: its identifier in the library, its name,
+     * its date and the document last written down. Null until the session has started,
+     * which waits for the catalogue — a project cannot be read back without it.
+     */
+    private SavedSkin current;
+    private boolean sessionStarted;
+    /** The document last written down, so a stack that has not changed is not rewritten. */
+    private String persisted = "";
+    private int persistRevision;
+    private boolean persistPending;
+    private long persistSince;
+
+    /**
+     * The account's skin, while a new project waits on the models' pixels to be compared
+     * with it. Null the rest of the time.
+     */
+    private Settling settling;
+    /** The stack's revision when the account check began, to tell an edit made meanwhile. */
+    private int checkRevision;
+    /** What was last filed away by an export, so exporting twice files it once. */
+    private JsonObject lastKept;
+
     /** The library of saved skins, as the window showing it reads it. */
     private SkinsWindow.Library skins = SkinsWindow.Library.LOADING;
 
@@ -296,6 +341,7 @@ public class SkinCreatorScreen extends Screen {
         }
         if (!catalog.isEmpty()) {
             this.library.setCatalog(catalog);
+            beginSession();
         } else {
             loadCatalog();
         }
@@ -562,6 +608,17 @@ public class SkinCreatorScreen extends Screen {
         }
 
         long now = System.currentTimeMillis();
+        if (this.settling != null) {
+            settle(now);
+        }
+        if (this.current != null && this.persistRevision != this.project.revision()) {
+            this.persistRevision = this.project.revision();
+            this.persistPending = true;
+            this.persistSince = now;
+        }
+        if (this.persistPending && now - this.persistSince >= PERSIST_DEBOUNCE_MS) {
+            persistNow();
+        }
         if (this.searchPending && now - this.searchSince >= SEARCH_DEBOUNCE_MS) {
             this.searchPending = false;
             search();
@@ -652,6 +709,7 @@ public class SkinCreatorScreen extends Screen {
                     }
                     catalog = loaded;
                     this.library.setCatalog(loaded);
+                    beginSession();
                 }));
     }
 
@@ -923,10 +981,32 @@ public class SkinCreatorScreen extends Screen {
         open(previous == null ? null : previous.returnsTo());
     }
 
+    /**
+     * "New": a new project, from a plain skin.
+     *
+     * <p>The one being left is not lost — it stays in "My skins", where it can be
+     * reopened — which is why this is not an undoable step of the old one. A project
+     * nobody has touched yet is simply reused rather than filed away as an empty copy.
+     */
     private void startOver() {
-        this.history.record();
-        this.project.clear();
-        this.project.setModel(PlayerModelType.WIDE);
+        if (catalog.isEmpty() || this.current == null) {
+            this.history.record();
+            this.project.clear();
+            this.project.setModel(PlayerModelType.WIDE);
+            relayout();
+            return;
+        }
+        persistNow();
+        String language = this.minecraft.options.languageCode;
+        SkinProject fresh = new SkinProject();
+        fresh.startFresh(catalog, language);
+        boolean untouched = ProjectJson.project(fresh).equals(ProjectJson.project(this.project));
+
+        this.project.startFresh(catalog, language);
+        this.history.clear();
+        if (!untouched) {
+            startProject(untitled());
+        }
         relayout();
     }
 
@@ -939,6 +1019,13 @@ public class SkinCreatorScreen extends Screen {
      * hash of their own pixels and are kept, so it is paid once.
      */
     private void openModels() {
+        requestModelAtlases();
+        refreshModelSprites();
+        open(new ModelsWindow(catalog::models, this::name, () -> this.modelSprites,
+                this::chooseModel, null));
+    }
+
+    private void requestModelAtlases() {
         for (CatalogModel model : catalog.models()) {
             for (CatalogCategory category : catalog.categoriesOf(model)) {
                 if (this.requestedAtlases.add(category.id())) {
@@ -946,9 +1033,18 @@ public class SkinCreatorScreen extends Screen {
                 }
             }
         }
-        refreshModelSprites();
-        open(new ModelsWindow(catalog::models, this::name, () -> this.modelSprites,
-                this::chooseModel, null));
+    }
+
+    /** Whether every piece of every model has its pixels here. */
+    private boolean modelAtlasesHere() {
+        for (CatalogModel model : catalog.models()) {
+            for (CatalogCategory category : catalog.categoriesOf(model)) {
+                if (!this.sprites.containsKey(category.id())) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     /**
@@ -1110,13 +1206,310 @@ public class SkinCreatorScreen extends Screen {
                 .findFirst());
     }
 
+    // ------------------------------------------------------------------ the project in progress
+
+    /**
+     * The account's skin, read and waiting to be compared with the models.
+     *
+     * @param start       what the comparison is for: a first project, or a new one
+     *                    because the account moved
+     * @param fingerprint the account's skin, or null when it could not be read
+     * @param address     where Mojang serves it, or empty
+     * @param pixels      its pixels, or null when there is nothing to compare
+     * @param previous    the project the account moved away from, on a change
+     * @param since       when the wait began, so a missing atlas cannot hold it forever
+     * @param revision    the stack's revision when the wait began: an edit made in the
+     *                    meantime is the player's, and a model does not replace it
+     */
+    private record Settling(CurrentProject.Start start, String fingerprint, String address,
+                            byte[] pixels, SavedSkin previous, long since, int revision) {
+    }
+
+    /**
+     * Puts the project in progress back, then checks it still belongs with the account.
+     *
+     * <p>Once per opening, as soon as the catalogue is here: the project is read back
+     * against it. The check runs behind the restored stack, so the editor opens on the
+     * project straight away and only changes it when the account says it must.
+     */
+    private void beginSession() {
+        if (this.sessionStarted) {
+            return;
+        }
+        this.sessionStarted = true;
+
+        CurrentProject.State state = CurrentProject.get();
+        if (state != null && state.project() != null) {
+            resume(state.project());
+        }
+        this.checkRevision = this.project.revision();
+        checkAccount(state);
+    }
+
+    /** Makes {@code skin} the project in progress and puts its stack on the model. */
+    private void resume(SavedSkin skin) {
+        int dropped = ProjectJson.read(skin.data(), this.project, catalog,
+                this.minecraft.options.languageCode);
+        this.history.clear();
+        this.current = skin;
+        // What was read, not what was stored: a layer the catalogue dropped is missing
+        // from the stack, and writing the stack back unasked would drop it from the
+        // stored copy too. Only an edit writes.
+        this.persisted = ProjectJson.project(this.project);
+        this.persistRevision = this.project.revision();
+        this.persistPending = false;
+        CurrentProject.setProject(skin);
+        if (dropped > 0) {
+            this.toasts.failed("skin_open",
+                    Component.translatable("toast.mcskincreator.layers_dropped", dropped));
+        }
+        relayout();
+    }
+
+    /**
+     * Reads what the account is wearing, and decides what that means for the project.
+     *
+     * <p>A skin this session put on the account is known without asking — and asking
+     * would be wrong for a while, since Mojang goes on serving the old profile after an
+     * upload. A skin whose address was already seen is known without downloading it.
+     */
+    private void checkAccount(CurrentProject.State state) {
+        CurrentProject.Account known = state == null ? null : state.account();
+        User user = this.minecraft.getUser();
+        if (CurrentProject.appliedThisSession() || user == null) {
+            decide(known == null ? null : known.fingerprint(), known == null ? "" : known.address(), null);
+            return;
+        }
+        boolean needPixels = state == null || state.project() == null;
+        UUID profileId = user.getProfileId();
+
+        WornSkin.address(profileId).thenCompose(address -> {
+            if (address.isEmpty()) {
+                return CompletableFuture.completedFuture((Seen) null);
+            }
+            if (!needPixels && known != null && known.address().equals(address.get())) {
+                return CompletableFuture.completedFuture(
+                        new Seen(address.get(), null, known.fingerprint()));
+            }
+            return WornSkin.download(address.get()).thenApply(png -> new Seen(address.get(), png, null));
+        }).whenComplete((seen, failure) -> Minecraft.getInstance().execute(() -> {
+            if (this.closed) {
+                return;
+            }
+            if (failure != null) {
+                // Not knowing is never taken as a change: the project carries on, and the
+                // next opening asks again.
+                MCSkinCreatorClient.LOGGER.warn("Reading the account's skin failed", failure);
+            }
+            if (failure != null || seen == null) {
+                decide(null, "", null);
+                return;
+            }
+            if (seen.png() == null) {
+                decide(seen.fingerprint(), seen.address(), null);
+                return;
+            }
+            try {
+                byte[] pixels = SkinPixels.rgba(seen.png());
+                decide(pixels == null ? null : SkinPixels.fingerprint(pixels), seen.address(), pixels);
+            } catch (IOException | RuntimeException cause) {
+                MCSkinCreatorClient.LOGGER.warn("Unreadable skin on the account", cause);
+                decide(null, "", null);
+            }
+        }));
+    }
+
+    /** What the profile said: the address, and either the pixels or who they are. */
+    private record Seen(String address, byte[] png, String fingerprint) {
+    }
+
+    private void decide(String fingerprint, String address, byte[] pixels) {
+        CurrentProject.State state = CurrentProject.get();
+        CurrentProject.Start start = CurrentProject.decide(state, fingerprint);
+        if (start == CurrentProject.Start.RESUME) {
+            if (fingerprint != null) {
+                CurrentProject.setAccount(new CurrentProject.Account(fingerprint, address));
+            }
+            return;
+        }
+        SavedSkin previous = start == CurrentProject.Start.CHANGED ? this.current : null;
+        this.settling = new Settling(start, fingerprint, address, pixels, previous,
+                System.currentTimeMillis(), this.checkRevision);
+        if (pixels != null && !catalog.models().isEmpty()) {
+            // The comparison is against the models' own pictures, which are made of
+            // every category they borrow from.
+            requestModelAtlases();
+        }
+        settle(System.currentTimeMillis());
+    }
+
+    /**
+     * Starts the new project, once the models' pixels are here to compare with.
+     *
+     * <p>A skin that is exactly one of the catalogue's models opens as that model, which
+     * is the one way a skin made elsewhere can be edited here. Anything else starts from
+     * a plain skin: it cannot be taken apart into layers.
+     */
+    private void settle(long now) {
+        Settling waiting = this.settling;
+        boolean comparable = waiting.pixels() != null && !catalog.models().isEmpty();
+        if (comparable && !modelAtlasesHere() && now - waiting.since() < MATCH_TIMEOUT_MS) {
+            return;
+        }
+        this.settling = null;
+
+        CatalogModel matched = null;
+        if (comparable) {
+            // Each model on the body it was drawn for, whatever the stack is on now.
+            List<byte[]> pictures = new ReadyMadeSkins().of(catalog.models(), catalog,
+                    this.sprites::get, false, null);
+            matched = SkinPixels.match(catalog.models(), pictures, waiting.pixels()).orElse(null);
+        }
+
+        if (waiting.start() == CurrentProject.Start.CHANGED) {
+            persistNow();
+        }
+        boolean edited = waiting.start() == CurrentProject.Start.FIRST
+                && this.project.revision() != waiting.revision() && !this.project.isEmpty();
+        if (!edited) {
+            if (matched != null) {
+                this.project.apply(matched, catalog, this.minecraft.options.languageCode);
+            } else {
+                this.project.startFresh(catalog, this.minecraft.options.languageCode);
+            }
+        }
+        this.history.clear();
+        startProject(matched != null ? name(matched.name()).getString() : untitled());
+        if (waiting.fingerprint() != null) {
+            CurrentProject.setAccount(new CurrentProject.Account(waiting.fingerprint(), waiting.address()));
+        }
+        relayout();
+
+        if (waiting.start() == CurrentProject.Start.CHANGED) {
+            open(skinChangedWindow(waiting.previous(), matched));
+        } else if (matched != null) {
+            this.toasts.ok(Component.translatable("toast.mcskincreator.model_recognised",
+                    name(matched.name())));
+        } else if (waiting.pixels() != null) {
+            this.toasts.ok(Component.translatable("toast.mcskincreator.not_a_model"));
+        }
+    }
+
+    /** Says what happened to the project the account moved away from, and why. */
+    private TextWindow skinChangedWindow(SavedSkin previous, CatalogModel matched) {
+        List<TextWindow.Line> lines = new ArrayList<>();
+        lines.add(TextWindow.Line.warning("skin_changed.mcskincreator.what"));
+        if (previous != null) {
+            lines.add(new TextWindow.Line(Component.translatable("skin_changed.mcskincreator.kept",
+                    previous.name()), false));
+        }
+        lines.add(matched != null
+                ? new TextWindow.Line(Component.translatable("skin_changed.mcskincreator.model",
+                        name(matched.name())), false)
+                : TextWindow.Line.of("skin_changed.mcskincreator.fresh"));
+        return new TextWindow("window.mcskincreator.skin_changed", lines, null);
+    }
+
+    /** The name a project gets before anyone gives it one. */
+    private static String untitled() {
+        return Component.translatable("project.mcskincreator.untitled").getString();
+    }
+
+    /**
+     * Makes what is on the stack a new project in progress, under a new identifier, and
+     * writes it down. The one it replaces stays where it was, in the library.
+     */
+    private void startProject(String name) {
+        this.current = new SavedSkin(SavedSkin.newId(), name, System.currentTimeMillis(),
+                JsonParser.parseString(ProjectJson.project(this.project)).getAsJsonObject());
+        this.persisted = "";
+        persistNow();
+    }
+
+    /**
+     * Writes the project in progress down, here and in the library, if it changed.
+     *
+     * <p>The library entry keeps its date: that date says when a skin was saved on
+     * purpose, and following the editing is not that — the site does the same with its
+     * own autosave. An empty stack is kept here but not sent, since there is no skin in
+     * it to store.
+     */
+    private void persistNow() {
+        this.persistPending = false;
+        if (this.current == null) {
+            return;
+        }
+        this.persistRevision = this.project.revision();
+        String document = ProjectJson.project(this.project);
+        if (document.equals(this.persisted)) {
+            return;
+        }
+        this.persisted = document;
+        this.current = new SavedSkin(this.current.id(), this.current.name(), this.current.at(),
+                JsonParser.parseString(document).getAsJsonObject());
+        CurrentProject.setProject(this.current);
+        if (!this.project.isEmpty()) {
+            upload(this.current);
+        }
+    }
+
+    private static void upload(SavedSkin skin) {
+        McscApi.shared().save(skin).whenComplete((written, failure) -> {
+            if (failure != null) {
+                // The file has it, and the next write sends it again.
+                MCSkinCreatorClient.LOGGER.warn("Keeping the project in progress in the library failed",
+                        failure);
+            }
+        });
+    }
+
+    /**
+     * Keeps what was just exported in the library, as a skin of its own that further
+     * editing does not move — so every skin that left the editor can be found and
+     * reopened. Not twice: an identical skin already there is enough.
+     */
+    private void keepInLibrary(String name) {
+        if (this.project.isEmpty()) {
+            return;
+        }
+        JsonObject data = JsonParser.parseString(ProjectJson.project(this.project)).getAsJsonObject();
+        boolean kept = data.equals(this.lastKept) || this.skins.skins().stream().anyMatch(skin ->
+                !(this.current != null && skin.id().equals(this.current.id())) && skin.data().equals(data));
+        if (kept) {
+            return;
+        }
+        this.lastKept = data;
+        saveSkin(name.isBlank() && this.current != null ? this.current.name() : name);
+    }
+
+    /** The id of the project in progress, for the window that marks it. */
+    private String currentId() {
+        return this.current == null ? null : this.current.id();
+    }
+
     // ------------------------------------------------------------------ the library
 
     /** Opens the saved skins, and asks the server for them each time it is opened. */
     private void openSkins() {
-        open(new SkinsWindow(() -> this.skins, this.skinThumbnails,
-                this::openSavedSkin, this::askDeleteSavedSkin,this::openSaveName));
+        open(new SkinsWindow(this::library, this::currentId, this.skinThumbnails,
+                this::openSavedSkin, this::askDeleteSavedSkin, this::openSaveName));
         loadSkins();
+    }
+
+    /**
+     * The library as the window shows it: the project in progress is always in it,
+     * first, even before the server has stored it — offline, or a write still on its
+     * way.
+     */
+    private SkinsWindow.Library library() {
+        SkinsWindow.Library state = this.skins;
+        if (this.current == null || state.skins().stream().anyMatch(skin -> skin.id().equals(this.current.id()))) {
+            return state;
+        }
+        List<SavedSkin> shown = new ArrayList<>(state.skins().size() + 1);
+        shown.add(this.current);
+        shown.addAll(state.skins());
+        return new SkinsWindow.Library(shown, state.loading(), state.failure());
     }
 
     private void loadSkins() {
@@ -1135,6 +1528,11 @@ public class SkinCreatorScreen extends Screen {
                     }
                     this.skins = new SkinsWindow.Library(loaded, false, Component.empty());
                     loaded.forEach(this::requestSkinThumbnail);
+                    if (this.current != null && !this.project.isEmpty()
+                            && loaded.stream().noneMatch(skin -> skin.id().equals(this.current.id()))) {
+                        // Written while the server could not be reached: it goes now.
+                        upload(this.current);
+                    }
                     relayout();
                 }));
     }
@@ -1169,29 +1567,29 @@ public class SkinCreatorScreen extends Screen {
     }
 
     /**
-     * Opens a saved skin: its layers become the stack, and its texture goes on the
-     * model at once.
+     * Opens a saved skin: it becomes the project in progress, its layers the stack, and
+     * its texture goes on the model at once.
+     *
+     * <p>The project being left is written down first and stays in the library, so
+     * opening another skin never costs the one being edited.
      *
      * <p>The texture is the server's own, composed when the skin was stored, so the
      * model is right before the composition of the reopened stack comes back — the same
      * bargain the library makes when an element is picked.
      */
     private void openSavedSkin(SavedSkin skin) {
-        this.history.record();
-        int dropped = ProjectJson.read(skin.data(), this.project, catalog,
-                this.minecraft.options.languageCode);
-        closeWindow();
-        relayout();
-
-        if (dropped > 0) {
-            // Said rather than hidden: the stack is short of something the catalogue no
-            // longer carries, and a skin that opens with a layer missing and no word
-            // about it reads as the mod losing it.
-            this.toasts.failed("skin_open",
-                    Component.translatable("toast.mcskincreator.layers_dropped", dropped));
-        } else {
-            this.toasts.succeeded("skin_open");
+        if (this.current != null && skin.id().equals(this.current.id())) {
+            // Already the one on the stack.
+            closeWindow();
+            return;
         }
+        persistNow();
+        // Said rather than hidden when a layer is missing: the stack is short of
+        // something the catalogue no longer carries, and a skin that opens with a layer
+        // missing and no word about it reads as the mod losing it.
+        this.toasts.succeeded("skin_open");
+        resume(skin);
+        closeWindow();
 
         McscApi.shared().skinTexture(skin.id()).whenComplete((texture, failure) ->
                 Minecraft.getInstance().execute(() -> {
@@ -1222,6 +1620,10 @@ public class SkinCreatorScreen extends Screen {
     }
 
     private void deleteSavedSkin(SavedSkin skin) {
+        if (this.current != null && skin.id().equals(this.current.id())) {
+            // There is always a project in progress; the window offers no cross for it.
+            return;
+        }
         McscApi.shared().delete(skin.id()).whenComplete((ignored, failure) ->
                 Minecraft.getInstance().execute(() -> {
                     if (this.closed) {
@@ -1265,9 +1667,9 @@ public class SkinCreatorScreen extends Screen {
     /**
      * Stores the skin on the server under a name.
      *
-     * <p>A new entry every time, deliberately: the mod has no notion of an open skin
-     * that follows the editing the way the site's does, and silently replacing one
-     * would be the one behaviour nobody could undo.
+     * <p>A new entry every time, deliberately: the project in progress already follows
+     * the editing, and this is the other thing — a version put aside, that further
+     * editing does not move.
      */
     private void saveSkin(String name) {
         SavedSkin skin = new SavedSkin(SavedSkin.newId(), name, System.currentTimeMillis(),
@@ -1401,6 +1803,7 @@ public class SkinCreatorScreen extends Screen {
                         return;
                     }
                     this.toasts.ok(Component.translatable("toast.mcskincreator.applied"));
+                    keepInLibrary("");
                 }));
     }
 
@@ -1421,6 +1824,16 @@ public class SkinCreatorScreen extends Screen {
             AppliedSkin.wear(user.getProfileId(), sheet, model);
         } catch (IOException | RuntimeException cause) {
             MCSkinCreatorClient.LOGGER.warn("Wearing the applied skin locally failed", cause);
+        }
+        // The account now wears what the mod sent, so the next opening must not take
+        // it for a change made somewhere else.
+        try {
+            byte[] pixels = SkinPixels.rgba(sheet);
+            if (pixels != null) {
+                CurrentProject.markApplied(SkinPixels.fingerprint(pixels));
+            }
+        } catch (IOException | RuntimeException cause) {
+            MCSkinCreatorClient.LOGGER.warn("Reading back the applied skin failed", cause);
         }
     }
 
@@ -1519,6 +1932,7 @@ public class SkinCreatorScreen extends Screen {
         this.toasts.succeeded(Export.KIND);
         this.toasts.ok(Component.translatable("toast.mcskincreator.exported",
                 written.getFileName().toString()));
+        keepInLibrary(name);
     }
 
     // ------------------------------------------------------------------ drawing
@@ -1923,6 +2337,9 @@ public class SkinCreatorScreen extends Screen {
 
     @Override
     public void removed() {
+        // First: an edit still waiting on its debounce is part of the project, and the
+        // next opening must find it.
+        persistNow();
         super.removed();
         this.scale.restore(this.minecraft);
         this.closed = true;

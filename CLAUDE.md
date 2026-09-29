@@ -44,12 +44,14 @@ src/main/java/fr/clixmods/mcsc/mod/
 │                               and the ready-made models and outfits it offers
 ├── skin/                      pixels: front sprites, category and model sheets, the previewed
 │                               skin, the stack composed through mcsc-engine, textures
-├── project/                   what is being edited: the layer stack and its history
+├── project/                   what is being edited: the layer stack, its history, and the
+│                               project in progress that outlives the editor
 ├── scene/                     how the character is looked at: the camera, the backdrop,
 │                               the animations in the game's own terms, the render state
 │                               the game draws from, and the game camera the two world
 │                               views borrow
-├── account/                   the Mojang upload, and the only code that holds the session token
+├── account/                   the Mojang upload, and the only code that holds the session token;
+│                               also reads, without it, which skin the account wears
 ├── mixin/                     the three mixins: the skin worn before Mojang propagates it,
 │                               the character posed in the world for the in-game view,
 │                               and the HUD left undrawn while a world view is open

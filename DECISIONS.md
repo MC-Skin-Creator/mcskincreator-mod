@@ -513,3 +513,42 @@ Colours are the part not done here: the catalogue the mod reads carries no colou
 keys, so a layer holds only its hue, saturation and brightness. Recolouring an
 element by its zone map is the same library call the site makes — it needs the
 catalogue to carry the keys, which is issue #7's job, not another engine.
+
+## 10. There is always a project in progress
+
+The editor used to start empty on every opening and forget the stack on closing. It
+now keeps one **project in progress**, which outlives the window: closing and reopening
+the editor puts it back exactly as it was left. It lives in two places, for two
+reasons. `config/mcskincreator-project.json` brings it back at once and offline. The
+player's library on the server is where it can be *seen*: it is an entry of "My skins"
+under its own identifier, marked as the project in progress, with no delete cross.
+Edits are written down after a short debounce and on closing, and the entry keeps its
+date, since that date means "saved on purpose".
+
+What starts a new project:
+
+- **The first opening.** The account's skin cannot be taken apart into layers, unless
+  it *is* one of the catalogue's models. So its pixels are compared with every model's
+  picture, composed locally from the atlases through `mcsc-engine` (section 9),
+  and a match opens that model. Anything else starts from the plain skin
+  (`skin-uni`).
+- **"New"**, which starts from the plain skin. The project left behind stays in the
+  library; a project nobody touched is reused rather than filed away.
+- **The account changing elsewhere.** The file remembers a fingerprint of the skin the
+  account wore the last time the mod looked. When the account now wears another one,
+  the project in progress is kept in the library, a new one starts for the new skin as
+  on a first opening, and a window says so. A skin the mod applied itself updates the
+  fingerprint, so it is never taken for a change. A skin that cannot be read (offline, a
+  default skin, a development account) is never taken for one either.
+
+Opening a saved skin makes it the project in progress; the one being left is written
+down first. Exporting a file or a front view, and applying to the account, also file a
+copy of the skin in the library, under the export's name, which further editing does
+not move. An identical copy is not filed twice.
+
+The account's skin is read from Mojang's public profile (`sessionserver.mojang.com`)
+and its pixels from `textures.minecraft.net`, not from the running game: the game's
+profile is the one it started with, and the question is whether the account has moved
+since. Neither request carries the session token, which still goes to one address only
+(section 1). The texture is only downloaded when its address is one the mod has not
+already seen.

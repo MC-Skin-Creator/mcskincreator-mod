@@ -57,6 +57,16 @@ public final class History {
         this.gesture = null;
     }
 
+    /**
+     * Forgets everything. For when the project itself is swapped for another: an undo
+     * that reached across two projects would pull one's layers into the other.
+     */
+    public void clear() {
+        this.past.clear();
+        this.future.clear();
+        this.gesture = null;
+    }
+
     public boolean canUndo() {
         return !this.past.isEmpty();
     }

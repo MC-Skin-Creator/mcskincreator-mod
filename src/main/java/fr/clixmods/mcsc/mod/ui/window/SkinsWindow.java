@@ -37,6 +37,11 @@ import net.minecraft.resources.Identifier;
  * <p>A row is opened by clicking it and removed by the cross on its right, which is
  * drawn at rest rather than revealed on hover: what can be pressed is visible, and a
  * removal that can be reached without being seen is how a skin goes missing.
+ *
+ * <p>One row is the project in progress — the skin on the editor right now, which
+ * follows the editing. It says so in place of its date, and it has no cross: there is
+ * always a project in progress, and removing the one being edited would pull the stack
+ * out from under the editor.
  */
 public class SkinsWindow extends ModalWindow {
     /** The height of a row: the front view at two pixels per texel, plus its padding. */
@@ -58,15 +63,21 @@ public class SkinsWindow extends ModalWindow {
     }
 
     private final Supplier<Library> library;
+    private final Supplier<String> currentId;
     private final SkinThumbnails thumbnails;
     private final Consumer<SavedSkin> onOpen;
     private final Consumer<SavedSkin> onDelete;
     private final Runnable onSave;
 
-    public SkinsWindow(Supplier<Library> library, SkinThumbnails thumbnails,
+    /**
+     * @param currentId the identifier of the project in progress, or null while there
+     *                  is none yet
+     */
+    public SkinsWindow(Supplier<Library> library, Supplier<String> currentId, SkinThumbnails thumbnails,
                        Consumer<SavedSkin> onOpen, Consumer<SavedSkin> onDelete, Runnable onSave) {
         super("window.mcskincreator.skins", null);
         this.library = library;
+        this.currentId = currentId;
         this.thumbnails = thumbnails;
         this.onOpen = onOpen;
         this.onDelete = onDelete;
@@ -89,10 +100,16 @@ public class SkinsWindow extends ModalWindow {
     @Override
     protected void layoutBody(Canvas canvas, int left, int top, int width) {
         int cursorY = top;
+        String current = this.currentId.get();
         for (SavedSkin skin : skins()) {
-            SkinRow row = new SkinRow(skin, this.thumbnails, this.onOpen);
+            boolean inProgress = skin.id().equals(current);
+            SkinRow row = new SkinRow(skin, inProgress, this.thumbnails, this.onOpen);
             row.setBounds(left, cursorY, width, ROW);
             addBodyChild(row);
+            if (inProgress) {
+                cursorY += ROW + Metrics.PAD_TIGHT;
+                continue;
+            }
 
             PixelButton remove = new PixelButton(Component.literal("x"), PixelButton.Style.NORMAL,
                     () -> this.onDelete.accept(skin))
@@ -133,14 +150,17 @@ public class SkinsWindow extends ModalWindow {
     /** One entry: its picture, its name, the day it was saved. The row is the button. */
     private static final class SkinRow extends Element {
         private final SavedSkin skin;
+        private final boolean inProgress;
         private final SkinThumbnails thumbnails;
         private final Consumer<SavedSkin> onOpen;
         private final Marquee marquee = new Marquee();
 
         private int actionsWidth;
 
-        private SkinRow(SavedSkin skin, SkinThumbnails thumbnails, Consumer<SavedSkin> onOpen) {
+        private SkinRow(SavedSkin skin, boolean inProgress, SkinThumbnails thumbnails,
+                        Consumer<SavedSkin> onOpen) {
             this.skin = skin;
+            this.inProgress = inProgress;
             this.thumbnails = thumbnails;
             this.onOpen = onOpen;
         }
@@ -174,8 +194,13 @@ public class SkinsWindow extends ModalWindow {
             int textY = this.y + (this.height - canvas.lineHeight() * 2 - Metrics.PAD_TIGHT) / 2;
             this.marquee.draw(paint, Component.literal(this.skin.name()), textX, textY, textWidth,
                     hot ? Palette.INK_HOVERED : Palette.INK, hot);
-            canvas.textFlat(Component.literal(day(this.skin.at())), textX,
-                    textY + canvas.lineHeight() + Metrics.PAD_TIGHT, Palette.INK_FAINT);
+            if (this.inProgress) {
+                canvas.textFlat(Component.translatable("skins.mcskincreator.in_progress"), textX,
+                        textY + canvas.lineHeight() + Metrics.PAD_TIGHT, Palette.LIME);
+            } else {
+                canvas.textFlat(Component.literal(day(this.skin.at())), textX,
+                        textY + canvas.lineHeight() + Metrics.PAD_TIGHT, Palette.INK_FAINT);
+            }
         }
 
         /**
@@ -207,7 +232,9 @@ public class SkinsWindow extends ModalWindow {
 
         @Override
         public List<Component> tooltip() {
-            return List.of(Component.translatable("skins.mcskincreator.open.tooltip"));
+            return List.of(Component.translatable(this.inProgress
+                    ? "skins.mcskincreator.in_progress.tooltip"
+                    : "skins.mcskincreator.open.tooltip"));
         }
     }
 }
