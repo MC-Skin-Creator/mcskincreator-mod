@@ -138,6 +138,12 @@ All of these were run and verified in this repository.
 is why CI asks for `build` as well as `buildAndCollect`. A test report lands in
 `versions/<target>/build/reports/tests/test/`.
 
+**Do not run the tests, or a full build, locally.** CI does it on every pull request
+(see **CI**), so a local run only duplicates it. To check that a change works, open
+the pull request (a draft is enough) and read the result there. The one exception is
+the UI preview described above, which only `./gradlew :1.21.11:test` writes: run it
+when the change draws something and you need to see it.
+
 Switching the active version (note the spaces — the task name is a sentence):
 
 ```sh
@@ -221,8 +227,8 @@ the entity route".
 2. Read the existing conditionals around the code you are touching.
 3. Prefer a shared implementation.
 4. Add version-specific code only for a real incompatibility.
-5. **Build every target** (`./gradlew build`). A change is not done because the
-   active target compiles.
+5. **Every target must build.** Do not run it locally: CI builds and tests each
+   target on the pull request, and a change is not done until every one is green.
 
 ## Mixins
 
