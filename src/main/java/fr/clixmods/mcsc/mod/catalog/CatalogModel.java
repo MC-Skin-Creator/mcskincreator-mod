@@ -7,7 +7,10 @@
  */
 package fr.clixmods.mcsc.mod.catalog;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A ready-made stack the catalogue offers: a whole character, or a set of clothes.
@@ -42,12 +45,17 @@ public record CatalogModel(String id, CatalogText name, Kind kind, boolean slim,
     /**
      * One element of a ready-made stack, named the way a project names it.
      *
-     * <p>The catalogue also gives some pieces a {@code colors} override — the same
-     * cloak in green rather than in red. The mod has no per-key colours on a layer
-     * yet, so those are left behind and the element is stacked in the colours it was
-     * drawn in. Carrying them into a layer that cannot hold them would only lose them
-     * somewhere less visible.
+     * <p>The catalogue gives some pieces a {@code colors} override — the same cloak in
+     * green rather than in red — and the layer the piece becomes takes it, so the
+     * character comes out the way the site shows it.
      */
-    public record Piece(String categoryId, String itemId) {
+    public record Piece(String categoryId, String itemId, Map<String, Integer> colors) {
+        public Piece {
+            colors = Collections.unmodifiableMap(new LinkedHashMap<>(colors));
+        }
+
+        public Piece(String categoryId, String itemId) {
+            this(categoryId, itemId, Map.of());
+        }
     }
 }

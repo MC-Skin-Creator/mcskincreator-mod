@@ -16,7 +16,6 @@ import fr.clixmods.mcsc.mod.skin.AppliedSkin;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.PlayerSkinWidget;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
@@ -29,8 +28,7 @@ import net.minecraft.network.chat.Component;
  *
  * <p>Everything here is a widget, which is what makes it work from
  * {@code ScreenEvents.AFTER_INIT}: a mod can add widgets to someone else's screen
- * but never draw on it, and {@link PlayerSkinWidget} draws the model itself. That
- * also keeps the whole panel clear of the 26.x render-state rewrite.
+ * but never draw on it, and {@link MenuFigure} draws the model itself.
  */
 final class SkinPanel {
     private static final int PANEL_WIDTH = 120;
@@ -109,7 +107,7 @@ final class SkinPanel {
         return name;
     }
 
-    private static PlayerSkinWidget skinPreview(Minecraft client, int x, int y) {
+    private static MenuFigure skinPreview(Minecraft client, int x, int y) {
         // createLookup already falls back to the default skin and keeps polling
         // until the real one is downloaded, so the panel fills in on its own and
         // offline players get Steve or Alex instead of an empty box. The flag would
@@ -121,7 +119,7 @@ final class SkinPanel {
         // puts the applied skin here too - the mixin cannot, since a menu has no player
         // entity to draw from.
         GameProfile profile = client.getGameProfile();
-        PlayerSkinWidget preview = new PlayerSkinWidget(SKIN_WIDTH, SKIN_HEIGHT, client.getEntityModels(),
+        MenuFigure preview = new MenuFigure(SKIN_WIDTH, SKIN_HEIGHT, client.font,
                 AppliedSkin.over(profile.id(),
                         client.getSkinManager().createLookup(profile, false)));
         preview.setPosition(x, y);
