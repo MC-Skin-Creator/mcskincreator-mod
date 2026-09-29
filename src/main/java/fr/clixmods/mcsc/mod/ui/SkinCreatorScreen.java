@@ -1252,6 +1252,8 @@ public class SkinCreatorScreen extends Screen {
             cards.add(new CardWindow.Card("export.mcskincreator.account",
                     "export.mcskincreator.account_detail", this::openApply));
         }
+        cards.add(new CardWindow.Card("export.mcskincreator.folder",
+                "export.mcskincreator.folder_detail", this::openExportFolder));
         open(new CardWindow("window.mcskincreator.export", cards,
                 canApply ? null : Component.translatable("export.mcskincreator.no_session"), null));
     }
@@ -1383,13 +1385,22 @@ public class SkinCreatorScreen extends Screen {
         return Component.translatable("toast.mcskincreator.apply_failed");
     }
 
+    private void openExportFolder() {
+        if (!Export.openFolder(this.minecraft)) {
+            this.toasts.failed(Export.KIND,
+                    Component.translatable("toast.mcskincreator.folder_failed"));
+        }
+    }
+
     private void openExportName() {
         open(new NameWindow("window.mcskincreator.name", "skin",
+                Component.translatable("export.mcskincreator.name_hint"),
                 this::exportTo, this::closeWindow, null));
     }
 
     private void openFrontViewName() {
         open(new NameWindow("window.mcskincreator.name", "skin-front",
+                Component.translatable("export.mcskincreator.name_hint"),
                 this::exportFrontView, this::closeWindow, null));
     }
 
