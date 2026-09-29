@@ -172,14 +172,9 @@ public class LayersPanel extends Panel {
         this.fixed.add(addChild(model));
         cursorY += Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD_TIGHT;
 
-        PixelButton importTexture = new PixelButton(
-                Component.translatable("gui.mcskincreator.import"),
-                PixelButton.Style.NORMAL, this.onImportRequested);
-        importTexture.withTooltip(Component.translatable("gui.mcskincreator.import.tooltip"));
-        importTexture.fitWithin(canvas, right - left);
-        importTexture.setBounds(left, cursorY, right - left, Metrics.BUTTON_HEIGHT_COMPACT);
-        this.fixed.add(addChild(importTexture));
-        cursorY += Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD;
+        // The "Import a texture" button is left out until reading a file is written; the
+        // window, the callback and the strings are kept so it can be put back here.
+        cursorY += Metrics.PAD - Metrics.PAD_TIGHT;
 
         int bottom = this.y + this.height - Metrics.PANEL_INSET;
         int available = Math.max(0, bottom - cursorY);
