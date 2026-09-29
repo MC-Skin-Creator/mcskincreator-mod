@@ -43,6 +43,7 @@ import fr.clixmods.mcsc.mod.scene.GameCamera;
 import fr.clixmods.mcsc.mod.skin.AppliedSkin;
 import fr.clixmods.mcsc.mod.skin.CategorySprites;
 import fr.clixmods.mcsc.mod.skin.Highlight;
+import fr.clixmods.mcsc.mod.skin.ReadyMadeSheet;
 import fr.clixmods.mcsc.mod.skin.ReadyMadeSkins;
 import fr.clixmods.mcsc.mod.skin.PreviewSkin;
 import fr.clixmods.mcsc.mod.skin.ProjectJson;
@@ -147,16 +148,18 @@ public class SkinCreatorScreen extends Screen {
      * The pictures of the starter models, and of the outfits, drawn from the atlases
      * already here.
      *
-     * <p>Rebuilt rather than patched: a ready-made stack spans several categories, so
-     * one atlas arriving can complete a dozen of them at once, and working out which
-     * would cost more than redrawing the sheet. The outfits' sheet is kept in
-     * {@link #sprites} beside the categories' own, which is what lets the library draw
-     * an outfit with the same tile as everything else.
+     * <p>Redrawn rather than patched: a ready-made stack spans several categories, so
+     * one atlas arriving can complete a dozen of them at once. The redrawing happens
+     * off the client thread and reuses every picture whose pixels have not moved, so
+     * only the upload is paid here. The outfits' sheet is kept in {@link #sprites}
+     * beside the categories' own, which is what lets the library draw an outfit with
+     * the same tile as everything else.
      */
     private CategorySprites modelSprites;
-    /** What the two sheets were drawn from, so they are only redrawn when that changed. */
-    private int modelSpritesStamp = -1;
-    private int outfitSpritesStamp = -1;
+    private final ReadyMadeSheet modelSheet = new ReadyMadeSheet("ready-made-models",
+            task -> Minecraft.getInstance().execute(task));
+    private final ReadyMadeSheet outfitSheet = new ReadyMadeSheet(LibraryPanel.OUTFIT_SHEET,
+            task -> Minecraft.getInstance().execute(task));
     /** Rises every time a category's pixels land. */
     private int atlasRevision;
 
@@ -617,8 +620,9 @@ public class SkinCreatorScreen extends Screen {
     }
 
     private void requestAtlas(CatalogCategory category) {
-        McscApi.shared().atlas(category).whenComplete((buffers, failure) ->
-                Minecraft.getInstance().execute(() -> {
+        // Projected on the thread that read it, so only the upload is left to this one.
+        McscApi.shared().atlas(category).thenApply(CategorySprites::prepare)
+                .whenComplete((prepared, failure) -> Minecraft.getInstance().execute(() -> {
                     if (this.closed) {
                         return;
                     }
@@ -634,7 +638,10 @@ public class SkinCreatorScreen extends Screen {
                         return;
                     }
                     this.toasts.succeeded("atlas:" + category.id());
-                    this.sprites.put(category.id(), CategorySprites.of(category.id(), buffers));
+                    CategorySprites previous = this.sprites.put(category.id(), prepared.upload(category.id()));
+                    if (previous != null) {
+                        previous.close();
+                    }
                     this.atlasRevision++;
                 }));
     }
@@ -931,37 +938,48 @@ public class SkinCreatorScreen extends Screen {
     }
 
     /**
-     * Redraws a sheet of ready-made pictures when what it was drawn from has moved: a
-     * new atlas, or the other player model. Never called while drawing — it ends in a
-     * texture upload, and a frame is for deciding what to draw.
+     * Has a sheet of ready-made pictures redrawn when what it was drawn from has moved:
+     * a new atlas, or the other player model. The drawing is done elsewhere and only
+     * the upload comes back here — on a tick, never in a frame.
+     *
+     * <p>What the drawing reads is copied first: it runs on another thread, and the
+     * map of atlases is this screen's to change under it.
      */
     private void refreshModelSprites() {
-        if (catalog.models().isEmpty() || this.modelSpritesStamp == stamp()) {
+        if (catalog.models().isEmpty() || !this.modelSheet.stale(stamp())) {
             return;
         }
-        if (this.modelSprites != null) {
-            this.modelSprites.close();
-        }
+        Catalog drawn = catalog;
+        Map<String, CategorySprites> atlases = Map.copyOf(this.sprites);
+        boolean slim = this.project.isSlim();
         // A model carries its own skin, so nothing is stood under it.
-        this.modelSprites = CategorySprites.of("ready-made-models", ReadyMadeSkins.of(
-                catalog.models(), catalog, this.sprites::get, this.project.isSlim(), null));
-        this.modelSpritesStamp = stamp();
+        this.modelSheet.redraw(stamp(),
+                blends -> blends.of(drawn.models(), drawn, atlases::get, slim, null),
+                sheet -> {
+                    if (this.modelSprites != null) {
+                        this.modelSprites.close();
+                    }
+                    this.modelSprites = sheet;
+                });
     }
 
     private void refreshOutfitSprites() {
-        if (catalog.outfits().isEmpty() || this.outfitSpritesStamp == stamp()) {
+        if (catalog.outfits().isEmpty() || !this.outfitSheet.stale(stamp())) {
             return;
         }
-        CategorySprites previous = this.sprites.remove(LibraryPanel.OUTFIT_SHEET);
-        if (previous != null) {
-            previous.close();
-        }
+        Catalog drawn = catalog;
+        Map<String, CategorySprites> atlases = Map.copyOf(this.sprites);
+        boolean slim = this.project.isSlim();
         // An outfit is clothes: without a body under them its picture is empty sleeves.
-        byte[] body = ReadyMadeSkins.mannequin(catalog, this.sprites::get, this.project.isSlim());
-        this.sprites.put(LibraryPanel.OUTFIT_SHEET, CategorySprites.of(LibraryPanel.OUTFIT_SHEET,
-                ReadyMadeSkins.of(catalog.outfits(), catalog, this.sprites::get,
-                        this.project.isSlim(), body)));
-        this.outfitSpritesStamp = stamp();
+        byte[] body = ReadyMadeSkins.mannequin(drawn, atlases::get, slim);
+        this.outfitSheet.redraw(stamp(),
+                blends -> blends.of(drawn.outfits(), drawn, atlases::get, slim, body),
+                sheet -> {
+                    CategorySprites previous = this.sprites.put(LibraryPanel.OUTFIT_SHEET, sheet);
+                    if (previous != null) {
+                        previous.close();
+                    }
+                });
     }
 
     /** What a sheet of ready-made pictures depends on: the atlases here, and the model. */
@@ -1799,6 +1817,8 @@ public class SkinCreatorScreen extends Screen {
         }
         AppliedSkin.stopPreviewing();
         this.preview.close();
+        this.modelSheet.close();
+        this.outfitSheet.close();
         if (this.modelSprites != null) {
             this.modelSprites.close();
             this.modelSprites = null;

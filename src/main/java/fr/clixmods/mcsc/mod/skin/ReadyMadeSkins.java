@@ -8,7 +8,9 @@
 package fr.clixmods.mcsc.mod.skin;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 import fr.clixmods.mcsc.mod.catalog.Catalog;
@@ -28,11 +30,16 @@ import fr.clixmods.mcsc.mod.catalog.CatalogModel;
  * <p>The result is one buffer per entry, in the order given, so a
  * {@link CategorySprites} sheet can be built from them and every thumbnail in the
  * interface stays the same widget drawing the same kind of thing.
+ *
+ * <p>An instance remembers what it blended, and from which buffers. The pictures are
+ * asked for again every time an atlas lands, and opening the models window lands
+ * dozens of them in a row; blending two hundred stacks again for each one is what made
+ * that window crawl. A picture is blended again only when one of the buffers it is
+ * made of is a different one — which is to say, never, once its atlases are here. Not
+ * safe for two threads at once: give each sheet its own.
  */
 public final class ReadyMadeSkins {
-
-    private ReadyMadeSkins() {
-    }
+    private Map<CatalogModel, Blend> blends = new HashMap<>();
 
     /**
      * The skin each entry stands for.
@@ -45,18 +52,52 @@ public final class ReadyMadeSkins {
      *         gets a transparent one rather than a half-dressed body — it is drawn
      *         again when they do.
      */
-    public static List<byte[]> of(List<CatalogModel> entries, Catalog catalog,
-                                  Function<String, CategorySprites> sprites, boolean slim,
-                                  byte[] under) {
+    public List<byte[]> of(List<CatalogModel> entries, Catalog catalog,
+                           Function<String, CategorySprites> sprites, boolean slim,
+                           byte[] under) {
+        byte[] missing = new byte[Composite.BYTES];
         List<byte[]> skins = new ArrayList<>(entries.size());
+        // Rebuilt rather than added to, so an entry the catalogue has dropped is
+        // forgotten along with it.
+        Map<CatalogModel, Blend> kept = new HashMap<>();
         for (CatalogModel entry : entries) {
             // A model was drawn for one of the two player models; an outfit is worn by
             // whichever body is already there.
             boolean posed = entry.kind() == CatalogModel.Kind.MODEL ? entry.slim() : slim;
             List<byte[]> pieces = pieces(entry, catalog, sprites, posed, under);
-            skins.add(pieces == null ? new byte[Composite.BYTES] : Composite.of(pieces));
+            if (pieces == null) {
+                skins.add(missing);
+                continue;
+            }
+            Blend blend = this.blends.get(entry);
+            if (blend == null || !blend.madeOf(pieces)) {
+                blend = new Blend(pieces, Composite.of(pieces));
+            }
+            kept.put(entry, blend);
+            skins.add(blend.skin());
         }
+        this.blends = kept;
         return skins;
+    }
+
+    /** A picture, and the very buffers it was blended from. */
+    private record Blend(List<byte[]> pieces, byte[] skin) {
+        /**
+         * By identity, not by content: an atlas buffer is never written to once sliced,
+         * so the same array is the same pixels, and comparing the pixels would cost
+         * most of what blending them again does.
+         */
+        boolean madeOf(List<byte[]> others) {
+            if (others.size() != this.pieces.size()) {
+                return false;
+            }
+            for (int index = 0; index < others.size(); index++) {
+                if (others.get(index) != this.pieces.get(index)) {
+                    return false;
+                }
+            }
+            return true;
+        }
     }
 
     /**
