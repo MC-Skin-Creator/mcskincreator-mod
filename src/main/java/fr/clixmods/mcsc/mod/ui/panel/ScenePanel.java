@@ -45,10 +45,8 @@ import net.minecraft.network.chat.Component;
  * not draw a figure at all. They let the game draw the real character, in the real world,
  * and the panel's whole job under those is to keep out of the way.
  *
- * <p>The settings bar sits on a rule at the top rather than floating over the figure, and
- * the dock sits in the top right corner under it. Both were tried the other way: a
- * floating strip reads as three loose boxes, and a dock at the foot of the view lands
- * exactly where the game draws the first-person hand.
+ * <p>There is no bar: the view takes the whole panel, and the settings float over it —
+ * the view on the left of the top edge, the camera and the backdrop on the right.
  */
 public class ScenePanel extends Element {
     /** How the middle column is showing the skin. */
@@ -178,7 +176,6 @@ public class ScenePanel extends Element {
     public void layout(Canvas canvas) {
         this.controls.clear();
 
-        int barHeight = Metrics.TAB_HEIGHT + Metrics.PAD_TIGHT;
         int cursorX = this.x + Metrics.PAD_TIGHT;
         int barY = this.y + Metrics.PAD_TIGHT;
 
@@ -201,8 +198,8 @@ public class ScenePanel extends Element {
         this.controls.add(chooser);
         cursorX += chooser.width() + Metrics.SEGMENT_GAP;
 
-        int viewTop = this.y + barHeight;
-        int viewHeight = Math.max(0, this.height - (viewTop - this.y));
+        int viewTop = this.y;
+        int viewHeight = this.height;
         this.viewport = new int[] {this.x, viewTop, this.width, viewHeight};
 
         layoutBar(canvas, barY, cursorX);
@@ -441,16 +438,6 @@ public class ScenePanel extends Element {
                 drawTexture(canvas, this.x + half, this.viewport[1], this.width - half, this.viewport[3]);
             }
         }
-
-        // One strip across the top, with a ground of its own and a black edge under it:
-        // the view tabs on the left, the workshop's controls on the right. Floating them
-        // over the figure was the site's idea and it cost more than it gave — a control
-        // with the world showing round it reads as a sticker, and it sat on the one
-        // thing on this screen worth looking at.
-        int barBottom = this.y + Metrics.TAB_HEIGHT + Metrics.PAD_TIGHT;
-        Surface.flat(canvas, this.x, this.y, this.width, barBottom - this.y,
-                Palette.PANEL_HEADER);
-        canvas.fill(this.x, barBottom - 1, this.width, 1, Palette.OUTLINE);
 
         // The corner box is a backdrop, so it goes down before what sits on it.
         drawCorner(canvas);
