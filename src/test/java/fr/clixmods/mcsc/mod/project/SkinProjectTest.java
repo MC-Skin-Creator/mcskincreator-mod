@@ -375,4 +375,30 @@ class SkinProjectTest {
             assertEquals(PlayerModelType.WIDE, project.model());
         }
     }
+
+    @Nested
+    class StartingFresh {
+        @Test
+        void aNewProjectWearsThePlainSkinOnTheWideModel() {
+            CatalogCategory skins = single("skin", "base", "skin-rose", SkinProject.DEFAULT_SKIN);
+            CatalogCategory hats = category("hats", "head", "cap");
+            add(hats, "cap");
+            project.setModel(PlayerModelType.SLIM);
+
+            project.startFresh(fr.clixmods.mcsc.mod.Fixtures.catalog(hats, skins), "en_us");
+
+            assertEquals(List.of(SkinProject.DEFAULT_SKIN), stack());
+            assertEquals(PlayerModelType.WIDE, project.model());
+            assertNull(project.selected());
+        }
+
+        @Test
+        void aCatalogueWithoutThePlainSkinFallsBackToItsFirstSkin() {
+            CatalogCategory skins = single("skin", "base", "skin-rose", "skin-ash");
+
+            project.startFresh(fr.clixmods.mcsc.mod.Fixtures.catalog(skins), "en_us");
+
+            assertEquals(List.of("skin-rose"), stack());
+        }
+    }
 }
