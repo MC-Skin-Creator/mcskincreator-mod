@@ -186,16 +186,6 @@ public final class McscApi implements AutoCloseable {
     }
 
     /**
-     * {@code POST /textures}: the server composes the project and answers the skin.
-     *
-     * <p>One round trip per change, which is why callers debounce. Issue #8 replaces
-     * this with local composition through {@code mcsc-engine}.
-     */
-    public CompletableFuture<byte[]> compose(String projectJson) {
-        return post("/textures", projectJson);
-    }
-
-    /**
      * {@code POST /thumbnails}: the same project seen from the front, standing, at
      * {@code scale} times its 16 by 32 pixels.
      *
