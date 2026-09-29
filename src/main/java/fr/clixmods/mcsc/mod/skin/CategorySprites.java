@@ -56,6 +56,15 @@ public final class CategorySprites implements AutoCloseable {
      * built again.
      */
     public static CategorySprites of(String categoryId, List<byte[]> buffers) {
+        return prepare(buffers).upload(categoryId);
+    }
+
+    /**
+     * The half of {@link #of} that touches nothing of the game: the projection and the
+     * measuring. Safe on any thread, which is the point — a sheet is hundreds of
+     * sprites, and that is work for a thread nobody is watching a frame on.
+     */
+    public static Prepared prepare(List<byte[]> buffers) {
         int rows = Math.max(1, (buffers.size() + COLUMNS - 1) / COLUMNS);
         int width = COLUMNS * FrontSprite.WIDTH;
         int height = rows * FrontSprite.HEIGHT;
@@ -68,17 +77,47 @@ public final class CategorySprites implements AutoCloseable {
             FrontSprite.draw(buffers.get(index), false, pixels, width, left, top);
             measure(pixels, width, left, top, bounds, index * 4);
         }
+        return new Prepared(List.copyOf(buffers), rows, pixels, bounds);
+    }
 
-        NativeImage image = new NativeImage(width, height, false);
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                image.setPixel(x, y, pixels[y * width + x]);
-            }
+    /** A sheet drawn and measured, waiting for the client thread to upload it. */
+    public static final class Prepared {
+        private final List<byte[]> buffers;
+        private final int rows;
+        private final int[] pixels;
+        private final int[] bounds;
+
+        private Prepared(List<byte[]> buffers, int rows, int[] pixels, int[] bounds) {
+            this.buffers = buffers;
+            this.rows = rows;
+            this.pixels = pixels;
+            this.bounds = bounds;
         }
 
-        ManagedTexture texture = new ManagedTexture(categoryId);
-        texture.upload(image);
-        return new CategorySprites(texture, List.copyOf(buffers), rows, bounds);
+        /** Uploads the sheet. Must run on the client thread. */
+        public CategorySprites upload(String categoryId) {
+            int width = COLUMNS * FrontSprite.WIDTH;
+            int height = this.rows * FrontSprite.HEIGHT;
+            NativeImage image = new NativeImage(width, height, false);
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    image.setPixel(x, y, this.pixels[y * width + x]);
+                }
+            }
+
+            ManagedTexture texture = new ManagedTexture(categoryId);
+            texture.upload(image);
+            return new CategorySprites(texture, this.buffers, this.rows, this.bounds);
+        }
+    }
+
+    /**
+     * A sheet whose picture was never uploaded: the buffers alone, for what reads only
+     * those. The tests, which have no game to upload to.
+     */
+    static CategorySprites unuploaded(String purpose, List<byte[]> buffers) {
+        Prepared prepared = prepare(buffers);
+        return new CategorySprites(new ManagedTexture(purpose), prepared.buffers, prepared.rows, prepared.bounds);
     }
 
     /** Records the box of drawn pixels of the sprite at {@code left, top}. */
