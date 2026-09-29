@@ -448,12 +448,19 @@ public class LibraryPanel extends Panel {
                 (usable - Metrics.GRID_GAP * (columns - 1)) / columns);
         int headerHeight = canvas.lineHeight() + Metrics.PAD_TIGHT * 2;
 
+        // Browsing shows one category, already named by its tab and the region
+        // chooser, so a title over it is only a band of lost height. A search mixes
+        // categories, and there the titles are what tell the batches apart.
+        boolean titled = searching();
+
         int cursorY = 0;
         for (Map.Entry<CatalogCategory, List<CatalogItem>> batch : batches.entrySet()) {
             CatalogCategory batchCategory = batch.getKey();
-            Component label = this.naming.apply(batchCategory.name());
-            this.headers.add(new GroupHeader(batchCategory, label, batch.getValue().size(), cursorY));
-            cursorY += headerHeight;
+            if (titled) {
+                Component label = this.naming.apply(batchCategory.name());
+                this.headers.add(new GroupHeader(batchCategory, label, batch.getValue().size(), cursorY));
+                cursorY += headerHeight;
+            }
 
             // One height for every tile, whatever the crop, because that is what makes
             // a grid a grid: the site letterboxes each thumbnail into a fixed box, and
