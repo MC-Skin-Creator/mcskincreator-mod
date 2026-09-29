@@ -28,6 +28,10 @@ import java.util.Map;
  * @param colors         the element's colour keys and the colour each one is drawn
  *                       in, as {@code 0xRRGGBB}, in the catalogue's order; a layer can
  *                       recolour these keys and no others
+ * @param colorMap       which key each pixel of the classic buffer belongs to, as the
+ *                       catalogue's run-length string, or null when it gives none —
+ *                       the engine then puts every opaque pixel under the first key
+ * @param slimColorMap   the same for the slim buffer, or null
  */
 public record CatalogItem(
         String id,
@@ -36,7 +40,9 @@ public record CatalogItem(
         int slimAtlasIndex,
         ThumbCrop thumbCrop,
         String credit,
-        Map<String, Integer> colors) {
+        Map<String, Integer> colors,
+        String colorMap,
+        String slimColorMap) {
 
     public CatalogItem {
         // Insertion order is the catalogue's, and the order the swatches are shown in.
@@ -47,6 +53,12 @@ public record CatalogItem(
     public CatalogItem(String id, CatalogText name, int atlasIndex, int slimAtlasIndex,
                        ThumbCrop thumbCrop, String credit) {
         this(id, name, atlasIndex, slimAtlasIndex, thumbCrop, credit, Map.of());
+    }
+
+    /** An element with colour keys and no zone map of its own. */
+    public CatalogItem(String id, CatalogText name, int atlasIndex, int slimAtlasIndex,
+                       ThumbCrop thumbCrop, String credit, Map<String, Integer> colors) {
+        this(id, name, atlasIndex, slimAtlasIndex, thumbCrop, credit, colors, null, null);
     }
 
     /** No slim buffer: the element is drawn the same on both models. */

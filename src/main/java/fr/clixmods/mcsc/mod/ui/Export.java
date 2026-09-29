@@ -16,6 +16,7 @@ import com.mojang.blaze3d.platform.NativeImage;
 import fr.clixmods.mcsc.mod.MCSkinCreatorClient;
 import fr.clixmods.mcsc.mod.skin.PreviewSkin;
 import net.minecraft.client.Minecraft;
+import net.minecraft.util.Util;
 
 /** Writing the composed skin out as a 64x64 PNG, next to the game's own files. */
 public final class Export {
@@ -28,6 +29,24 @@ public final class Export {
     /** Where exported skins go: one folder of the game directory, created on demand. */
     public static Path folder(Minecraft client) {
         return client.gameDirectory.toPath().resolve(MCSkinCreatorClient.MOD_ID);
+    }
+
+    /**
+     * Opens the export folder in the system's file browser, creating it first so the
+     * button works before anything has been exported.
+     *
+     * @return false when the folder could not be created
+     */
+    public static boolean openFolder(Minecraft client) {
+        try {
+            Path folder = folder(client);
+            Files.createDirectories(folder);
+            Util.getPlatform().openPath(folder);
+            return true;
+        } catch (Exception failure) {
+            MCSkinCreatorClient.LOGGER.warn("Could not open the export folder", failure);
+            return false;
+        }
     }
 
     /**

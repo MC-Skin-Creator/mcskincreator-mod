@@ -37,8 +37,8 @@ import net.minecraft.network.chat.Component;
  * site, or from anywhere else, pasted in whole.
  *
  * <p>The colour is applied while it is being chosen, so the model shows it as the
- * sliders move; composing is debounced by the screen, so a drag costs one request, not
- * one per frame. The window is kept in its own three numbers rather than read back from
+ * sliders move — the skin is composed in the game, so a drag is shown frame by frame.
+ * The window is kept in its own three numbers rather than read back from
  * the colour each time: a grey has no hue, and a hue slider that jumped to zero the
  * moment saturation touched nothing would lose what the player was holding.
  *

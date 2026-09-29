@@ -596,7 +596,8 @@ class CatalogParserTest {
                   "categories": [
                     {"id": "hat", "region": "head", "items": [
                       {"id": "hat-green", "colors": {"main": "#359e61", "band": "#FFFFFF",
-                                                     "bad": "green", "worse": 12}},
+                                                     "bad": "green", "worse": 12},
+                       "map": "8A8B", "mapSlim": ""},
                       {"id": "hat-plain"}
                     ]}
                   ],
@@ -615,6 +616,14 @@ class CatalogParserTest {
             assertEquals(List.of("main", "band"), List.copyOf(green.colors().keySet()));
             assertEquals(0x359E61, green.colors().get("main"));
             assertEquals(0xFFFFFF, green.colors().get("band"));
+        }
+
+        @Test
+        void anElementKeepsItsZoneMapForTheEngine() {
+            CatalogItem green = category(COLOURED, "hat").items().get(0);
+
+            assertEquals("8A8B", green.colorMap());
+            assertNull(green.slimColorMap(), "an empty map is no map");
         }
 
         @Test

@@ -224,7 +224,8 @@ public final class CatalogParser {
                 String crop = string(json, "thumbCrop");
                 items.add(new CatalogItem(id, text(json, "name"), atlasIndex, slimIndex,
                         crop.isBlank() ? null : ThumbCrop.of(crop), string(json, "credit"),
-                        colors(json.get("colors"))));
+                        colors(json.get("colors")), blankToNull(string(json, "map")),
+                        blankToNull(string(json, "mapSlim"))));
             }
         }
         return List.copyOf(items);
@@ -261,6 +262,10 @@ public final class CatalogParser {
             Rgb.parse(value.getAsString()).ifPresent(rgb -> colors.put(entry.getKey(), rgb));
         }
         return colors;
+    }
+
+    private static String blankToNull(String value) {
+        return value.isBlank() ? null : value;
     }
 
     private static String string(JsonObject json, String key) {

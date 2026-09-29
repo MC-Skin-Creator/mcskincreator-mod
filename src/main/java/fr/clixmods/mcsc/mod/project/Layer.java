@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
+import fr.clixmods.mcsc.mod.catalog.ThumbCrop;
 import fr.clixmods.mcsc.mod.catalog.CatalogItem;
 import net.minecraft.network.chat.Component;
 
@@ -46,8 +47,20 @@ public final class Layer {
     private final int slimAtlasIndex;
     /** The element's colour of each key, in the catalogue's order. Never changes. */
     private final Map<String, Integer> defaultColors;
+    /** The element itself, which is what recolouring reads its zone map from. */
+    private final CatalogItem item;
     /** The colour each key is shown in now, same keys, same order. */
     private final Map<String, Integer> colors;
+    /**
+     * The part of the body this layer's picture shows.
+     *
+     * <p>Kept on the layer because the row that draws it has the layer and not the
+     * category it came from. Without it the row drew the whole 16 by 32 front view into
+     * a box fifteen pixels square, at the only whole scale that fits — which is one — so
+     * what you saw was the middle fifteen rows of the body. For anything worn on the
+     * head, that is fifteen rows of nothing, and the picture looked broken.
+     */
+    private final ThumbCrop thumbCrop;
 
     private boolean visible = true;
     private int opacity = 100;
@@ -64,7 +77,9 @@ public final class Layer {
         this.atlasIndex = item.atlasIndex();
         this.slimAtlasIndex = item.slimAtlasIndex();
         this.defaultColors = item.colors();
+        this.item = item;
         this.colors = new LinkedHashMap<>(item.colors());
+        this.thumbCrop = category.thumbCrop(item);
     }
 
     private Layer(Layer source) {
@@ -76,7 +91,9 @@ public final class Layer {
         this.atlasIndex = source.atlasIndex;
         this.slimAtlasIndex = source.slimAtlasIndex;
         this.defaultColors = source.defaultColors;
+        this.item = source.item;
         this.colors = new LinkedHashMap<>(source.colors);
+        this.thumbCrop = source.thumbCrop;
         this.visible = source.visible;
         this.opacity = source.opacity;
         this.hue = source.hue;
@@ -107,6 +124,11 @@ public final class Layer {
 
     public Component categoryName() {
         return this.categoryName;
+    }
+
+    /** The part of the body this layer's picture shows. */
+    public ThumbCrop thumbCrop() {
+        return this.thumbCrop;
     }
 
     /** The element's buffer in its category's atlas, for the model on show. */
@@ -152,6 +174,11 @@ public final class Layer {
 
     public void setBrightness(int brightness) {
         this.brightness = Math.max(-50, Math.min(50, brightness));
+    }
+
+    /** The catalogue's element this layer stacks. */
+    public CatalogItem item() {
+        return this.item;
     }
 
     /** The keys the element can be recoloured by, in the catalogue's order. */

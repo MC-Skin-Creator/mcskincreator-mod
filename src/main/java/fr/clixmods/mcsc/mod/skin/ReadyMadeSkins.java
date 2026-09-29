@@ -111,7 +111,8 @@ public final class ReadyMadeSkins {
             if (buffer == null) {
                 return null;
             }
-            buffers.add(buffer);
+            // The piece's colour override, so the picture is the one choosing it gives.
+            buffers.add(Composite.recolor(piece.categoryId(), item, piece.colors(), slim, buffer));
         }
         return buffers.isEmpty() ? null : buffers;
     }
