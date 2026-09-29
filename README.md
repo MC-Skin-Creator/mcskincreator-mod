@@ -1,45 +1,40 @@
-<img src="src/main/resources/assets/mcskincreator/icon.png" width="96" align="right" alt="MC Skin Creator">
+<p align="center">
+  <img src="src/main/resources/assets/mcskincreator/icon.png" width="128" alt="MC Skin Creator">
+</p>
 
-# MC Skin Creator - Minecraft mod
+<h1 align="center">MC Skin Creator</h1>
 
-Fabric client mod that brings the [MC Skin Creator](https://mcskincreator.app/) skin
-editor into the game: build a skin out of layers, see it on your character, and put it
-on your Minecraft account without leaving Minecraft.
+<p align="center">
+  Create your Minecraft skin without leaving the game.
+</p>
 
-Client side only. Nothing to install on a server, and it does nothing to other players.
-
-> **Early release (0.x).** The editor and the upload to your account work. Some
-> things are not built yet, listed [below](#not-in-yet).
+MC Skin Creator brings the [skin editor of the website](https://mcskincreator.app/)
+into Minecraft. Pick pieces, stack them, see the result on your character, and wear it
+on your account in one click.
 
 ## What you can do
 
-- open the editor from the **Skin Creator** panel on the title screen and the pause menu
-- browse the **library**: regions, categories, a search across everything, and every
-  element's source ("i" on a thumbnail: title, author, licence), named in your language
-- try an element on by pointing at it, and see the result on the **scene** player model,
-  which turns under the mouse
-- stack elements as **layers**: reorder by dragging, show or hide, duplicate, remove, and
-  adjust opacity, hue, saturation and brightness, with a swatch for each colour an
-  element declares
-- start from a **starter model** or add an **outfit**, and take either back with one undo
-- undo and redo over 60 states
-- keep skins in **My skins**, the same library the website uses
-- **export** the composed 64x64 sheet, or the character seen from the front, to
-  `<game>/mcskincreator/`
-- **apply the skin to your Minecraft account**, with the classic or slim model. The button
-  confirms first, locks between two uploads, and is absent (with the reason) when the
-  session is not signed in with Microsoft. Once Mojang accepts it you wear it straight
-  away, without restarting; other players see it when Minecraft's profile servers
-  catch up
+- **Open the editor from the menus.** A Skin Creator button sits on the title screen and
+  the pause menu.
+- **Browse a big library of pieces.** Hair, faces, clothes, accessories and more, with a
+  search across everything. Names come in your language, and the "i" on a piece tells
+  you who made it.
+- **Try before you commit.** Point at a piece to see it on your character, who turns
+  around as you move the mouse.
+- **Build your skin in layers.** Reorder, hide, duplicate or remove pieces, and change
+  their colours, opacity, hue, saturation and brightness.
+- **Start from something ready-made.** Take a complete starter character, or add an outfit
+  on top of what you are wearing. Changed your mind? Undo brings it back.
+- **Keep your skins.** My skins stores your creations, and they are the same ones you
+  see on the website.
+- **Save a picture of your skin.** Export the skin file, or the character seen from the
+  front.
+- **Wear it for real.** Apply the skin to your Minecraft account, classic or slim arms.
+  You see it on your own character right away, no restart. Other players see it a little
+  later, once Minecraft's servers catch up.
 
-Available in English, French and Spanish. The window adapts to its size: three columns
-when there is room, drawers below that.
-
-### Not in yet
-
-The pixel drawing tools, importing a texture, an MC Skin Creator account for the saved
-skins, and a fitting room to try a skin on locally without touching your account. Follow
-them in the [issues](https://github.com/MC-Skin-Creator/mcskincreator-mod/issues).
+It is available in English, French and Spanish, and it only runs on your own game:
+nothing to install on a server, nothing changed for other players.
 
 ## Your Minecraft session
 
