@@ -1461,13 +1461,21 @@ public class SkinCreatorScreen extends Screen {
         }
     }
 
-    private static void upload(SavedSkin skin) {
+    private void upload(SavedSkin skin) {
         McscApi.shared().save(skin).whenComplete((written, failure) -> {
             if (failure != null) {
                 // The file has it, and the next write sends it again.
                 MCSkinCreatorClient.LOGGER.warn("Keeping the project in progress in the library failed",
                         failure);
+                return;
             }
+            // The server drew a new picture as it stored this version: the row shows it
+            // from now on, rather than the one fetched when the list was first opened.
+            Minecraft.getInstance().execute(() -> {
+                if (!this.closed) {
+                    requestSkinThumbnail(skin);
+                }
+            });
         });
     }
 
@@ -1480,6 +1488,10 @@ public class SkinCreatorScreen extends Screen {
 
     /** Opens the saved skins, and asks the server for them each time it is opened. */
     private void openSkins() {
+        // An edit still waiting on its debounce is written first, so the row of the
+        // project in progress shows it rather than the version before; its picture
+        // follows once the server has stored it.
+        persistNow();
         open(new SkinsWindow(this::library, this::currentId, this.skinThumbnails,
                 new SkinsWindow.Actions(this::openSavedSkin, this::openRename, this::duplicateSkin,
                         this::askDeleteSavedSkin, this::startOver)));
@@ -1532,23 +1544,30 @@ public class SkinCreatorScreen extends Screen {
     /**
      * The front view of one saved skin.
      *
-     * <p>Asked for once per entry and per screen: the server composed that picture when
+     * <p>Asked for once per version of an entry: the server composed that picture when
      * it stored the skin, so this costs a request and no composition — which is what
-     * lets a dozen saved skins be shown without rebuilding a dozen stacks.
+     * lets a dozen saved skins be shown without rebuilding a dozen stacks. An entry
+     * written again since, which the project in progress is on every edit, is asked for
+     * again.
      */
     private void requestSkinThumbnail(SavedSkin skin) {
-        if (this.skinThumbnails.has(skin.id())) {
+        if (this.skinThumbnails.asked(skin.id(), skin.at())) {
             return;
         }
         McscApi.shared().skinThumbnail(skin.id(), SkinThumbnails.SCALE).whenComplete((png, failure) ->
                 Minecraft.getInstance().execute(() -> {
                     if (this.closed || failure != null) {
                         if (failure != null) {
-                            // A row without its picture is still a row one can open.
+                            // A row without its picture is still a row one can open, and
+                            // the next opening of the list asks again.
+                            this.skinThumbnails.unask(skin.id(), skin.at());
                             MCSkinCreatorClient.LOGGER.warn("Reading the picture of {} failed",
                                     skin.id(), failure);
                         }
                         return;
+                    }
+                    if (!this.skinThumbnails.wanted(skin.id(), skin.at())) {
+                        return;   // a newer version was asked for meanwhile
                     }
                     try {
                         this.skinThumbnails.put(skin.id(), png);
