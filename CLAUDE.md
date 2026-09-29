@@ -120,6 +120,16 @@ force Java 25 on every target.
 Gradle itself runs on Java 21 and downloads the Java 25 toolchain for the 26.2
 target on its own.
 
+## No local builds
+
+**Do not build, test or run anything locally while developing** — no `./gradlew build`,
+`test`, `buildAndCollect` or `runClient`, on any target. GitHub Actions does that and
+its result is trusted. To check a change, push the branch, open the pull request, let
+CI run and read whether it passes. Do not reproduce CI on your own machine.
+
+The commands below are reference for a human's machine, not something to run
+during development.
+
 ## Commands
 
 All of these were run and verified in this repository.
@@ -221,8 +231,8 @@ the entity route".
 2. Read the existing conditionals around the code you are touching.
 3. Prefer a shared implementation.
 4. Add version-specific code only for a real incompatibility.
-5. **Build every target** (`./gradlew build`). A change is not done because the
-   active target compiles.
+5. **Every target must build, and CI is what checks it** — not you locally, see
+   **No local builds**. A change is not done because one target compiles.
 
 ## Mixins
 
@@ -322,9 +332,9 @@ follow that one number.
 3. Extend `requiredJava` in `build.gradle.kts` if that version needs a different
    Java level.
 4. Add the version to the CI matrix in `.github/workflows/build.yml`.
-5. `./gradlew :<version>:build`, then fix what the compiler reports, keeping shared
-   code shared.
-6. `./gradlew build` — every target, not just the new one.
+5. Open the pull request and fix what CI's compiler reports for the new target,
+   keeping shared code shared.
+6. Every target's CI job must be green, not just the new one.
 
 ## CI
 
