@@ -22,7 +22,7 @@ import com.google.gson.JsonObject;
 
 import fr.clixmods.mcsc.mod.catalog.CatalogModel;
 import fr.clixmods.mcsc.mod.catalog.CatalogText;
-import fr.clixmods.mcsc.mod.remote.SavedSkin;
+import fr.clixmods.mcsc.mod.project.SavedSkin;
 import fr.clixmods.mcsc.mod.skin.SkinThumbnails;
 import fr.clixmods.mcsc.mod.ui.EditorScale;
 import fr.clixmods.mcsc.mod.ui.window.AboutWindow;

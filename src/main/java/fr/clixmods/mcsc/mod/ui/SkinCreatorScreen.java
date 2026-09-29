@@ -8,6 +8,7 @@
 package fr.clixmods.mcsc.mod.ui;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -37,11 +38,12 @@ import fr.clixmods.mcsc.mod.catalog.CatalogWork;
 import fr.clixmods.mcsc.mod.project.CurrentProject;
 import fr.clixmods.mcsc.mod.project.History;
 import fr.clixmods.mcsc.mod.project.Layer;
+import fr.clixmods.mcsc.mod.project.SavedSkin;
+import fr.clixmods.mcsc.mod.project.SkinLibrary;
 import fr.clixmods.mcsc.mod.project.SkinProject;
 import fr.clixmods.mcsc.mod.remote.ApiException;
 import fr.clixmods.mcsc.mod.remote.ItemCredit;
 import fr.clixmods.mcsc.mod.remote.McscApi;
-import fr.clixmods.mcsc.mod.remote.SavedSkin;
 import fr.clixmods.mcsc.mod.remote.SearchResults;
 import fr.clixmods.mcsc.mod.scene.GameCamera;
 import fr.clixmods.mcsc.mod.skin.AppliedSkin;
@@ -72,6 +74,7 @@ import fr.clixmods.mcsc.mod.ui.window.ModelsWindow;
 import fr.clixmods.mcsc.mod.ui.window.NameWindow;
 import fr.clixmods.mcsc.mod.ui.window.SkinsWindow;
 import fr.clixmods.mcsc.mod.ui.window.TextWindow;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.User;
 //? if >=26.1 {
@@ -163,7 +166,7 @@ public class SkinCreatorScreen extends Screen {
     /** One sheet of thumbnails per category, as its atlas arrives. */
     private final Map<String, CategorySprites> sprites = new HashMap<>();
     private final Set<String> requestedAtlases = new HashSet<>();
-    /** The front views of the saved skins, which the server composed as it stored them. */
+    /** The front views of the saved skins, kept beside them in the library folder. */
     private final SkinThumbnails skinThumbnails = new SkinThumbnails();
     /** Provenance sheets already fetched, by {@code category/element}. */
     private final Map<String, ItemCredit> credits = new HashMap<>();
@@ -259,6 +262,9 @@ public class SkinCreatorScreen extends Screen {
 
     /** The library of saved skins, as the window showing it reads it. */
     private SkinsWindow.Library skins = SkinsWindow.Library.LOADING;
+    /** Where they are kept: a folder on this machine, and nowhere else. */
+    private final SkinLibrary skinLibrary = new SkinLibrary(
+            FabricLoader.getInstance().getConfigDir().resolve("mcskincreator").resolve("skins"));
 
     /** The query waiting to go to the server, and since when. */
     private String query = "";
@@ -1461,16 +1467,19 @@ public class SkinCreatorScreen extends Screen {
         }
     }
 
+    /** Writes an entry into the library folder, off the render thread. */
     private void upload(SavedSkin skin) {
-        McscApi.shared().save(skin).whenComplete((written, failure) -> {
+        CompletableFuture.runAsync(() -> unchecked(() -> {
+            this.skinLibrary.save(skin);
+            return null;
+        })).whenComplete((written, failure) -> {
             if (failure != null) {
-                // The file has it, and the next write sends it again.
+                // The config file has it, and the next write tries again.
                 MCSkinCreatorClient.LOGGER.warn("Keeping the project in progress in the library failed",
                         failure);
                 return;
             }
-            // The server drew a new picture as it stored this version: the row shows it
-            // from now on, rather than the one fetched when the list was first opened.
+            // Its picture is of the version before: drawn again for this one.
             Minecraft.getInstance().execute(() -> {
                 if (!this.closed) {
                     requestSkinThumbnail(skin);
@@ -1486,11 +1495,11 @@ public class SkinCreatorScreen extends Screen {
 
     // ------------------------------------------------------------------ the library
 
-    /** Opens the saved skins, and asks the server for them each time it is opened. */
+    /** Opens the saved skins, reading the library folder each time it is opened. */
     private void openSkins() {
         // An edit still waiting on its debounce is written first, so the row of the
         // project in progress shows it rather than the version before; its picture
-        // follows once the server has stored it.
+        // follows once it has been drawn again.
         persistNow();
         open(new SkinsWindow(this::library, this::currentId, this.skinThumbnails,
                 new SkinsWindow.Actions(this::openSavedSkin, this::openRename, this::duplicateSkin,
@@ -1500,8 +1509,7 @@ public class SkinCreatorScreen extends Screen {
 
     /**
      * The library as the window shows it: the project in progress first, as the editor
-     * holds it — even before the server has stored it, offline or with a write still on
-     * its way — then the others, most recently changed first.
+     * holds it — even with a write still on its way — then the others, most recently changed first.
      */
     private SkinsWindow.Library library() {
         SkinsWindow.Library state = this.skins;
@@ -1518,15 +1526,15 @@ public class SkinCreatorScreen extends Screen {
 
     private void loadSkins() {
         this.skins = new SkinsWindow.Library(this.skins.skins(), true, Component.empty());
-        McscApi.shared().skins().whenComplete((loaded, failure) ->
-                Minecraft.getInstance().execute(() -> {
+        CompletableFuture.supplyAsync(() -> unchecked(this.skinLibrary::list))
+                .whenComplete((loaded, failure) -> Minecraft.getInstance().execute(() -> {
                     if (this.closed) {
                         return;
                     }
                     if (failure != null) {
-                        MCSkinCreatorClient.LOGGER.warn("Reading the saved skins from {} failed",
-                                McscApi.shared().baseUrl(), failure);
-                        this.skins = new SkinsWindow.Library(List.of(), false, skinsFailure(failure));
+                        MCSkinCreatorClient.LOGGER.warn("Reading the saved skins failed", failure);
+                        this.skins = new SkinsWindow.Library(List.of(), false,
+                                Component.translatable("skins.mcskincreator.read_failed"));
                         relayout();
                         return;
                     }
@@ -1534,7 +1542,7 @@ public class SkinCreatorScreen extends Screen {
                     loaded.forEach(this::requestSkinThumbnail);
                     if (this.current != null && !this.project.isEmpty()
                             && loaded.stream().noneMatch(skin -> skin.id().equals(this.current.id()))) {
-                        // Written while the server could not be reached: it goes now.
+                        // Only in the config file so far: it goes into the library now.
                         upload(this.current);
                     }
                     relayout();
@@ -1544,18 +1552,29 @@ public class SkinCreatorScreen extends Screen {
     /**
      * The front view of one saved skin.
      *
-     * <p>Asked for once per version of an entry: the server composed that picture when
-     * it stored the skin, so this costs a request and no composition — which is what
-     * lets a dozen saved skins be shown without rebuilding a dozen stacks. An entry
-     * written again since, which the project in progress is on every edit, is asked for
-     * again.
+     * <p>Asked for once per version of an entry. The picture is kept beside the skin on
+     * disk, so it is drawn once per version: that one render of the project goes through
+     * the API as the editor's own preview does, and the server keeps nothing of it.
      */
     private void requestSkinThumbnail(SavedSkin skin) {
         if (this.skinThumbnails.asked(skin.id(), skin.at())) {
             return;
         }
-        McscApi.shared().skinThumbnail(skin.id(), SkinThumbnails.SCALE).whenComplete((png, failure) ->
-                Minecraft.getInstance().execute(() -> {
+        CompletableFuture.supplyAsync(() -> unchecked(() -> this.skinLibrary.picture(skin.id())))
+                .thenCompose(kept -> kept.isPresent()
+                        ? CompletableFuture.completedFuture(kept.get())
+                        : McscApi.shared().frontView(skin.data().toString(), SkinThumbnails.SCALE)
+                                .thenApply(png -> {
+                                    try {
+                                        this.skinLibrary.savePicture(skin.id(), png);
+                                    } catch (IOException cause) {
+                                        // Drawn again next time; not worth failing the row.
+                                        MCSkinCreatorClient.LOGGER.warn("Could not keep the picture of {}",
+                                                skin.id(), cause);
+                                    }
+                                    return png;
+                                }))
+                .whenComplete((png, failure) -> Minecraft.getInstance().execute(() -> {
                     if (this.closed || failure != null) {
                         if (failure != null) {
                             // A row without its picture is still a row one can open, and
@@ -1578,15 +1597,11 @@ public class SkinCreatorScreen extends Screen {
     }
 
     /**
-     * Opens a saved skin: it becomes the project in progress, its layers the stack, and
-     * its texture goes on the model at once.
+     * Opens a saved skin: it becomes the project in progress and its layers the stack,
+     * and the sheet is composed as it is after any other change.
      *
      * <p>The project being left is written down first and stays in the library, so
      * opening another skin never costs the one being edited.
-     *
-     * <p>The texture is the server's own, composed when the skin was stored, so the
-     * model is right before the composition of the reopened stack comes back — the same
-     * bargain the library makes when an element is picked.
      */
     private void openSavedSkin(SavedSkin skin) {
         if (this.current != null && skin.id().equals(this.current.id())) {
@@ -1602,14 +1617,6 @@ public class SkinCreatorScreen extends Screen {
         resume(skin);
         closeWindow();
 
-        McscApi.shared().skinTexture(skin.id()).whenComplete((texture, failure) ->
-                Minecraft.getInstance().execute(() -> {
-                    if (this.closed || failure != null || this.project.isEmpty()) {
-                        return;
-                    }
-                    this.composed = texture;
-                    show(texture);
-                }));
     }
 
     /**
@@ -1635,20 +1642,22 @@ public class SkinCreatorScreen extends Screen {
             // There is always a project in progress; the window offers no cross for it.
             return;
         }
-        McscApi.shared().delete(skin.id()).whenComplete((ignored, failure) ->
-                Minecraft.getInstance().execute(() -> {
-                    if (this.closed) {
-                        return;
-                    }
-                    if (failure != null) {
-                        MCSkinCreatorClient.LOGGER.warn("Deleting {} failed", skin.id(), failure);
-                        this.toasts.failed("skins", Component.translatable("toast.mcskincreator.skin_delete_failed"));
-                        return;
-                    }
-                    this.toasts.succeeded("skins");
-                    this.skinThumbnails.forget(skin.id());
-                    loadSkins();
-                }));
+        CompletableFuture.runAsync(() -> unchecked(() -> {
+            this.skinLibrary.delete(skin.id());
+            return null;
+        })).whenComplete((ignored, failure) -> Minecraft.getInstance().execute(() -> {
+            if (this.closed) {
+                return;
+            }
+            if (failure != null) {
+                MCSkinCreatorClient.LOGGER.warn("Deleting {} failed", skin.id(), failure);
+                this.toasts.failed("skins", Component.translatable("toast.mcskincreator.skin_delete_failed"));
+                return;
+            }
+            this.toasts.succeeded("skins");
+            this.skinThumbnails.forget(skin.id());
+            loadSkins();
+        }));
     }
 
     /**
@@ -1716,31 +1725,37 @@ public class SkinCreatorScreen extends Screen {
 
     /** Writes an entry to the library, then reads the library again. */
     private void store(SavedSkin skin, Component done) {
-        McscApi.shared().save(skin).whenComplete((written, failure) ->
-                Minecraft.getInstance().execute(() -> {
-                    if (this.closed) {
-                        return;
-                    }
-                    if (failure != null) {
-                        MCSkinCreatorClient.LOGGER.warn("Saving \"{}\" failed", skin.name(), failure);
-                        this.toasts.failed("skins", Component.translatable("toast.mcskincreator.skin_save_failed"));
-                        return;
-                    }
-                    this.toasts.succeeded("skins");
-                    if (done != null) {
-                        this.toasts.ok(done);
-                    }
-                    loadSkins();
-                }));
+        CompletableFuture.runAsync(() -> unchecked(() -> {
+            this.skinLibrary.save(skin);
+            return null;
+        })).whenComplete((ignored, failure) -> Minecraft.getInstance().execute(() -> {
+            if (this.closed) {
+                return;
+            }
+            if (failure != null) {
+                MCSkinCreatorClient.LOGGER.warn("Saving \"{}\" failed", skin.name(), failure);
+                this.toasts.failed("skins", Component.translatable("toast.mcskincreator.skin_save_failed"));
+                return;
+            }
+            this.toasts.succeeded("skins");
+            if (done != null) {
+                this.toasts.ok(done);
+            }
+            loadSkins();
+        }));
     }
 
-    /** What to tell the player when the library does not arrive, for the same three cases. */
-    private static Component skinsFailure(Throwable failure) {
-        ApiException refusal = refusal(failure);
-        if (refusal != null) {
-            return Component.translatable("skins.mcskincreator.http_error", refusal.status());
+    private interface IoSupplier<T> {
+        T get() throws IOException;
+    }
+
+    /** Carries a checked failure through a {@link CompletableFuture} stage. */
+    private static <T> T unchecked(IoSupplier<T> supplier) {
+        try {
+            return supplier.get();
+        } catch (IOException cause) {
+            throw new UncheckedIOException(cause);
         }
-        return Component.translatable("skins.mcskincreator.unreachable", McscApi.shared().baseUrl());
     }
 
     private void openImport() {

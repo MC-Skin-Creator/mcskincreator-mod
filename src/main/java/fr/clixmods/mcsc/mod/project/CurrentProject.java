@@ -21,7 +21,6 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 
 import fr.clixmods.mcsc.mod.MCSkinCreatorClient;
-import fr.clixmods.mcsc.mod.remote.SavedSkin;
 import net.fabricmc.loader.api.FabricLoader;
 
 /**
@@ -29,9 +28,9 @@ import net.fabricmc.loader.api.FabricLoader;
  *
  * <p>There is always one. Whatever is on the stack is it, and closing the editor does
  * not end it: the next opening puts it back exactly as it was left. It is kept in two
- * places for two different reasons. A file of the config folder is what brings it
- * back, at once and with no network. The player's library on the server is where it
- * can be <em>seen</em> — it is an entry of "My skins" like any other, under its own
+ * places on this machine for two different reasons. A file of the config folder is what
+ * brings it back at once. The player's library, {@link SkinLibrary}, is where it can be
+ * <em>seen</em> — it is an entry of "My skins" like any other, under its own
  * identifier, marked as the one in progress.
  *
  * <p>Beside it, the file remembers which skin the account was wearing the last time
