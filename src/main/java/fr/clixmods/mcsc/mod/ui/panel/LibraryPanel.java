@@ -33,7 +33,6 @@ import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
 import fr.clixmods.mcsc.mod.ui.Paint;
 import fr.clixmods.mcsc.mod.ui.ScrollPane;
-import fr.clixmods.mcsc.mod.ui.widget.CategoryTab;
 import fr.clixmods.mcsc.mod.ui.widget.Dropdown;
 import fr.clixmods.mcsc.mod.ui.widget.ItemTile;
 import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
@@ -82,7 +81,7 @@ public class LibraryPanel extends Panel {
 
     private final ScrollPane scroll = new ScrollPane();
     private final List<PixelButton> regionTabs = new ArrayList<>();
-    private final List<CategoryTab> categoryTabs = new ArrayList<>();
+    private Dropdown<CatalogCategory> categoryChooser;
     private final List<PlacedTile> tiles = new ArrayList<>();
     private final List<GroupHeader> headers = new ArrayList<>();
     private final List<PixelButton> footerLinks = new ArrayList<>();
@@ -301,7 +300,7 @@ public class LibraryPanel extends Panel {
         clearChildren();
         this.regionTabs.clear();
         this.regionChooser = null;
-        this.categoryTabs.clear();
+        this.categoryChooser = null;
         this.tiles.clear();
         this.headers.clear();
         this.footerLinks.clear();
@@ -311,14 +310,15 @@ public class LibraryPanel extends Panel {
             toggleFolded();
             this.relayout.run();
         });
+        this.foldButton.withGlyph(foldGlyph());
         this.foldButton.withTooltip(Component.translatable(foldTooltipKey()));
+        this.foldButton.setBounds(0, 0, Metrics.HEADER_BUTTON, Metrics.HEADER_BUTTON);
         this.foldButton.fit(canvas);
 
         if (folded()) {
             // Folded, the header carries the unfold button and nothing else.
             this.foldButton.setBounds(this.x + (this.width - this.foldButton.width()) / 2,
-                    this.y + (header - Metrics.HEADER_BUTTON) / 2,
-                    this.foldButton.width(), Metrics.HEADER_BUTTON);
+                    headerButtonY(), this.foldButton.width(), Metrics.HEADER_BUTTON);
             addChild(this.foldButton);
             return;
         }
@@ -402,28 +402,50 @@ public class LibraryPanel extends Panel {
         return this.regionsBottom + Metrics.PAD_TIGHT;
     }
 
+    /**
+     * The categories of the chosen region, as a dropdown under it.
+     *
+     * <p>They were a strip of icon tabs: 38 pixel squares holding a picture of a mouth,
+     * of a pair of eyes, of some hair. A picture of a mouth at that size is a smudge, the
+     * strip wrapped onto two and three rows as a region grew, and every category the
+     * catalogue adds made it worse. A name reads at any size, a list of names is one
+     * control however long it gets, and the count belongs beside each name rather than
+     * on a heading over the grid.
+     */
     private int layoutCategories(int left, int right, int top) {
         if (showingOutfits()) {
-            // One shelf, so no row to choose from: a single tab that cannot be
+            // One shelf, so no list to choose from: a single entry that cannot be
             // unchosen is a control that does nothing.
             return top;
         }
-        int cursorX = left;
-        int cursorY = top;
-        for (CatalogCategory candidate : visibleCategories()) {
-            CategoryTab tab = new CategoryTab(candidate, this.naming.apply(candidate.name()),
-                    () -> searching() ? null : this.category,
-                    () -> this.sprites.apply(candidate.id()),
-                    this::pickCategory);
-            if (cursorX + Metrics.CATEGORY_TAB > right && cursorX > left) {
-                cursorX = left;
-                cursorY += Metrics.CATEGORY_TAB + Metrics.SEGMENT_GAP;
-            }
-            tab.setBounds(cursorX, cursorY, Metrics.CATEGORY_TAB, Metrics.CATEGORY_TAB);
-            this.categoryTabs.add(addChild(tab));
-            cursorX += Metrics.CATEGORY_TAB + Metrics.SEGMENT_GAP;
+        List<CatalogCategory> options = new ArrayList<>();
+        // Null is "all of them", which is what the panel shows with no category chosen.
+        options.add(null);
+        options.addAll(visibleCategories());
+        if (options.size() <= 2) {
+            // One category in the region: the region chooser already said which.
+            return top;
         }
-        return cursorY + Metrics.CATEGORY_TAB + Metrics.PAD_TIGHT;
+        this.categoryChooser = new Dropdown<>(options, this::categoryLabel,
+                () -> searching() ? null : this.category, this::pickCategory,
+                candidate -> true);
+        this.categoryChooser.setBounds(left, top, right - left, Metrics.BUTTON_HEIGHT_COMPACT);
+        this.categoryChooser.inScreen(this.y + this.height);
+        addChild(this.categoryChooser);
+        return top + Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD_TIGHT;
+    }
+
+    /** A category and how many it holds, which is what the heading used to say. */
+    private Component categoryLabel(CatalogCategory category) {
+        if (category == null) {
+            int total = 0;
+            for (CatalogCategory candidate : visibleCategories()) {
+                total += candidate.items().size();
+            }
+            return Component.translatable("library.mcskincreator.all_categories", total);
+        }
+        return Component.literal(this.naming.apply(category.name()).getString()
+                + " (" + category.items().size() + ")");
     }
 
     /**
@@ -446,7 +468,7 @@ public class LibraryPanel extends Panel {
                 : 2;
         int tileWidth = Math.max(Metrics.CATEGORY_TAB,
                 (usable - Metrics.GRID_GAP * (columns - 1)) / columns);
-        int headerHeight = canvas.lineHeight() + Metrics.PAD_TIGHT * 2;
+        int headerHeight = canvas.smallLineHeight() + Metrics.PAD_TIGHT * 2;
 
         // Browsing shows one category, already named by its tab and the region
         // chooser, so a title over it is only a band of lost height. A search mixes
@@ -462,11 +484,11 @@ public class LibraryPanel extends Panel {
                 cursorY += headerHeight;
             }
 
-            // One height for every tile, whatever the crop, because that is what makes
+            // A square, and the same square for every tile, because that is what makes
             // a grid a grid: the site letterboxes each thumbnail into a fixed box, and
             // sizing each tile to its own crop instead gave a column of ragged rows with
             // full-body tiles twice as tall as head ones.
-            int tileHeight = ItemTile.heightFor(canvas, Metrics.THUMB_RENDER);
+            int tileHeight = ItemTile.heightFor(tileWidth);
 
             boolean outfits = OUTFIT_SHEET.equals(batchCategory.id());
             int column = 0;
@@ -547,7 +569,10 @@ public class LibraryPanel extends Panel {
 
     private void layoutFooter(Canvas canvas, int left, int right, int top) {
         int cursorX = left;
-        for (String link : List.of("about", "credits", "beta", "legal")) {
+        // Not "about": the mark at the top of the screen opens it, and a second door to
+        // the same room is a door nobody needs. Not "beta" either — the badge beside that
+        // mark already says so, and said it twice.
+        for (String link : List.of("credits")) {
             PixelButton button = new PixelButton(
                     Component.translatable("footer.mcskincreator." + link),
                     PixelButton.Style.GHOST, () -> this.onFooterLink.accept(link));
@@ -633,8 +658,8 @@ public class LibraryPanel extends Panel {
             // it.
             Surface.rule(canvas, contentLeft(), this.regionsBottom, contentWidth());
         }
-        for (CategoryTab tab : this.categoryTabs) {
-            tab.draw(paint);
+        if (this.categoryChooser != null) {
+            this.categoryChooser.draw(paint);
         }
         this.search.draw(paint);
 
@@ -692,18 +717,18 @@ public class LibraryPanel extends Panel {
      * rest of the row — the shape the game gives its own section headings.
      */
     private void drawGroupHeader(Canvas canvas, GroupHeader header, int left, int y) {
-        canvas.text(header.label(), left, y, Palette.INK);
+        // Small, like everything inside a list: a heading over a grid of tiles is a
+        // label on the grid, not a title over the column. No count beside it — the
+        // chooser above carries that, once per category, where it is read before the
+        // grid is scrolled rather than after.
+        canvas.textSmall(header.label(), left, y, Palette.INK);
 
-        String count = Integer.toString(header.count());
-        int countWidth = canvas.textWidth(count);
-        int nameWidth = canvas.textWidth(header.label());
+        int nameWidth = canvas.smallTextWidth(header.label());
         int ruleX = left + nameWidth + Metrics.PAD_TIGHT;
         int right = contentRight() - ScrollPane.BAR_WIDTH;
-        int ruleWidth = right - countWidth - Metrics.PAD_TIGHT - ruleX;
-        if (ruleWidth > 0) {
-            Surface.rule(canvas, ruleX, y + canvas.lineHeight() / 2, ruleWidth);
+        if (right - ruleX > 0) {
+            Surface.rule(canvas, ruleX, y + canvas.smallLineHeight() / 2, right - ruleX);
         }
-        canvas.textFlat(Component.literal(count), right - countWidth, y, Palette.INK_MUTED);
     }
 
     /**
@@ -722,7 +747,9 @@ public class LibraryPanel extends Panel {
         if (this.regionChooser != null) {
             targets.add(this.regionChooser);
         }
-        targets.addAll(this.categoryTabs);
+        if (this.categoryChooser != null) {
+            targets.add(this.categoryChooser);
+        }
         targets.add(this.search);
         targets.addAll(this.footerLinks);
         placeTiles();
@@ -736,11 +763,7 @@ public class LibraryPanel extends Panel {
 
     @Override
     public boolean scroll(double mouseX, double mouseY, double amount) {
-        // The horizontal test is not redundant: without it this list took the wheel
-        // from anything at the same height as its body — which is the whole middle
-        // column, so the scene could never be zoomed.
-        if (folded() || !contains(mouseX, mouseY)
-                || mouseY < this.bodyTop || mouseY > this.bodyTop + this.bodyHeight) {
+        if (!inBody(mouseX, mouseY, this.bodyTop, this.bodyHeight)) {
             return false;
         }
         return this.scroll.scroll(amount);
