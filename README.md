@@ -56,7 +56,7 @@ What is in:
 - CI building every supported version on each push and pull request
 
 What is not in yet: the pixel drawing tools, per-element colours, importing a
-texture, the MC Skin Creator account the saved skins will hang off, and the local
+texture, the local
 fitting room — trying a skin on in your own client without touching the account.
 They all live in the
 [issues](https://github.com/MC-Skin-Creator/mcskincreator-mod/issues).
@@ -82,9 +82,9 @@ is worth saying plainly where it goes.
 A dedicated `SECURITY.md` is [issue #13](https://github.com/MC-Skin-Creator/mcskincreator-mod/issues/13).
 
 The editor reads the MC Skin Creator API at `https://mcskincreator.app/api/v1`, and
-uses every route of that contract: the catalogue and its atlases, the search, an
-element's provenance, the composed texture and front view, and the five routes of
-the saved-skin library. Nothing outside `/api/v1` is called — the rest of the site's
+uses these routes of that contract: the catalogue and its atlases, the search, an
+element's provenance, and the composed texture and front view. It only ever reads or
+renders: nothing you make is stored on the server. Nothing outside `/api/v1` is called — the rest of the site's
 API travels with its own front end and promises nothing to a mod. Point the mod at
 another deployment - a local back-end, say - with a system property or an
 environment variable, whichever is easier to set where you launch the game:
@@ -98,10 +98,11 @@ Neither is needed to play. When the library does not arrive, the screen says whi
 address the mod tried and what came back, so a wrong address reads differently from
 a network that is down.
 
-The saved skins have no account behind them yet. The mod draws a client identifier
-once, keeps it in `config/mcskincreator-client.txt`, and sends it with every call to
-the library — exactly as the site does in the browser. Deleting that file does not
-delete the skins on the server, but it does lose the way back to them.
+Saved skins never leave your computer. Each one is a file in
+`config/mcskincreator/skins/` (its project, plus the front-view picture drawn for the
+list), there is no account and no identifier, and deleting a skin in the game deletes
+its files. Drawing a picture for the list renders the project through the API, as the
+editor's own preview does, and the server does not keep it.
 
 ## Install
 

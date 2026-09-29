@@ -23,8 +23,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.zip.GZIPInputStream;
 
-import com.google.gson.JsonParser;
-
 import fr.clixmods.mcsc.mod.MCSkinCreatorClient;
 import fr.clixmods.mcsc.mod.catalog.Catalog;
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
@@ -40,8 +38,9 @@ import fr.clixmods.mcsc.mod.catalog.CatalogParser;
  * from the render thread would freeze the game for as long as the server takes, and
  * that is the first thing that goes wrong in a mod that talks to an API.
  *
- * <p>Every route of the {@code /api/v1} contract is here, and nothing that is not in
- * it: the editor's autosave, the PNG import, the share image and the random draws
+ * <p>Only routes of the {@code /api/v1} contract are here, and only the ones that
+ * read or render: nothing the player makes is stored on the server, the saved skins
+ * live on this machine. Nothing that is not in the contract either: the editor's autosave, the PNG import, the share image and the random draws
  * answer under {@code /api} only, which follows the site's jar and promises nothing to
  * a mod installed months ago. What the contract holds is described in
  * {@code site/API.md} of the site's repository.
@@ -68,9 +67,6 @@ public final class McscApi implements AutoCloseable {
     /** What the server accepts as a thumbnail magnification, and clamps to anyway. */
     public static final int MIN_SCALE = 1;
     public static final int MAX_SCALE = 16;
-
-    /** The header every storage call carries: without it the server answers 400. */
-    static final String CLIENT_HEADER = "X-Client-Id";
 
     private static final String JSON = "application/json";
     private static final String IMAGE = "application/octet-stream, image/png";
@@ -206,63 +202,6 @@ public final class McscApi implements AutoCloseable {
         return post("/thumbnails?x=" + clampScale(scale), projectJson);
     }
 
-    // ------------------------------------------------------------------ the library
-
-    /** {@code GET /skins}: the player's saved skins, the last created first. */
-    public CompletableFuture<List<SavedSkin>> skins() {
-        HttpRequest request = request("/skins").header("Accept", JSON).header(CLIENT_HEADER, ClientId.get())
-                .GET().build();
-        return send(request, "/skins")
-                .thenApply(bytes -> unchecked(() -> SavedSkin.parseList(text(bytes))));
-    }
-
-    /**
-     * {@code PUT /skins/{id}}: creates the entry or replaces it where it stands.
-     *
-     * <p>The server validates the project and composes its texture as it writes, so a
-     * refusal here is a refusal of the project itself — which is the one place a
-     * mistake in what the mod writes shows up as a status rather than as a wrong
-     * picture.
-     */
-    public CompletableFuture<SavedSkin> save(SavedSkin skin) {
-        String path = "/skins/" + segment(skin.id());
-        HttpRequest request = request(path)
-                .header("Content-Type", JSON)
-                .header("Accept", JSON)
-                .header(CLIENT_HEADER, ClientId.get())
-                .PUT(HttpRequest.BodyPublishers.ofString(skin.body().toString(), StandardCharsets.UTF_8))
-                .build();
-        return send(request, path).thenApply(bytes -> {
-            SavedSkin written = SavedSkin.of(JsonParser.parseString(text(bytes)));
-            // The answer is the entry as it was stored; what was sent stands in only if
-            // the server answered with something this version cannot read.
-            return written == null ? skin : written;
-        });
-    }
-
-    /** {@code DELETE /skins/{id}} */
-    public CompletableFuture<Void> delete(String id) {
-        String path = "/skins/" + segment(id);
-        HttpRequest request = request(path).header(CLIENT_HEADER, ClientId.get()).DELETE().build();
-        return send(request, path).thenApply(ignored -> null);
-    }
-
-    /** {@code GET /skins/{id}/texture.png}: the sheet the server composed as it wrote. */
-    public CompletableFuture<byte[]> skinTexture(String id) {
-        return getSkinImage("/skins/" + segment(id) + "/texture.png");
-    }
-
-    /** {@code GET /skins/{id}/thumbnail.png}: that skin, seen from the front. */
-    public CompletableFuture<byte[]> skinThumbnail(String id, int scale) {
-        return getSkinImage("/skins/" + segment(id) + "/thumbnail.png?x=" + clampScale(scale));
-    }
-
-    private CompletableFuture<byte[]> getSkinImage(String path) {
-        HttpRequest request = request(path).header("Accept", IMAGE)
-                .header(CLIENT_HEADER, ClientId.get()).GET().build();
-        return send(request, path);
-    }
-
     // ------------------------------------------------------------------ plumbing
 
     private CompletableFuture<byte[]> post(String path, String body) {
@@ -288,12 +227,11 @@ public final class McscApi implements AutoCloseable {
     }
 
     /**
-     * A value of the player's going into a path.
+     * A value going into a path.
      *
-     * <p>Catalogue identifiers are lowercase words and dashes and a skin id is drawn
-     * by the mod, so nothing here has ever needed escaping - which is exactly why it
-     * is done anyway, before the first identifier that does arrives as a broken
-     * address or as something worse.
+     * <p>Catalogue identifiers are lowercase words and dashes, so nothing here has ever
+     * needed escaping - which is exactly why it is done anyway, before the first
+     * identifier that does arrives as a broken address or as something worse.
      */
     static String segment(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");

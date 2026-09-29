@@ -447,9 +447,9 @@ are added there, never removed or renamed, and a client compiled against it keep
 working. A mod is installed on somebody's machine and is a version — or ten — behind,
 so it is the second one it calls, and only the second one.
 
-That decides what the mod can be built on. The eleven routes of the contract are
-all used: the catalogue and its atlases, the search, an element's provenance, the
-composed texture and the front view, and the five routes of the saved-skin library.
+That decides what the mod can be built on. Six routes of the contract are
+used: the catalogue and its atlases, the search, an element's provenance, the
+composed texture and the front view. The five saved-skin routes are not: see below.
 The routes outside it are left alone even where they would be convenient — the
 editor's autosave, the PNG import, the share image, the random draws, and the
 `POST /credits` that would group the works of a whole stack in one call. The mod
@@ -457,8 +457,7 @@ groups them itself, out of the catalogue it already holds, rather than lean on a
 route that may move.
 
 **The project document is the site's, to the letter.** It is one shape everywhere:
-composed by `POST /textures`, stored by `PUT /skins/{id}`, and read back from
-storage. Its rules are the server's validator, and three of them are silent when
+composed by `POST /textures` and written to the local library. Its rules are the server's validator, and three of them are silent when
 broken — the model is a `slim` boolean rather than a `model` string, a layer names
 its element with `cat` and `preset`, and opacity and the adjustments are factors
 rather than the whole percentages this mod's sliders work in. Writing them any other
@@ -466,10 +465,9 @@ way is refused with a 400 naming the path, which is how the first version of thi
 was found: nothing ever composed. `ProjectJson` is therefore the only place that
 writes or reads a project, and it has a test per rule.
 
-**The saved skins are per installation, not per account.** There is no account yet.
-The storage routes ask for an `X-Client-Id` header, a UUID, and refuse the call
-outright without one; the site draws it in the browser, and the mod draws it once and
-keeps it in `config/mcskincreator-client.txt`. That file is the way back to the
-library rather than the library itself — losing it leaves the skins on the server and
-loses the door to them. The day accounts exist, one will gather several of these ids
-without this side of the contract changing (issue #9).
+**Th**The saved skins are local files, and only that.** The mod stores nothing on the
+server: no `PUT /skins`, no `X-Client-Id`, no identifier drawn per installation. A skin
+is `config/mcskincreator/skins/<id>.json` and its front view `<id>.png` beside it,
+drawn once through `POST /thumbnails` (a render, not a store). Skins saved on the
+server by earlier builds are not migrated; `config/mcskincreator-client.txt` is no
+longer read and can be deleted.

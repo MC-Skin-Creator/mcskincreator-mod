@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import fr.clixmods.mcsc.mod.remote.SavedSkin;
+import fr.clixmods.mcsc.mod.project.SavedSkin;
 import fr.clixmods.mcsc.mod.skin.SkinThumbnails;
 import fr.clixmods.mcsc.mod.style.Metrics;
 import fr.clixmods.mcsc.mod.style.Palette;
@@ -28,11 +28,10 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
 /**
- * The player's library: the skins kept on the server, and what can be done with them.
+ * The player's library: the skins kept on this machine, and what can be done with them.
  *
- * <p>The list is the server's, in the server's order — last created first — and the
- * picture on each row is the one the server composed when it stored that skin. Nothing
- * is recomposed to draw this window.
+ * <p>The list is the folder's, last saved first, and the picture on each row is the one
+ * kept beside the skin. Nothing is recomposed to draw this window.
  *
  * <p>A row is opened by clicking it and removed by the cross on its right, which is
  * drawn at rest rather than revealed on hover: what can be pressed is visible, and a
