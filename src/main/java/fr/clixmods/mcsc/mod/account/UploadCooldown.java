@@ -10,12 +10,11 @@ package fr.clixmods.mcsc.mod.account;
 import java.time.Duration;
 
 /**
- * How long the apply button stays locked after the mod has spoken to Mojang.
+ * How long the mod holds back the next upload after it has spoken to Mojang.
  *
- * <p>Mojang limits how often a profile's skin may change, and a button that can be
- * hammered is a button that will be: the fast way to get a session rate-limited is to
- * click apply four times because the first click looked like it did nothing — which it
- * does, because the profile CDN takes its time.
+ * <p>Mojang limits how often a profile's skin may change, and the fast way to get a
+ * session rate-limited is to send changes as fast as they are made. Uploads that come
+ * too soon are queued behind this wait rather than refused.
  *
  * <p>The floor after a success is the mod's own and is deliberately generous; it is not
  * a transcription of a published limit, because Mojang publishes none. What Mojang does
@@ -70,6 +69,11 @@ final class UploadCooldown {
 
     boolean locked(long now) {
         return now < this.lockedUntil;
+    }
+
+    /** Milliseconds until the lock ends, or 0 when there is none. */
+    long millisLeft(long now) {
+        return Math.max(0, this.lockedUntil - now);
     }
 
     /**
