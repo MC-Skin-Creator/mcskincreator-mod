@@ -372,9 +372,27 @@ public class SkinCreatorScreen extends Screen {
         // rather than left to paint over the element and then reset the texture.
         this.highlight.drop();
         this.highlighting = false;
-        this.hovered = buffer(this.sprites.get(tile.category().id()),
-                tile.item().atlasIndex(this.project.isSlim()));
+        this.hovered = LibraryPanel.OUTFIT_SHEET.equals(tile.category().id())
+                ? outfitClothes(tile)
+                : buffer(this.sprites.get(tile.category().id()),
+                        tile.item().atlasIndex(this.project.isSlim()));
         showHovered();
+    }
+
+    /**
+     * An outfit's clothes alone, to be laid over the worn skin like any element. Its tile
+     * picture stands them on a mannequin, which is right for a thumbnail and would cover
+     * the skin being worn.
+     *
+     * @return null while the categories it is made of are still downloading
+     */
+    private byte[] outfitClothes(ItemTile tile) {
+        return catalog.outfits().stream()
+                .filter(candidate -> candidate.id().equals(tile.item().id()))
+                .findFirst()
+                .map(outfit -> ReadyMadeSkins.of(List.of(outfit), catalog, this.sprites::get,
+                        this.project.isSlim(), null).get(0))
+                .orElse(null);
     }
 
     /**
