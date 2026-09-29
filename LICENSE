@@ -13,11 +13,15 @@ WHAT IS ALLOWED, without prior permission:
   3. Quoting parts of the code for analysis, vulnerability reports, security
      reviews, commentary or teaching.
   4. Proposing changes through a pull request on the official repository.
+  5. Including the mod in a modpack, and distributing that modpack, provided the
+     mod's jar is the unmodified official one, it is offered free of charge, and
+     the modpack is not sold or put behind a paywall or an ad-gated download.
 
 WHAT IS NOT ALLOWED without prior written permission from the copyright holder:
 
   1. Redistributing the mod, compiled or as source, in any form, including on a
-     mod distribution platform, in a modpack or through a third-party launcher.
+     mod distribution platform or through a third-party launcher. Modpacks are
+     covered by the permission above.
   2. Publishing a derivative work, a fork or a modified version.
   3. Reusing any part of the code in another project.
   4. Any commercial use.
