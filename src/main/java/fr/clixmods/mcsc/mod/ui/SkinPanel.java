@@ -39,11 +39,8 @@ final class SkinPanel {
     private static final int GAP = 4;
     private static final int MARGIN = 8;
 
-    /**
-     * Room kept under the fallback button for the copyright line, which vanilla
-     * puts in the bottom right corner, ten pixels tall, on both versions.
-     */
-    private static final int BOTTOM_CLEARANCE = 14;
+    /** Where the mark sits inside the wide button, from its left edge. */
+    private static final int ICON_INSET = 6;
 
     private static final int PANEL_HEIGHT = NAME_HEIGHT + GAP + SKIN_HEIGHT + GAP + BUTTON_HEIGHT;
 
@@ -74,11 +71,11 @@ final class SkinPanel {
         int lowestTop = scaledHeight - PANEL_HEIGHT - MARGIN;
 
         if (x < menu.right() + GAP || lowestTop < TOP_CLEARANCE) {
-            // A small window at a large GUI scale leaves no room beside the menu.
-            // Keep the button on the right edge and drop it under the menu rather
-            // than letting the panel overlap vanilla.
-            int y = Math.min(menu.bottom() + GAP, scaledHeight - BUTTON_HEIGHT - BOTTOM_CLEARANCE);
-            widgets.add(openButton(client, screen, x, y));
+            // A small window at a large GUI scale leaves no room beside the menu for
+            // the panel. Shrink the entry to the mark alone, in a square like the
+            // language and accessibility buttons, and put it at the end of the menu's
+            // last row - beside the accessibility button on the title screen.
+            addCompact(client, screen, widgets, menu);
             return;
         }
 
@@ -86,14 +83,40 @@ final class SkinPanel {
 
         widgets.add(playerName(client, x, y));
         widgets.add(skinPreview(client, x + (PANEL_WIDTH - SKIN_WIDTH) / 2, y + NAME_HEIGHT + GAP));
-        widgets.add(openButton(client, screen, x, y + PANEL_HEIGHT - BUTTON_HEIGHT));
+        addOpenButton(client, screen, widgets, x, y + PANEL_HEIGHT - BUTTON_HEIGHT);
     }
 
-    private static Button openButton(Minecraft client, Screen screen, int x, int y) {
+    /** The full-width button: the mark at its left edge, the label centred as vanilla does. */
+    private static void addOpenButton(Minecraft client, Screen screen, List<AbstractWidget> widgets,
+                                      int x, int y) {
+        widgets.add(openButton(client, screen, x, y, PANEL_WIDTH, Component.translatable("menu.mcskincreator.open")));
+        widgets.add(new LogoIcon(client, x + ICON_INSET, y + (BUTTON_HEIGHT - LogoIcon.SIZE) / 2));
+    }
+
+    /** The square button: the mark alone, named by its tooltip. */
+    private static void addCompact(Minecraft client, Screen screen, List<AbstractWidget> widgets, Bounds menu) {
+        int right = 0;
+        int y = menu.bottom() - BUTTON_HEIGHT;
+        for (AbstractWidget widget : widgets) {
+            // The last row's rightmost widget, small icon buttons included.
+            if (widget.getHeight() >= BUTTON_HEIGHT && widget.getY() + widget.getHeight() == menu.bottom()) {
+                right = Math.max(right, widget.getX() + widget.getWidth());
+            }
+        }
+        int x = right + GAP;
+        Button button = openButton(client, screen, x, y, BUTTON_HEIGHT, Component.empty());
+        button.setTooltip(Tooltip.create(Component.translatable("menu.mcskincreator.open")));
+        widgets.add(button);
+        widgets.add(new LogoIcon(client, x + (BUTTON_HEIGHT - LogoIcon.SIZE) / 2,
+                y + (BUTTON_HEIGHT - LogoIcon.SIZE) / 2));
+    }
+
+    private static Button openButton(Minecraft client, Screen screen, int x, int y, int width,
+                                     Component label) {
         return Button
-                .builder(Component.translatable("menu.mcskincreator.open"),
+                .builder(label,
                         ignored -> ScreenCompat.setScreen(client, new SkinCreatorScreen(screen)))
-                .bounds(x, y, PANEL_WIDTH, BUTTON_HEIGHT)
+                .bounds(x, y, width, BUTTON_HEIGHT)
                 .build();
     }
 

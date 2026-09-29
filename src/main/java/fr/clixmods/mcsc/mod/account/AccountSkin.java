@@ -7,8 +7,11 @@
  */
 package fr.clixmods.mcsc.mod.account;
 
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
+import fr.clixmods.mcsc.mod.MCSkinCreatorClient;
 import fr.clixmods.mcsc.mod.skin.FrontSprite;
 import fr.clixmods.mcsc.mod.skin.Png;
 import net.minecraft.client.Minecraft;
@@ -19,28 +22,45 @@ import net.minecraft.world.entity.player.PlayerModelType;
  * rest of the mod may call, and the edge of the only package that ever holds the
  * session token.
  *
- * <p>The distinction this class exists to keep is the one the interface has to make
- * too. Everything else the editor does happens on this machine; an upload changes the
- * account, for everyone, everywhere, and it persists after the game is shut. It is
- * therefore the one action the mod will never take by itself: {@link #apply} runs once
- * per press of a button, and {@link #ready} refuses a second press until Mojang could
- * reasonably have finished with the first.
+ * <p>An upload changes the account, for everyone, everywhere, and it persists after the
+ * game is shut — but it is not something the player should wait on. {@link #apply} only
+ * queues the sheet: a background thread sends it once the {@link UploadCooldown} allows,
+ * which is at once when nothing was sent lately and after the wait otherwise. The player
+ * is never blocked and never told; what they see is the skin the caller puts on them
+ * locally.
+ *
+ * <p>Only the newest queued sheet is ever sent. Applying three times during a cooldown
+ * costs one upload of the last one, which is what the account should end up wearing.
  *
  * <p>State lives here rather than in the screen because closing the editor must not
- * unlock anything. A cooldown that a player could clear by pressing Escape would be no
- * cooldown at all.
+ * cancel anything, and must not clear the cooldown either.
  */
 public final class AccountSkin {
     private static final UploadCooldown COOLDOWN = new UploadCooldown();
 
-    /** Set on the client thread, cleared on an HTTP client thread: see below. */
-    private static volatile boolean uploading;
+    private static final ScheduledExecutorService TIMER =
+            Executors.newSingleThreadScheduledExecutor(task -> {
+                Thread thread = new Thread(task, "mcskincreator-upload");
+                thread.setDaemon(true);
+                return thread;
+            });
+
+    private static final Object LOCK = new Object();
+
+    /** The newest sheet not yet sent. Guarded by {@link #LOCK}. */
+    private static Pending pending;
+
+    /** Whether a send is scheduled or in flight, so there is never a second one. Guarded by {@link #LOCK}. */
+    private static boolean armed;
+
+    private record Pending(byte[] png, boolean slim) {
+    }
 
     private AccountSkin() {
     }
 
     /**
-     * Whether this session could upload at all — not whether it may right now.
+     * Whether this session could upload at all.
      *
      * <p>This is what decides that the button exists. It does not change while the game
      * runs, so a screen can ask it once when it builds itself.
@@ -49,68 +69,87 @@ public final class AccountSkin {
         return GameSession.canUpload(client);
     }
 
-    /** Whether an upload would be sent this instant, rather than refused. */
-    public static boolean ready() {
-        return !uploading && !COOLDOWN.locked(System.currentTimeMillis());
-    }
-
-    /** Whether one is in flight, which reads differently from waiting out a cooldown. */
-    public static boolean uploading() {
-        return uploading;
-    }
-
-    /** Whole seconds before the next upload is allowed, or 0 when one is allowed now. */
-    public static long secondsLeft() {
-        return COOLDOWN.secondsLeft(System.currentTimeMillis());
-    }
-
     /**
-     * Sends {@code sheet} to the account this session belongs to.
+     * Queues {@code sheet} for the account this session belongs to, and returns at once.
      *
      * <p>{@code sheet} is what the composer answered, in either of the two shapes it
-     * uses: a PNG goes as it is, and a raw RGBA buffer is encoded first. That encoding
-     * happens here, on the caller's thread, so the request itself carries nothing but
-     * bytes — and the caller is the client thread, where the work is a 64x64 image and
-     * costs nothing worth measuring.
+     * uses: a PNG goes as it is, and a raw RGBA buffer is encoded first, here, on the
+     * caller's thread — a 64x64 image, which costs nothing worth measuring.
      *
-     * <p>The returned future completes on an HTTP client thread, so
-     * whoever chains onto it steps back through {@code Minecraft#execute} before
-     * touching the game. It fails with a {@link SkinUploadException} when Mojang refused
-     * and with whatever the network raised when it never answered.
+     * <p>Whether it reaches Mojang is not reported: a refusal or a dead network is
+     * logged, and a rate limit is waited out and retried.
+     *
+     * @throws RuntimeException when {@code sheet} is not an image, before anything is queued
      */
-    public static CompletableFuture<Void> apply(Minecraft client, byte[] sheet,
-                                                PlayerModelType model) {
-        if (!ready()) {
-            return CompletableFuture.failedFuture(
-                    new IllegalStateException("an upload is already in flight or too recent"));
+    public static void apply(Minecraft client, byte[] sheet, PlayerModelType model) {
+        byte[] png = toPng(sheet);
+        synchronized (LOCK) {
+            pending = new Pending(png, model == PlayerModelType.SLIM);
+            if (armed) {
+                return;
+            }
+            armed = true;
         }
+        arm(client);
+    }
 
-        byte[] png;
+    /** Schedules the next send for when the cooldown lets it go. */
+    private static void arm(Minecraft client) {
+        long wait = COOLDOWN.millisLeft(System.currentTimeMillis());
+        TIMER.schedule(() -> send(client), wait, TimeUnit.MILLISECONDS);
+    }
+
+    private static void send(Minecraft client) {
+        Pending next;
+        synchronized (LOCK) {
+            next = pending;
+            pending = null;
+            if (next == null) {
+                armed = false;
+                return;
+            }
+        }
         try {
-            png = toPng(sheet);
-        } catch (RuntimeException malformed) {
-            return CompletableFuture.failedFuture(malformed);
+            // Read here and handed straight on: the token is an argument from this line to
+            // the request and is held nowhere in between.
+            String accessToken = GameSession.accessToken(client);
+            MojangSkins.upload(accessToken, next.png(), MojangSkins.variant(next.slim()))
+                    .whenComplete((nothing, failure) -> finished(client, next, failure));
+        } catch (RuntimeException cause) {
+            finished(client, next, cause);
         }
+    }
 
-        // Read here and handed straight on: the token is an argument from this line to
-        // the request and is held nowhere in between.
-        String accessToken = GameSession.accessToken(client);
-        uploading = true;
-        return MojangSkins.upload(accessToken, png, MojangSkins.variant(model == PlayerModelType.SLIM))
-                .whenComplete((nothing, failure) -> {
-                    uploading = false;
-                    long now = System.currentTimeMillis();
-                    if (failure == null) {
-                        COOLDOWN.lockAfterUpload(now);
-                        return;
-                    }
-                    // A refusal for going too fast is the one failure that says how long
-                    // to wait, and ignoring it is how a session gets limited for longer.
-                    SkinUploadException refusal = refusal(failure);
-                    if (refusal != null && refusal.reason() == SkinUploadException.Reason.RATE_LIMITED) {
-                        COOLDOWN.lockUntilRetry(now, refusal.retryAfter().orElse(null));
-                    }
-                });
+    private static void finished(Minecraft client, Pending sent, Throwable failure) {
+        long now = System.currentTimeMillis();
+        boolean retry = false;
+        if (failure == null) {
+            COOLDOWN.lockAfterUpload(now);
+        } else {
+            // A refusal for going too fast is the one failure that says how long to
+            // wait, and ignoring it is how a session gets limited for longer. It is also
+            // the one worth trying again; the rest would only fail the same way.
+            SkinUploadException refusal = refusal(failure);
+            if (refusal != null && refusal.reason() == SkinUploadException.Reason.RATE_LIMITED) {
+                COOLDOWN.lockUntilRetry(now, refusal.retryAfter().orElse(null));
+                retry = true;
+            } else {
+                // The status and what threw, never the request: the log is the one place
+                // the token must not reach.
+                MCSkinCreatorClient.LOGGER.warn("Applying the skin to the account failed",
+                        failure);
+            }
+        }
+        synchronized (LOCK) {
+            if (retry && pending == null) {
+                pending = sent;
+            }
+            if (pending == null) {
+                armed = false;
+                return;
+            }
+        }
+        arm(client);
     }
 
     /** Mojang's refusal inside a failure, or null when it never answered one. */

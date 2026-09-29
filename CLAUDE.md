@@ -65,8 +65,8 @@ src/main/java/fr/clixmods/mcsc/mod/
     ├── EditorScale.java       the GUI scale this screen takes for itself, and gives back
     ├── SkinCreatorScreen.java the editor: project, catalogue, requests, windows, input
     ├── Figure.java, PlayerFigure.java   the player in the scene, and the game's way of drawing one
-    ├── MenuButtons.java, SkinPanel.java, MenuFigure.java   the entry on the vanilla menus,
-    │                           and its figure that watches the pointer
+    ├── MenuButtons.java, SkinPanel.java, MenuFigure.java, LogoIcon.java   the entry on the vanilla menus,
+    │                           its figure that watches the pointer, and the mark drawn on its button
     ├── widget/                button, tabs, tile, field, slider, checkbox, dropdown, layer row
     ├── panel/                 top bar, library, scene, layers
     └── window/                the modal base and the windows built on it
@@ -123,6 +123,16 @@ force Java 25 on every target.
 
 Gradle itself runs on Java 21 and downloads the Java 25 toolchain for the 26.2
 target on its own.
+
+## No local builds
+
+**Do not build, test or run anything locally while developing** — no `./gradlew build`,
+`test`, `buildAndCollect` or `runClient`, on any target. GitHub Actions does that and
+its result is trusted. To check a change, push the branch, open the pull request, let
+CI run and read whether it passes. Do not reproduce CI on your own machine.
+
+The commands below are reference for a human's machine, not something to run
+during development.
 
 ## Commands
 
@@ -232,6 +242,8 @@ the entity route".
 2. Read the existing conditionals around the code you are touching.
 3. Prefer a shared implementation.
 4. Add version-specific code only for a real incompatibility.
+5. **Every target must build, and CI is what checks it** — not you locally, see
+   **No local builds**. A change is not done because one target compiles.
 5. **Every target must build.** Do not run it locally: CI builds and tests each
    target on the pull request, and a change is not done until every one is green.
 
@@ -374,9 +386,9 @@ nothing else is ever looked up there.
 3. Extend `requiredJava` in `build.gradle.kts` if that version needs a different
    Java level.
 4. Add the version to the CI matrix in `.github/workflows/build.yml`.
-5. `./gradlew :<version>:build`, then fix what the compiler reports, keeping shared
-   code shared.
-6. `./gradlew build` — every target, not just the new one.
+5. Open the pull request and fix what CI's compiler reports for the new target,
+   keeping shared code shared.
+6. Every target's CI job must be green, not just the new one.
 
 ## CI
 
