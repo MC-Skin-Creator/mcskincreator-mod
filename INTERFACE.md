@@ -267,10 +267,14 @@ stands a labelled box in its place, which is the only reason the scene's own lay
 can be looked at at all.
 
 Thumbnails are cheaper still: a category's atlas arrives as raw 64x64 skins, and
-`FrontSprite` folds each one into the 16x32 front view the site's slots show. One
-sheet per category rather than one texture per element, cropped per category to the
-part of the body the element actually covers — a shelf of hairstyles drawn on whole
-bodies is unreadable, which is what `ThumbCrop` exists to prevent.
+`FrontSprite` folds each one into the 16x32 front view the site's slots show — the
+fold itself is `mcsc-engine`'s, the very call the browser makes, so a shelf of
+elements is framed and blended here as it is there. One sheet per category rather
+than one texture per element, cropped per category to the part of the body the
+element actually covers — a shelf of hairstyles drawn on whole bodies is unreadable,
+which is what `ThumbCrop` exists to prevent. Its rectangles are the library's too:
+they used to be written out again here, tighter, so a head was the eight rows of the
+face where the site gives it ten by eleven.
 
 The stack is composed in the game, out of those same atlas buffers, by
 `mcsc-engine` — the library the site's own composition was taken out into, so the two

@@ -504,6 +504,11 @@ Two consequences, neither obvious from the build file:
   compiles and then crashes in game, which is why it has its own paragraph in
   `CLAUDE.md`.
 
+The thumbnails went the same way: the 16x32 front view and the crops the library
+frames with are the library's calls, not a second copy of them. What is left of
+`FrontSprite` is the conversion between an atlas's bytes and the ARGB a texture is
+uploaded from.
+
 Colours are the part not done here: the catalogue the mod reads carries no colour
 keys, so a layer holds only its hue, saturation and brightness. Recolouring an
 element by its zone map is the same library call the site makes — it needs the
