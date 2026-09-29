@@ -3,11 +3,10 @@ name: build
 # main and develop are deliberately absent: the release workflow compiles every
 # target on those branches seconds later, on the same commit. A compile check is
 # worth running where it can still stop something - before a merge.
+#
+# Only pull requests trigger it: a push trigger as well would run every commit
+# twice once a PR is open.
 on:
-  push:
-    branches:
-      - 'feature/**'
-      - 'fix/**'
   pull_request:
 
 # Compiles and tests every Minecraft target and attaches the resulting jars as a
@@ -18,6 +17,11 @@ on:
 permissions:
   contents: read
   packages: read
+
+# A newer push to the same branch or PR makes the run in progress obsolete.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -50,6 +54,10 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          # Read-only is the default off the default branch, which would mean the
+          # cache is never written here: main only runs on a release.
+          cache-read-only: false
 
       - name: Build
         # Points Gradle at the JDK installed above rather than downloading another one.

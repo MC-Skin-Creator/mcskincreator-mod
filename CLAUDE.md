@@ -373,7 +373,7 @@ nothing else is ever looked up there.
 ## CI
 
 `.github/workflows/build.yml` runs **one job per Stonecutter target** on every pull
-request and on pushes to `feature/**` and `fix/**`, with `fail-fast: false` so one
+request (not on plain pushes, which would run each commit twice), with `fail-fast: false` so one
 broken version does not mask another. Each job compiles that target and runs its
 tests, uploads the test report when something failed, and uploads its jar as a
 **workflow artifact** (`retention-days: 7`) so a PR can be test-installed before it
@@ -455,7 +455,7 @@ to the latest state — `-dev.` builds are previews and are not tested.
 next release, not a patch on the last one.
 
 `.github/workflows/build.yml` is unrelated to releases: it is the per-target matrix
-that checks pull requests and work branches. Its jars are short-lived workflow
+that checks pull requests. Its jars are short-lived workflow
 artifacts for testing a PR, not a release artifact.
 
 ### Things worth knowing before touching this
