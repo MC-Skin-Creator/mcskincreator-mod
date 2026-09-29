@@ -82,9 +82,9 @@ class EditorInputTest {
      */
     @Test
     void theLibraryTakesAWheelOverItself() {
-        EditorChrome chrome = laidOut(360);
+        EditorChrome chrome = laidOut(300);
         Panel library = chrome.library();
-        assertTrue(library.scroll(library.x() + library.width() / 2, 180, -1.0),
+        assertTrue(library.scroll(library.x() + library.width() / 2, 150, -1.0),
                 "the library should scroll to a wheel inside its own column");
     }
 
