@@ -78,7 +78,7 @@ public class NameWindow extends ModalWindow {
         if (this.hint == null) {
             return 0;
         }
-        int rows = Prose.wrap(canvas, this.hint, width() - Metrics.PAD * 2).size();
+        int rows = Prose.wrap(canvas, this.hint, bodyWidth()).size();
         return rows * (canvas.lineHeight() + 1);
     }
 
@@ -110,7 +110,7 @@ public class NameWindow extends ModalWindow {
                             close.run();
                         }),
                 new PixelButton(Component.translatable("gui.mcskincreator.confirm"),
-                        PixelButton.Style.NORMAL, () -> {
+                        PixelButton.Style.PRIMARY, () -> {
                             if (accept()) {
                                 close.run();
                             }

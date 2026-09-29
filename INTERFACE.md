@@ -21,7 +21,8 @@ look — it is where these materials come from — and it is built for a workben
 **This screen can be rendered without the game**, and that is the single most useful
 thing in this file. `./gradlew :1.21.11:test` writes `build/ui-preview/` — the whole
 editor at the five sizes the game gives it, magnified to the size a player sees, plus
-a sheet of every sprite it is made of at every height it is used at.
+a sheet of every sprite it is made of at every height it is used at, and in `windows/`
+every window open over it.
 
 Nothing about it is a mock-up. The panels, the widgets and the arithmetic are the real
 ones; the font is read out of the Minecraft jar, with advances computed the way
@@ -386,9 +387,12 @@ picker: in the game the language is the game's, and the mod follows it.
 ## Applying to the account
 
 The export window is where the skin leaves the editor, and its cards are not alike.
-Two of them write a file onto this machine. The third changes the player's real skin,
-for everyone, until they change it back — and it is last in the list for that reason.
-Three rules follow from it, and none of them is decoration.
+Applying changes the player's real skin, for everyone, until they change it back — and
+it is what the window is for, so it leads: first, in the primary green, with the mark
+beside it. The cards that keep the skin on this machine — the two files and the folder
+they land in — sit under a divider, as the way round it. Three grey cards in a column said the three were equal, and put the one
+people open the window for last. Three rules follow from what that card does, and none
+of them is decoration.
 
 **The cost is stated before the button, not after.** Applying opens a confirmation
 that says what will change and, in a framed note, that other players wait on
@@ -408,7 +412,8 @@ less.
 Microsoft-signed-in session there is no token, so the apply card is not drawn at all —
 a control whose target is empty disappears rather than opening onto nothing. But a
 choice that silently vanishes is one nobody can ask about, so the export window carries
-a note under its cards saying why. That is what `CardWindow`'s note is for.
+a note where the card would have been, saying why. That is what `CardWindow`'s note is
+for.
 
 **A locked button counts down.** Between two uploads the confirm button is disabled
 and its label says how many seconds are left, refreshed as they pass. A button that

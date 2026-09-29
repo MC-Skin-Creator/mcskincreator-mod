@@ -314,7 +314,7 @@ public class SkinCreatorScreen extends Screen {
 
         if (this.library == null) {
             this.topBar = new TopBar(this.history,
-                    () -> new TopBar.Mark(Logo.texture(this.minecraft), Logo.size()),
+                    this::mark,
                     this::startOver, this::openModels, () -> !catalog.models().isEmpty(),
                     this::openExport, this::openSkins, this::openAbout);
             this.library = new LibraryPanel(this::relayout, this::name, this.sprites::get,
@@ -1131,6 +1131,11 @@ public class SkinCreatorScreen extends Screen {
         return this.atlasRevision * 2 + (this.project.isSlim() ? 1 : 0);
     }
 
+    /** The mod's mark, for the top bar and the export window's lead card. */
+    private TopBar.Mark mark() {
+        return new TopBar.Mark(Logo.texture(this.minecraft), Logo.size());
+    }
+
     private void openAbout() {
         open(new AboutWindow(MCSkinCreatorClient.version(), "clixmods",
                 uri -> Util.getPlatform().openUri(uri)));
@@ -1713,19 +1718,21 @@ public class SkinCreatorScreen extends Screen {
         cards.add(new CardWindow.Card("export.mcskincreator.front",
                 "export.mcskincreator.front_detail", this::openFrontViewName));
 
-        // Last of the three, and the only one that leaves this machine. Without a
-        // signed-in session there is no token, so the card is left out rather than shown
-        // refusing — and the note under the cards says why, because a choice that
-        // silently disappears is one nobody can ask about.
+        // Applying is what the window is for, so it leads, green and with the mark; the
+        // files are the way round it, under a divider. Without a signed-in session there
+        // is no token, so the lead is left out rather than shown refusing — and a note
+        // takes its place saying why, because a choice that silently disappears is one
+        // nobody can ask about.
         boolean canApply = AccountSkin.available(this.minecraft);
-        if (canApply) {
-            cards.add(new CardWindow.Card("export.mcskincreator.account",
-                    "export.mcskincreator.account_detail", this::openApply));
-        }
         cards.add(new CardWindow.Card("export.mcskincreator.folder",
                 "export.mcskincreator.folder_detail", this::openExportFolder));
-        open(new CardWindow("window.mcskincreator.export", cards,
-                canApply ? null : Component.translatable("export.mcskincreator.no_session"), null));
+        CardWindow.Lead lead = canApply
+                ? new CardWindow.Lead(new CardWindow.Card("export.mcskincreator.account",
+                        "export.mcskincreator.account_detail", this::openApply), this::mark)
+                : null;
+        open(new CardWindow("window.mcskincreator.export", lead, cards,
+                canApply ? null : Component.translatable("export.mcskincreator.no_session"),
+                Component.translatable("export.mcskincreator.or_file"), null));
     }
 
     /**

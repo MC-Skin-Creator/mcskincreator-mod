@@ -144,7 +144,7 @@ public class SkinsWindow extends ModalWindow {
     @Override
     protected List<PixelButton> footer(Canvas canvas, Runnable close) {
         return List.of(new PixelButton(Component.translatable("skins.mcskincreator.save"),
-                PixelButton.Style.NORMAL, this.onSave));
+                PixelButton.Style.PRIMARY, this.onSave));
     }
 
     /** One entry: its picture, its name, the day it was saved. The row is the button. */
