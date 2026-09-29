@@ -113,7 +113,7 @@ class WindowPreviewTest {
                     new JsonObject()));
         }
         return new SkinsWindow(() -> new SkinsWindow.Library(skins, false, Component.empty()),
-                new SkinThumbnails(), skin -> { }, skin -> { }, () -> { });
+                () -> null, new SkinThumbnails(), skin -> { }, skin -> { }, () -> { });
     }
 
     private static void write(String name, ModalWindow window, int pointerX, int pointerY)
