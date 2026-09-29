@@ -1,0 +1,223 @@
+name: release
+
+# Merging is what cuts a release: main produces a stable one, develop a
+# pre-release. Tags are created here rather than being the trigger. Doc-only
+# changes are excluded: develop builds unconditionally otherwise, and a jar
+# carries no doc content worth a pre-release.
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Exact version to release, e.g. 1.0.0. Leave empty to derive it from the commits.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  # The texture engine is read from GitHub Packages, which asks for a token even for
+  # a public package. Every jar of a release embeds it through Jar-in-Jar.
+  packages: read
+
+# A newer push to develop supersedes a pre-release still building. main is never
+# cancelled: a stable release may be halfway through tagging and pushing.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_name == 'develop' }}
+
+# Two merges in a row must not compute the same number at once.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  # Not a secret: the id is public. The token is, and lives in the repository secrets.
+  MODRINTH_ID: pYSOnbJQ
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+
+    steps:
+      - name: Checkout
+        # Full history and tags: the version is derived from the commits since the
+        # last stable tag.
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Work out the version
+        id: version
+        env:
+          MANUAL_VERSION: ${{ inputs.version }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.ref_name }}" = 'develop' ]; then
+            # Every merge into develop gets a build, even one carrying no
+            # release-worthy commit. The -dev. suffix sorts below the release it
+            # previews, which is exactly what it is.
+            base=$(.github/scripts/next-version.sh --min-patch)
+            version="${base}-dev.${RUN_NUMBER}"
+            channel=dev
+          elif [ -n "$MANUAL_VERSION" ]; then
+            # The manual path exists for the versions no commit message should
+            # decide on its own - 1.0.0 above all.
+            version="$MANUAL_VERSION"
+            channel=stable
+          else
+            version=$(.github/scripts/next-version.sh)
+            channel=stable
+          fi
+
+          if [ -z "$version" ]; then
+            echo 'No commit since the last tag earns a release. Nothing to do.'
+            echo 'release=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if git rev-parse -q --verify "refs/tags/v${version}" >/dev/null; then
+            echo "v${version} already exists. Nothing to do."
+            echo 'release=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Releasing v${version} (${channel})"
+          {
+            echo 'release=true'
+            echo "version=${version}"
+            echo "channel=${channel}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up JDKs
+        if: steps.version.outputs.release == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: |
+            25
+            21
+
+      - name: Set up Gradle
+        if: steps.version.outputs.release == 'true'
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          # Off the default branch the cache is read-only by default, so develop
+          # would never populate it.
+          cache-read-only: false
+
+      - name: Stamp the version
+        if: steps.version.outputs.release == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          # stonecutter.properties.toml is the single source of the mod version, and
+          # it wins over -P properties on the command line - verified, not assumed.
+          sed -i "s/^mod\.version = .*/mod.version = \"${VERSION}\"/" stonecutter.properties.toml
+          grep '^mod.version' stonecutter.properties.toml
+
+      - name: Build every Minecraft target
+        if: steps.version.outputs.release == 'true'
+        run: >-
+          ./gradlew buildAndCollect --stacktrace
+          -Porg.gradle.java.installations.fromEnv=JAVA_HOME_21_X64,JAVA_HOME_25_X64
+          -Pgpr.user=${{ github.actor }} -Pgpr.token=${{ secrets.GITHUB_TOKEN }}
+
+      - name: Record the version on main
+        # Only stable releases write the number back, so the file on main always
+        # states the version that was actually released. A push made with
+        # GITHUB_TOKEN does not start another workflow run, so this cannot loop.
+        if: steps.version.outputs.release == 'true' && steps.version.outputs.channel == 'stable'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add stonecutter.properties.toml
+          git commit -m "chore: release v${VERSION}"
+          git tag "v${VERSION}"
+          git push origin HEAD:"${{ github.ref_name }}"
+          git push origin "v${VERSION}"
+
+      - name: Publish the release
+        if: steps.version.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          CHANNEL: ${{ steps.version.outputs.channel }}
+        run: |
+          set -euo pipefail
+
+          args=(--generate-notes --title "v${VERSION}")
+
+          # Below 1.0.0 the mod is in beta: say so, and keep it off GitHub's
+          # "Latest" badge. 1.0.0 is the day this stops applying.
+          if [ "$CHANNEL" = 'stable' ] && [[ $VERSION == 0.* ]]; then
+            args=(--generate-notes --title "v${VERSION} (beta)" --prerelease)
+          fi
+
+          if [ "$CHANNEL" = 'dev' ]; then
+            # Marked as a pre-release so it never displays as the latest version.
+            args+=(--prerelease --target "${{ github.sha }}")
+
+            # Generate the notes from the last stable release, so a dev build lists
+            # what it adds over the last thing that shipped rather than over the
+            # previous dev build. Skipped while no stable release exists: passing an
+            # empty --notes-start-tag fails the command.
+            # || true because grep exits 1 when there is no tag at all, and under
+            # pipefail that would kill the step before gh is ever reached.
+            last_stable=$(git tag --list 'v*' --sort=-v:refname | grep -v -- '-dev\.' | head -n 1 || true)
+            if [ -n "$last_stable" ]; then
+              args+=(--notes-start-tag "$last_stable")
+            fi
+          fi
+
+          gh release create "v${VERSION}" "${args[@]}" build/libs/"${VERSION}"/*.jar
+
+      # Stable releases only: the -dev builds are untested previews and stay on GitHub.
+      # Skipped, not failed, while the MODRINTH_TOKEN secret does not exist yet.
+      # One Modrinth version per Minecraft version, so one step per jar. The game
+      # versions repeat mod.mc_releases from stonecutter.properties.toml.
+      - name: Publish to Modrinth (1.21.11)
+        if: steps.version.outputs.release == 'true' && steps.version.outputs.channel == 'stable' && env.MODRINTH_TOKEN != ''
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ env.MODRINTH_ID }}
+          modrinth-token: ${{ env.MODRINTH_TOKEN }}
+          files: build/libs/${{ steps.version.outputs.version }}/*+mc1.21.11.jar
+          name: MC Skin Creator ${{ steps.version.outputs.version }} (1.21.11)
+          version: ${{ steps.version.outputs.version }}+mc1.21.11
+          version-type: beta
+          loaders: fabric
+          game-versions: 1.21.11
+          dependencies: fabric-api(required){modrinth:P7dR8mSH}
+          changelog: |
+            See the full notes on GitHub: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.version }}
+
+      # 26.2 has compiled but never been run in a real game: alpha until it has.
+      - name: Publish to Modrinth (26.2)
+        if: steps.version.outputs.release == 'true' && steps.version.outputs.channel == 'stable' && env.MODRINTH_TOKEN != ''
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ env.MODRINTH_ID }}
+          modrinth-token: ${{ env.MODRINTH_TOKEN }}
+          files: build/libs/${{ steps.version.outputs.version }}/*+mc26.2.jar
+          name: MC Skin Creator ${{ steps.version.outputs.version }} (26.2)
+          version: ${{ steps.version.outputs.version }}+mc26.2
+          version-type: alpha
+          loaders: fabric
+          game-versions: 26.2
+          dependencies: fabric-api(required){modrinth:P7dR8mSH}
+          changelog: |
+            See the full notes on GitHub: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.version }}

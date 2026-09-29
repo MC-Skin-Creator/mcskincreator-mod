@@ -1,0 +1,89 @@
+name: build
+
+# main and develop are deliberately absent: the release workflow compiles every
+# target on those branches seconds later, on the same commit. A compile check is
+# worth running where it can still stop something - before a merge.
+#
+# Only pull requests trigger it: a push trigger as well would run every commit
+# twice once a PR is open.
+on:
+  pull_request:
+
+# Compiles and tests every Minecraft target and attaches the resulting jars as a
+# short-lived workflow artifact, so a PR can be test-installed before it merges.
+# These are not releases: no tag, no GitHub release, no version bump.
+# The one grant beyond reading the code is packages: the texture engine is published
+# to GitHub Packages, which asks for a token even for a public package.
+permissions:
+  contents: read
+  packages: read
+
+# A newer push to the same branch or PR makes the run in progress obsolete.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # One job per Stonecutter target: a version that stops compiling, or a test that
+    # only fails on one of them, fails the run on its own line instead of hiding
+    # behind whichever version happens to be active.
+    strategy:
+      fail-fast: false
+      matrix:
+        minecraft:
+          - '1.21.11'
+          - '26.2.x'
+
+    name: build ${{ matrix.minecraft }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDKs
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          # Both are needed: Minecraft 1.21.11 runs on Java 21, 26.x on Java 25.
+          # The last entry becomes JAVA_HOME and so runs Gradle itself.
+          java-version: |
+            25
+            21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          # Read-only is the default off the default branch, which would mean the
+          # cache is never written here: main only runs on a release.
+          cache-read-only: false
+
+      - name: Build
+        # Points Gradle at the JDK installed above rather than downloading another one.
+        # build compiles and runs the tests; buildAndCollect only copies the jar to
+        # build/libs/<mod version>/, which is what gets uploaded below, so both are
+        # asked for rather than relying on one to imply the other.
+        run: >-
+          ./gradlew ":${{ matrix.minecraft }}:build" ":${{ matrix.minecraft }}:buildAndCollect"
+          --stacktrace
+          -Porg.gradle.java.installations.fromEnv=JAVA_HOME_21_X64,JAVA_HOME_25_X64
+          -Pgpr.user=${{ github.actor }} -Pgpr.token=${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload test report
+        # The report is only worth having when something failed, and then it is the
+        # first thing anyone opens.
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-${{ matrix.minecraft }}
+          path: versions/${{ matrix.minecraft }}/build/reports/tests/test
+          retention-days: 7
+
+      - name: Upload jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcskincreator-${{ matrix.minecraft }}
+          path: build/libs/*/*.jar
+          # A preview build, not a release: no need to keep it around.
+          retention-days: 7

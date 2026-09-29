@@ -1,0 +1,40 @@
+# Centralized configuration: mod identity at the top, then one table per Minecraft
+# target. This is the only file to touch when adding a version or bumping a
+# per-version dependency.
+
+mod.id = "mcskincreator"
+mod.name = "MC Skin Creator"
+mod.group = "fr.clixmods.mcsc"
+mod.version = "0.1.0"
+
+deps.fabric_loader = "0.19.3"
+
+# One JUnit line serves every target: the 5.14 line runs on Java 21 and on Java 25
+# alike, so neither table below has to carry its own. The version pins the engine,
+# the parameterised runner and the launcher together, through the JUnit BOM.
+deps.junit = "5.14.4"
+
+# The texture engine, shared with the site: fr.clixmods.mcsc:mcsc-engine turns a
+# layer stack into the 64x64 sheet, and is the same Java the server runs, so the two
+# cannot drift. One line for every target, like JUnit: it is plain Java 21 with an
+# empty dependency tree, which is what lets it ride inside the mod jar.
+deps.mcsc_engine = "0.1.0"
+
+# Loom variant version used by loom-back-compat. The 1.17 line serves both the
+# obfuscated (pre-26) and unobfuscated (26+) variants; the 1.18 line refuses to run
+# below a Java 25 JVM, which would force Java 25 on every target including 1.21.11.
+loomx.loom_version = "1.17-SNAPSHOT"
+
+["1.21.11"]
+# Compatibility range written into fabric.mod.json
+mod.mc_compat = "1.21.11"
+# Releases to mark compatible when publishing
+mod.mc_releases = ["1.21.11"]
+
+deps.fabric_api = "0.141.6+1.21.11"
+
+["26.2.x"]
+mod.mc_compat = "~26.2"
+mod.mc_releases = ["26.2"]
+
+deps.fabric_api = "0.160.0+26.2"

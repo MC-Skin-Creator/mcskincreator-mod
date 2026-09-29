@@ -1,13 +1,89 @@
-# MC Skin Creator - Minecraft mod
+<p align="center">
+  <img src="src/main/resources/assets/mcskincreator/icon.png" width="128" alt="MC Skin Creator">
+</p>
 
-Fabric client mod that brings the [MC Skin Creator](https://github.com/MC-Skin-Creator)
-skin editor into the game.
+<h1 align="center">MC Skin Creator</h1>
 
-The repository is just getting started: see the
-[issues](https://github.com/MC-Skin-Creator/mcskincreator-mod/issues) for the
-roadmap, and [`DECISIONS.md`](DECISIONS.md) for the technical choices.
+<p align="center">
+  Create your Minecraft skin without leaving the game.
+</p>
+
+MC Skin Creator brings the [skin editor of the website](https://mcskincreator.app/)
+into Minecraft. Pick pieces, stack them, see the result on your character, and wear it
+on your account in one click.
+
+## What you can do
+
+- **Open the editor from the menus.** A Skin Creator button sits on the title screen and
+  the pause menu.
+- **Browse a big library of pieces.** Hair, faces, clothes, accessories and more, with a
+  search across everything. Names come in your language, and the "i" on a piece tells
+  you who made it.
+- **Try before you commit.** Point at a piece to see it on your character, who turns
+  around as you move the mouse.
+- **Build your skin in layers.** Reorder, hide, duplicate or remove pieces, and change
+  their colours, opacity, hue, saturation and brightness.
+- **Start from something ready-made.** Take a complete starter character, or add an outfit
+  on top of what you are wearing. Changed your mind? Undo brings it back.
+- **Keep your skins.** My skins stores your creations, and they are the same ones you
+  see on the website.
+- **Save a picture of your skin.** Export the skin file, or the character seen from the
+  front.
+- **Wear it for real.** Apply the skin to your Minecraft account, classic or slim arms.
+  You see it on your own character right away, no restart. Other players see it a little
+  later, once Minecraft's servers catch up.
+
+It is available in English, French and Spanish, and it only runs on your own game:
+nothing to install on a server, nothing changed for other players.
+
+## Your Minecraft session
+
+Applying a skin is the one thing that needs your session token, so here is where it goes:
+
+- it is read when you press **Apply** and sent to exactly one address, Mojang's own skin
+  endpoint (`api.minecraftservices.com`), the call the official launcher makes;
+- it is never sent to the MC Skin Creator back-end, never logged and never written to disk;
+- the mod never uploads on its own, on a timer or in a batch.
+
+The code that touches it is two short files,
+[`GameSession`](src/main/java/fr/clixmods/mcsc/mod/account/GameSession.java) and
+[`MojangSkins`](src/main/java/fr/clixmods/mcsc/mod/account/MojangSkins.java), and nothing
+outside that package can reach the token. [`SECURITY.md`](SECURITY.md) has every address
+the mod contacts, what it stores on your disk, and how to report a vulnerability.
+
+The editor reads the MC Skin Creator API (`https://mcskincreator.app/api/v1`) for the
+catalogue, search, textures and the saved-skin library.
+
+## Install
+
+Requires [Fabric Loader](https://fabricmc.net/use/) and the Fabric API.
+
+| Minecraft | Java | Fabric Loader | Fabric API |
+|---|---|---|---|
+| 1.21.11 | 21 | 0.19.3 or newer | 0.141.6+1.21.11 |
+| 26.2 | 25 | 0.19.3 or newer | 0.160.0+26.2 |
+
+Drop the jar matching your Minecraft version into `.minecraft/mods/`. You know it is
+loaded when the title screen shows the **Skin Creator** panel against its right edge.
+
+Jars come from the [releases](https://github.com/MC-Skin-Creator/mcskincreator-mod/releases)
+page, one per Minecraft version. **Releases** (`v0.2.0`) are the ones to use.
+**Pre-releases** (`v0.2.0-dev.7`) are built from `develop` on every merge and are not
+tested: to try something early, not to play.
 
 ## License
 
-Proprietary, source-available - see [`LICENSE`](LICENSE). The code is readable and
-auditable by anyone; redistribution and forks are not allowed.
+Proprietary, source-available: see [`LICENSE`](LICENSE). The code is public so that
+anyone can read and audit what a mod that handles a session token does.
+
+- Modpacks may include the unmodified official jar, as long as the modpack is free.
+- Forks are allowed only to propose a change through a pull request. Contributions are
+  not expected, and there is no promise to review them.
+- Any other redistribution, modified version or commercial use is not allowed.
+
+The official channels are this repository's releases, plus Modrinth and CurseForge under
+the copyright holder's account. A jar from anywhere else is not covered and should not
+be trusted.
+
+Minecraft is a trademark of Mojang Studios. This project is not affiliated with or
+endorsed by Mojang Studios or Microsoft.

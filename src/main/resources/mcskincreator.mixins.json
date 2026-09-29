@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "fr.clixmods.mcsc.mod.mixin",
+  "compatibilityLevel": "JAVA_${java}",
+  "client": [
+    "AbstractClientPlayerMixin",
+    "AvatarRendererMixin",
+    "GuiMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
