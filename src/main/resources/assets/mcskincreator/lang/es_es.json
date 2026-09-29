@@ -17,7 +17,6 @@
   "library.mcskincreator.region.torso": "Torso",
   "library.mcskincreator.region.arms": "Brazos",
   "library.mcskincreator.region.legs": "Piernas",
-  "preview.mcskincreator.compose_failed": "La vista previa muestra este elemento solo: el servidor no lo ha compuesto.",
   "panel.mcskincreator.layers": "Capas",
   "setting.mcskincreator.opacity": "Opacidad",
   "setting.mcskincreator.hue": "Tono",

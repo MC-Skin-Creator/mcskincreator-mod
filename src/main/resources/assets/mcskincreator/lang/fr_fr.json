@@ -17,7 +17,6 @@
   "library.mcskincreator.region.torso": "Torse",
   "library.mcskincreator.region.arms": "Bras",
   "library.mcskincreator.region.legs": "Jambes",
-  "preview.mcskincreator.compose_failed": "L'aperçu montre cet élément seul : le serveur ne l'a pas composé.",
   "panel.mcskincreator.layers": "Calques",
   "setting.mcskincreator.opacity": "Opacité",
   "setting.mcskincreator.hue": "Teinte",

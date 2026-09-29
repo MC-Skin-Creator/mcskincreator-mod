@@ -269,21 +269,26 @@ stands a labelled box in its place, which is the only reason the scene's own lay
 can be looked at at all.
 
 Thumbnails are cheaper still: a category's atlas arrives as raw 64x64 skins, and
-`FrontSprite` folds each one into the 16x32 front view the site's slots show. One
-sheet per category rather than one texture per element, cropped per category to the
-part of the body the element actually covers — a shelf of hairstyles drawn on whole
-bodies is unreadable, which is what `ThumbCrop` exists to prevent.
+`FrontSprite` folds each one into the 16x32 front view the site's slots show — the
+fold itself is `mcsc-engine`'s, the very call the browser makes, so a shelf of
+elements is framed and blended here as it is there. One sheet per category rather
+than one texture per element, cropped per category to the part of the body the
+element actually covers — a shelf of hairstyles drawn on whole bodies is unreadable,
+which is what `ThumbCrop` exists to prevent. Its rectangles are the library's too:
+they used to be written out again here, tighter, so a head was the eight rows of the
+face where the site gives it ten by eleven.
 
-The stack is composed by the server: the project goes to `POST /textures` and the
-sheet comes back. Picking never waits on that. The element goes on the model
-immediately from the atlas buffer already in memory, and the composition replaces it
-when it lands, so a server that cannot compose costs a notification rather than the
-preview.
+The stack is composed in the game, out of those same atlas buffers, by
+`mcsc-engine` — the library the site's own composition was taken out into, so the two
+produce the same bytes by running the same code. Nothing on screen waits on it:
+stacking an element, dragging a slider and reordering the stack all show on the next
+frame. It used to be a `POST /textures` per change behind a 300 ms debounce, which a
+dragged slider would never have survived. A category whose atlas is still on its way
+contributes nothing until it lands, and the sheet is composed again when it does.
 
-The ready-made stacks — the starter models and the outfits — are the one place that
-composes locally, because there are two hundred of them on screen at once and a
-request each is not a thing to ask for. Their pictures are what choosing one will put
-on the model, which is not always what the site shows for the same entry: the
+The ready-made stacks — the starter models and the outfits — go through the same
+library, which is why there are two hundred of them on screen at once and not one
+request each. Their pictures are what choosing one will put on the model, which is not always what the site shows for the same entry: the
 catalogue gives some pieces a colour override, and a layer here cannot hold one yet.
 
 An outfit is clothes and nothing else, so its picture is stood on a body taken from

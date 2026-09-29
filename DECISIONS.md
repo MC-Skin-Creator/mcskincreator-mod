@@ -231,13 +231,15 @@ whatever is hovered.
 
 **The interface owns almost no pixels of its own.** The figure is drawn by the game
 from a render state the mod fills in, the thumbnails are folded out of the category
-atlases the API already serves, and the stack being edited is composed by the server. One
+atlases the API already serves, and the stack being edited is composed from those same
+buffers by a library shared with the site (see below). One
 texture is drawn from nothing: the stone grain under the panels, from deterministic
 noise, because a tile generated from a function cannot go out of step with the palette
 it is tinted by and a PNG of the same thing can.
 
-The one exception is the pictures of the ready-made stacks — the starter models and
-the outfits — which the mod stacks and folds itself (`Composite`, `ReadyMadeSkins`).
+The pictures of the ready-made stacks — the starter models and the outfits — go the
+same way (`Composite`, `ReadyMadeSkins`): there are two hundred of them on screen at
+once, and a request each is not a thing to ask of a service.
 The catalogue offers two hundred and odd of them, and asking the server for two hundred
 compositions to fill one panel is not a thing to do to a service, or to a player waiting
 on it. The blend copies the server's, half rounded to even like the
@@ -416,8 +418,8 @@ in behind the editor while a hat was being chosen. Somebody editing a skin is no
 playing, and the pause is not theirs to lose.
 
 Screens tick regardless of the pause (checked against `Minecraft.tick`, where the
-`screen.tick()` call sits outside the pause guard), so the composition debounce, the
-search and the camera all keep running. What does stop is the character's own animation
+`screen.tick()` call sits outside the pause guard), so the composition, the search
+debounce and the camera all keep running. What does stop is the character's own animation
 — which is why the first-person swing plays out on a server and stands still at home.
 That is the right way round: nobody wants to be eaten for the sake of a wave.
 
@@ -457,8 +459,8 @@ groups them itself, out of the catalogue it already holds, rather than lean on a
 route that may move.
 
 **The project document is the site's, to the letter.** It is one shape everywhere:
-composed by `POST /textures`, stored by `PUT /skins/{id}`, and read back from
-storage. Its rules are the server's validator, and three of them are silent when
+stored by `PUT /skins/{id}`, read back from storage, and drawn as a standing figure
+by `POST /thumbnails`. Its rules are the server's validator, and three of them are silent when
 broken — the model is a `slim` boolean rather than a `model` string, a layer names
 its element with `cat` and `preset`, and opacity and the adjustments are factors
 rather than the whole percentages this mod's sliders work in. Writing them any other
@@ -473,3 +475,41 @@ keeps it in `config/mcskincreator-client.txt`. That file is the way back to the
 library rather than the library itself — losing it leaves the skins on the server and
 loses the door to them. The day accounts exist, one will gather several of these ids
 without this side of the contract changing (issue #9).
+
+## 9. The texture engine is a shared library, not a port
+
+The calculation that turns a stack of layers into a 64x64 sheet already existed three
+times over — the reference in JavaScript, the browser's TypeScript, and the server's
+Java — held together by tests comparing them byte for byte. A fourth written here
+would have been a fourth to watch, and the day one drifted the player would see one
+skin in the game and another on the site. Half of it was already here: `Composite`
+was a copy of the site's blend, down to rounding a half to even the way a
+`Uint8ClampedArray` does.
+
+So it was taken out of the site into `fr.clixmods.mcsc:mcsc-engine`, and the mod
+depends on it. **Parity stops being a test and becomes the same bytecode.** The
+library knows nothing of files, images, JSON or Minecraft — it is handed pixels and
+gives back pixels — which is what lets its dependency tree be empty and lets it ride
+inside this jar.
+
+Two consequences, neither obvious from the build file:
+
+- **composing happens in the game, not over HTTP.** `POST /textures` was one round
+  trip per change, which a 300 ms debounce made tolerable for a burst of clicks and
+  which was never going to work under a dragged slider. `Composite` does it in a
+  fraction of a frame, so the preview simply follows the stack. What the API is still
+  asked for is data: the catalogue, the atlases, the saved skins;
+- **the library ships inside the mod jar** (`include`, Fabric's Jar-in-Jar). The
+  player installs one file and never learns the library exists. Leaving that line out
+  compiles and then crashes in game, which is why it has its own paragraph in
+  `CLAUDE.md`.
+
+The thumbnails went the same way: the 16x32 front view and the crops the library
+frames with are the library's calls, not a second copy of them. What is left of
+`FrontSprite` is the conversion between an atlas's bytes and the ARGB a texture is
+uploaded from.
+
+Colours are the part not done here: the catalogue the mod reads carries no colour
+keys, so a layer holds only its hue, saturation and brightness. Recolouring an
+element by its zone map is the same library call the site makes — it needs the
+catalogue to carry the keys, which is issue #7's job, not another engine.

@@ -17,7 +17,6 @@
   "library.mcskincreator.region.torso": "Torso",
   "library.mcskincreator.region.arms": "Arms",
   "library.mcskincreator.region.legs": "Legs",
-  "preview.mcskincreator.compose_failed": "The preview shows this element on its own: the server did not compose it.",
   "panel.mcskincreator.layers": "Layers",
   "setting.mcskincreator.opacity": "Opacity",
   "setting.mcskincreator.hue": "Hue",
