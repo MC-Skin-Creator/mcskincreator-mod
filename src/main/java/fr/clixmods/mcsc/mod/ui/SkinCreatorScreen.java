@@ -10,6 +10,7 @@ package fr.clixmods.mcsc.mod.ui;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -21,7 +22,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import fr.clixmods.mcsc.mod.MCSkinCreatorClient;
@@ -256,8 +256,6 @@ public class SkinCreatorScreen extends Screen {
     private Settling settling;
     /** The stack's revision when the account check began, to tell an edit made meanwhile. */
     private int checkRevision;
-    /** What was last filed away by an export, so exporting twice files it once. */
-    private JsonObject lastKept;
 
     /** The library of saved skins, as the window showing it reads it. */
     private SkinsWindow.Library skins = SkinsWindow.Library.LOADING;
@@ -666,8 +664,29 @@ public class SkinCreatorScreen extends Screen {
             this.preview.clear();
             return;
         }
+        requestStackAtlases();
         this.composed = Composite.of(this.project, this::atlasBuffer);
         show(this.composed);
+    }
+
+    /**
+     * Asks for the atlas of every category the stack draws from.
+     *
+     * <p>The library only fetches the region on screen, which covers what is picked from
+     * it but not a stack that arrived whole — a project put back on opening, a saved
+     * skin, an undo. Without this, such a stack composed as its skin alone: every other
+     * layer was waiting on pixels nobody had asked for.
+     */
+    private void requestStackAtlases() {
+        for (Layer layer : this.project.layers()) {
+            if (this.requestedAtlases.contains(layer.categoryId())) {
+                continue;
+            }
+            catalog.category(layer.categoryId()).ifPresent(category -> {
+                this.requestedAtlases.add(category.id());
+                requestAtlas(category);
+            });
+        }
     }
 
     // ------------------------------------------------------------------ the catalogue
@@ -1419,10 +1438,9 @@ public class SkinCreatorScreen extends Screen {
     /**
      * Writes the project in progress down, here and in the library, if it changed.
      *
-     * <p>The library entry keeps its date: that date says when a skin was saved on
-     * purpose, and following the editing is not that — the site does the same with its
-     * own autosave. An empty stack is kept here but not sent, since there is no skin in
-     * it to store.
+     * <p>Its date moves with it: in a library where every project is one entry and
+     * saves itself, the date worth showing is when it last changed. An empty stack is
+     * kept here but not sent, since there is no skin in it to store.
      */
     private void persistNow() {
         this.persistPending = false;
@@ -1435,7 +1453,7 @@ public class SkinCreatorScreen extends Screen {
             return;
         }
         this.persisted = document;
-        this.current = new SavedSkin(this.current.id(), this.current.name(), this.current.at(),
+        this.current = new SavedSkin(this.current.id(), this.current.name(), System.currentTimeMillis(),
                 JsonParser.parseString(document).getAsJsonObject());
         CurrentProject.setProject(this.current);
         if (!this.project.isEmpty()) {
@@ -1453,25 +1471,6 @@ public class SkinCreatorScreen extends Screen {
         });
     }
 
-    /**
-     * Keeps what was just exported in the library, as a skin of its own that further
-     * editing does not move — so every skin that left the editor can be found and
-     * reopened. Not twice: an identical skin already there is enough.
-     */
-    private void keepInLibrary(String name) {
-        if (this.project.isEmpty()) {
-            return;
-        }
-        JsonObject data = JsonParser.parseString(ProjectJson.project(this.project)).getAsJsonObject();
-        boolean kept = data.equals(this.lastKept) || this.skins.skins().stream().anyMatch(skin ->
-                !(this.current != null && skin.id().equals(this.current.id())) && skin.data().equals(data));
-        if (kept) {
-            return;
-        }
-        this.lastKept = data;
-        saveSkin(name.isBlank() && this.current != null ? this.current.name() : name);
-    }
-
     /** The id of the project in progress, for the window that marks it. */
     private String currentId() {
         return this.current == null ? null : this.current.id();
@@ -1482,23 +1481,26 @@ public class SkinCreatorScreen extends Screen {
     /** Opens the saved skins, and asks the server for them each time it is opened. */
     private void openSkins() {
         open(new SkinsWindow(this::library, this::currentId, this.skinThumbnails,
-                this::openSavedSkin, this::askDeleteSavedSkin, this::openSaveName));
+                new SkinsWindow.Actions(this::openSavedSkin, this::openRename, this::duplicateSkin,
+                        this::askDeleteSavedSkin, this::startOver)));
         loadSkins();
     }
 
     /**
-     * The library as the window shows it: the project in progress is always in it,
-     * first, even before the server has stored it — offline, or a write still on its
-     * way.
+     * The library as the window shows it: the project in progress first, as the editor
+     * holds it — even before the server has stored it, offline or with a write still on
+     * its way — then the others, most recently changed first.
      */
     private SkinsWindow.Library library() {
         SkinsWindow.Library state = this.skins;
-        if (this.current == null || state.skins().stream().anyMatch(skin -> skin.id().equals(this.current.id()))) {
-            return state;
-        }
         List<SavedSkin> shown = new ArrayList<>(state.skins().size() + 1);
-        shown.add(this.current);
-        shown.addAll(state.skins());
+        if (this.current != null) {
+            shown.add(this.current);
+        }
+        state.skins().stream()
+                .filter(skin -> this.current == null || !skin.id().equals(this.current.id()))
+                .sorted(Comparator.comparingLong(SavedSkin::at).reversed())
+                .forEach(shown::add);
         return new SkinsWindow.Library(shown, state.loading(), state.failure());
     }
 
@@ -1647,36 +1649,68 @@ public class SkinCreatorScreen extends Screen {
         open(new ColorWindow(this.project, this.history, layer, key));
     }
 
-    private void openSaveName() {
+    /** Asks for a new name, then gives the library back. */
+    private void openRename(SavedSkin skin) {
         // Nothing to undo on cancel: the window's own close already gives the library
         // back, and closing twice would take it away with it.
-        open(new NameWindow("window.mcskincreator.save", "skin",
-                this::saveSkin, () -> { }, this.window));
+        open(new NameWindow("window.mcskincreator.rename", skin.name(),
+                name -> renameSkin(skin, name), () -> { }, this.window));
     }
 
     /**
-     * Stores the skin on the server under a name.
-     *
-     * <p>A new entry every time, deliberately: the project in progress already follows
-     * the editing, and this is the other thing — a version put aside, that further
-     * editing does not move.
+     * Renames an entry. The project in progress is renamed where the editor holds it,
+     * and written down from there; any other entry is written back as it was, under its
+     * new name.
      */
-    private void saveSkin(String name) {
-        SavedSkin skin = new SavedSkin(SavedSkin.newId(), name, System.currentTimeMillis(),
-                JsonParser.parseString(ProjectJson.project(this.project)).getAsJsonObject());
+    private void renameSkin(SavedSkin skin, String name) {
+        if (this.current != null && skin.id().equals(this.current.id())) {
+            // An edit still waiting on its debounce goes with the new name, not after it.
+            persistNow();
+            this.current = new SavedSkin(this.current.id(), name, System.currentTimeMillis(),
+                    this.current.data());
+            CurrentProject.setProject(this.current);
+            if (!this.project.isEmpty()) {
+                upload(this.current);
+            }
+            relayout();
+            return;
+        }
+        store(skin.renamedTo(name), null);
+    }
 
+    /**
+     * Files a copy of an entry beside it, under "(copy)": the way to put a version
+     * aside before editing it further. The copy is not opened — the one being worked on
+     * stays the one on the editor.
+     */
+    private void duplicateSkin(SavedSkin skin) {
+        SavedSkin source = skin;
+        if (this.current != null && skin.id().equals(this.current.id())) {
+            // What the editor holds, not what the last write carried.
+            persistNow();
+            source = this.current;
+        }
+        String name = Component.translatable("skins.mcskincreator.copy_name", source.name()).getString();
+        store(new SavedSkin(SavedSkin.newId(), name, System.currentTimeMillis(), source.data().deepCopy()),
+                Component.translatable("toast.mcskincreator.skin_duplicated", name));
+    }
+
+    /** Writes an entry to the library, then reads the library again. */
+    private void store(SavedSkin skin, Component done) {
         McscApi.shared().save(skin).whenComplete((written, failure) ->
                 Minecraft.getInstance().execute(() -> {
                     if (this.closed) {
                         return;
                     }
                     if (failure != null) {
-                        MCSkinCreatorClient.LOGGER.warn("Saving \"{}\" failed", name, failure);
+                        MCSkinCreatorClient.LOGGER.warn("Saving \"{}\" failed", skin.name(), failure);
                         this.toasts.failed("skins", Component.translatable("toast.mcskincreator.skin_save_failed"));
                         return;
                     }
                     this.toasts.succeeded("skins");
-                    this.toasts.ok(Component.translatable("toast.mcskincreator.skin_saved", written.name()));
+                    if (done != null) {
+                        this.toasts.ok(done);
+                    }
                     loadSkins();
                 }));
     }
@@ -1761,7 +1795,9 @@ public class SkinCreatorScreen extends Screen {
         }
         wearLocally(sheet, model);
         this.toasts.ok(Component.translatable("toast.mcskincreator.applied"));
-        keepInLibrary("");
+        // The project is what was applied: it is written down now rather than after
+        // the debounce, so the library shows it as it went up.
+        persistNow();
     }
 
     /**
@@ -1859,7 +1895,7 @@ public class SkinCreatorScreen extends Screen {
         this.toasts.succeeded(Export.KIND);
         this.toasts.ok(Component.translatable("toast.mcskincreator.exported",
                 written.getFileName().toString()));
-        keepInLibrary(name);
+        persistNow();
     }
 
     // ------------------------------------------------------------------ drawing

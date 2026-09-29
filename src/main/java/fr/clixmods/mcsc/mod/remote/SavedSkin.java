@@ -28,9 +28,9 @@ import fr.clixmods.mcsc.mod.catalog.CatalogFormatException;
  * other way round. The server composes its texture on every write and serves it at
  * {@code /skins/{id}/texture.png}, so nothing here carries pixels.
  *
- * @param at when the entry was last saved <em>on purpose</em>. The site does not move
- *           it on an autosave, and neither does the mod: it is what tells a version
- *           deliberately put aside from one that merely drifted.
+ * @param at when the entry last changed. The mod moves it on every write, since every
+ *           project in its library is one entry that saves itself, and the date worth
+ *           showing is the last change.
  */
 public record SavedSkin(String id, String name, long at, JsonObject data) {
     /** What the server accepts as an identifier: {@code [A-Za-z0-9_-]{1,64}}. */

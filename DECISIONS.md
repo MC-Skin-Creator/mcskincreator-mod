@@ -522,8 +522,15 @@ the editor puts it back exactly as it was left. It lives in two places, for two
 reasons. `config/mcskincreator-project.json` brings it back at once and offline. The
 player's library on the server is where it can be *seen*: it is an entry of "My skins"
 under its own identifier, marked as the project in progress, with no delete cross.
-Edits are written down after a short debounce and on closing, and the entry keeps its
-date, since that date means "saved on purpose".
+Edits are written down after a short debounce and on closing, and the entry's date
+moves with them: it says when the project last changed.
+
+**One project is one entry.** Nothing files a copy behind the player's back: exporting
+a file or a front view, and applying to the account, write the project in progress
+down and nothing more. A first version did file a copy on every export, and a library
+of near-identical entries was the result. Keeping a version is the player's call, and
+has its own button: every row can be **duplicated** (the copy is filed as "(copy)" and
+not opened) and **renamed**; every row but the project in progress can be deleted.
 
 What starts a new project:
 
@@ -542,9 +549,7 @@ What starts a new project:
   default skin, a development account) is never taken for one either.
 
 Opening a saved skin makes it the project in progress; the one being left is written
-down first. Exporting a file or a front view, and applying to the account, also file a
-copy of the skin in the library, under the export's name, which further editing does
-not move. An identical copy is not filed twice.
+down first.
 
 The account's skin is read from Mojang's public profile (`sessionserver.mojang.com`)
 and its pixels from `textures.minecraft.net`, not from the running game: the game's
