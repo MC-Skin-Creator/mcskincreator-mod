@@ -94,10 +94,13 @@ public class LayerRow extends Element {
         boolean lit = hot || selected;
 
         // Pointing at a row lights the layer up on the model, so you can tell which of
-        // three brown layers is the one you are about to change.
-        if (hot != this.wasHot) {
-            this.wasHot = hot;
-            this.onPeek.accept(hot ? this.layer : null);
+        // three brown layers is the one you are about to change. It follows the pointer
+        // alone: a click leaves the row focused, and focus counts as hot for the look
+        // of the row, so keying it off `hot` kept the light on after the pointer left.
+        boolean pointed = enabled() && contains(paint.mouseX(), paint.mouseY());
+        if (pointed != this.wasHot) {
+            this.wasHot = pointed;
+            this.onPeek.accept(pointed ? this.layer : null);
         }
 
         if (this.dragging) {
