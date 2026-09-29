@@ -45,9 +45,9 @@ import net.minecraft.network.chat.Component;
  * not draw a figure at all. They let the game draw the real character, in the real world,
  * and the panel's whole job under those is to keep out of the way.
  *
- * <p>There is no bar: the view takes the whole panel, and the view chooser sits in the
- * dock with the other controls, in the top right corner. A dock at the foot of the view
- * lands exactly where the game draws the first-person hand.
+ * <p>There is no bar: the view takes the whole panel, the view selector floats over it
+ * in the top left corner and the dock sits in the top right. A dock at the foot of the
+ * view lands exactly where the game draws the first-person hand.
  */
 public class ScenePanel extends Element {
     /** How the middle column is showing the skin. */
@@ -96,6 +96,9 @@ public class ScenePanel extends Element {
     /** The gesture in progress: whether it is a pan rather than a turn. */
     private boolean dragging;
     private boolean panning;
+
+    /** How much of the top edge, from the left, the view selector takes. */
+    private int selectorWidth;
 
     private int[] dock = {0, 0, 0, 0};
     private int[] viewport = {0, 0, 0, 0};
@@ -178,6 +181,50 @@ public class ScenePanel extends Element {
     public void layout(Canvas canvas) {
         this.controls.clear();
 
+        int cursorX = this.x + Metrics.PAD_TIGHT;
+        int barY = this.y + Metrics.PAD_TIGHT;
+
+        List<PixelButton> viewButtons = new ArrayList<>();
+        int segmentedWidth = 0;
+        for (View candidate : View.values()) {
+            PixelButton button = new PixelButton(Component.translatable(candidate.labelKey()),
+                    PixelButton.Style.TAB, () -> {
+                        this.view = candidate;
+                        this.relayout.run();
+                    });
+            button.fit(canvas).setActive(this.view == candidate);
+            button.withTooltip(Component.translatable(candidate.tooltipKey()));
+            viewButtons.add(button);
+            segmentedWidth += button.width() + Metrics.SEGMENT_GAP;
+        }
+
+        // Three buttons side by side is the site's segmented group, and it is what this
+        // shows whenever the scene is wide enough for it. Below that width the same
+        // choice becomes a dropdown rather than spilling off the bar: a control that
+        // runs past the edge of its strip is a control nobody can reach.
+        if (segmentedWidth + Metrics.ui(90) <= this.width) {
+            for (PixelButton button : viewButtons) {
+                button.setBounds(cursorX, barY, button.width(), Metrics.TAB_HEIGHT);
+                this.controls.add(button);
+                cursorX += button.width() + Metrics.SEGMENT_GAP;
+            }
+            this.selectorWidth = cursorX - this.x;
+        } else {
+            Dropdown<View> chooser = new Dropdown<>(List.of(View.values()),
+                    candidate -> Component.translatable(candidate.labelKey()),
+                    () -> this.view,
+                    candidate -> {
+                        this.view = candidate;
+                        this.relayout.run();
+                    },
+                    candidate -> true);
+            int chooserWidth = Math.min(Metrics.ui(150), Math.max(1, this.width - Metrics.PAD_TIGHT * 2));
+            chooser.setBounds(cursorX, barY, chooserWidth, Metrics.TAB_HEIGHT);
+            chooser.inScreen(this.y + this.height);
+            this.controls.add(chooser);
+            this.selectorWidth = Metrics.PAD_TIGHT + chooserWidth;
+        }
+
         int viewTop = this.y;
         int viewHeight = this.height;
         this.viewport = new int[] {this.x, viewTop, this.width, viewHeight};
@@ -211,7 +258,7 @@ public class ScenePanel extends Element {
     }
 
     /**
-     * The dock, top right: the view, the camera, the backdrop, the animation, and putting the view
+     * The dock, top right: the camera, the backdrop, the animation, and putting the view
      * back.
      *
      * <p>Laid out right to left and wrapped onto as many rows as it takes, because the
@@ -221,14 +268,6 @@ public class ScenePanel extends Element {
      */
     private void layoutDock(Canvas canvas) {
         List<Element> docked = new ArrayList<>();
-
-        // First in the dock, so it is the last to be pushed onto a row of its own.
-        docked.add(chooser(List.of(View.values()),
-                candidate -> Component.translatable(candidate.labelKey()),
-                () -> this.view, candidate -> {
-                    this.view = candidate;
-                    this.relayout.run();
-                }));
 
         List<CameraMode> cameras = availableCameras();
         if (cameras.size() > 1) {
@@ -310,7 +349,7 @@ public class ScenePanel extends Element {
         int gap = Metrics.SEGMENT_GAP;
         int rowHeight = Metrics.TAB_HEIGHT;
         int usable = Math.max(rowHeight,
-                this.width - Metrics.PAD_TIGHT * 2 - Metrics.PANEL_INSET * 2);
+                this.width - this.selectorWidth - Metrics.PAD_TIGHT * 2 - Metrics.PANEL_INSET * 2);
 
         List<List<Element>> rows = new ArrayList<>();
         List<Element> row = new ArrayList<>();
