@@ -80,7 +80,7 @@ is worth saying plainly where it goes.
   in a batch, and it locks the button between two uploads so a session cannot be
   rate-limited by an impatient click.
 
-A dedicated `SECURITY.md` is [issue #13](https://github.com/MC-Skin-Creator/mcskincreator-mod/issues/13).
+The same account is in [`SECURITY.md`](SECURITY.md), with the file to read for each claim and how to report a vulnerability.
 
 The editor reads the MC Skin Creator API at `https://mcskincreator.app/api/v1`, and
 uses every route of that contract: the catalogue and its atlases, the search, an
