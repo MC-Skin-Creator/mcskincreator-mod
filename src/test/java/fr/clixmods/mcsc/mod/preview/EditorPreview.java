@@ -115,16 +115,25 @@ public final class EditorPreview {
     }
 
     /**
-     * Lays the editor out at this size and paints it, magnified.
+     * Lays the editor out at this size and paints it, at the screen's own resolution.
      *
-     * <p>The magnification is not decoration. The game draws this interface into a
-     * 640x360 buffer and blows it up to a 1920x1080 window — that is what a GUI scale
-     * of 3 is — so a preview looked at pixel for pixel is a preview three times smaller
-     * than anything a player sees. Whole factors only, sampled nearest-neighbour, which
-     * is the same thing the game does.
+     * <p>The scale is not decoration and it is no longer a magnification either. The
+     * game draws this interface into a 960x540 buffer and blows it up to a 1920x1080
+     * window — that is what a GUI scale of two is — but the half-size text lives in the
+     * window's pixels and not in the buffer's, so blowing the buffer up afterwards
+     * could not show it. The buffer is the window's from the start.
      */
     public BufferedImage render(int width, int height, int scale) {
-        return magnify(render(width, height), scale);
+        return paint(width, height, scale);
+    }
+
+    /** A rectangle of a picture, for looking at one control rather than a whole screen. */
+    public BufferedImage crop(BufferedImage source, int x, int y, int width, int height) {
+        int left = Math.max(0, Math.min(x, source.getWidth() - 1));
+        int top = Math.max(0, Math.min(y, source.getHeight() - 1));
+        return source.getSubimage(left, top,
+                Math.min(width, source.getWidth() - left),
+                Math.min(height, source.getHeight() - top));
     }
 
     /** Blows a picture up by a whole factor, sampled the way the game samples it. */
@@ -142,9 +151,13 @@ public final class EditorPreview {
         return large;
     }
 
-    /** Lays the editor out at this size and paints it. */
+    /** Lays the editor out at this size and paints it, one screen pixel to one. */
     public BufferedImage render(int width, int height) {
-        ImageCanvas canvas = new ImageCanvas(width, height);
+        return paint(width, height, 1);
+    }
+
+    private BufferedImage paint(int width, int height, int scale) {
+        ImageCanvas canvas = new ImageCanvas(width, height, scale);
         canvas.supply(Tiles.texture(), grain());
         // The game's own ground is behind this screen; the preview needs something
         // there to tell a panel's edge from the end of the picture.
@@ -236,6 +249,6 @@ public final class EditorPreview {
 
     /** Measuring alone, for a caller that wants the geometry rather than the picture. */
     public Canvas measuring(int width, int height) {
-        return new ImageCanvas(width, height);
+        return new ImageCanvas(width, height, 1);
     }
 }

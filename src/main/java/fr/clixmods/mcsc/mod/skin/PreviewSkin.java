@@ -64,6 +64,21 @@ public final class PreviewSkin implements AutoCloseable {
         }
     }
 
+    /**
+     * Uploads an image the mod composed itself.
+     *
+     * <p>The caller owns what it hands over and gets it back closed, because the only
+     * thing that ever does this is a blend made for one frame of a highlight.
+     */
+    public void show(NativeImage image) {
+        try {
+            this.texture.upload(image);
+        } catch (RuntimeException | Error failure) {
+            image.close();
+            throw failure;
+        }
+    }
+
     /** Reads either shape the API answers with: a PNG, or a raw RGBA buffer. */
     public static NativeImage decode(byte[] payload) throws IOException {
         if (payload.length == FrontSprite.SKIN_SIZE * FrontSprite.SKIN_SIZE * 4) {

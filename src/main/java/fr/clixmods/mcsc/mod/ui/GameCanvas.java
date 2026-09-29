@@ -22,6 +22,7 @@ import net.minecraft.network.chat.Component;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import net.minecraft.resources.Identifier;
+import org.joml.Matrix3x2fStack;
 
 /**
  * The {@link Canvas} the game paints on, and the one file in the interface that knows
@@ -71,6 +72,51 @@ public final class GameCanvas implements Canvas {
     @Override
     public int textWidth(String text) {
         return this.font.width(text);
+    }
+
+    /**
+     * The fraction the small text is drawn at.
+     *
+     * <p>A half and nothing else. At the even GUI scales this editor takes, half a
+     * game pixel is a whole screen pixel, so the bitmap lands on the grid exactly;
+     * two thirds or three quarters would land between pixels and smear every glyph.
+     */
+    private static final float SMALL = 0.5F;
+
+    @Override
+    public int smallLineHeight() {
+        return (lineHeight() + 1) / 2;
+    }
+
+    @Override
+    public int smallTextWidth(Component text) {
+        return (textWidth(text) + 1) / 2;
+    }
+
+    @Override
+    public int smallTextWidth(String text) {
+        return (textWidth(text) + 1) / 2;
+    }
+
+    @Override
+    public String trimToSmallWidth(String text, int room) {
+        return trimToWidth(text, room * 2);
+    }
+
+    @Override
+    public void textSmall(Component text, int x, int y, int argb) {
+        // Halve the matrix and double the coordinates: the glyphs land where they were
+        // asked for, at half the size. The scissor in force was set in screen pixels
+        // and is unaffected, because it is state and not part of the matrix.
+        Matrix3x2fStack pose = this.graphics.pose();
+        pose.pushMatrix();
+        pose.scale(SMALL, SMALL);
+        //? if >=26.1 {
+        /*this.graphics.text(this.font, text, x * 2, y * 2, argb, false);
+        *///?} else {
+        this.graphics.drawString(this.font, text, x * 2, y * 2, argb, false);
+        //?}
+        pose.popMatrix();
     }
 
     /** Fills a rectangle. Alpha is honoured, which is what draws the window backdrop. */

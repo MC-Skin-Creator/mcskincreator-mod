@@ -59,6 +59,7 @@ import fr.clixmods.mcsc.mod.ui.widget.ItemTile;
 import fr.clixmods.mcsc.mod.ui.window.CardWindow;
 import fr.clixmods.mcsc.mod.ui.window.ConfirmWindow;
 import fr.clixmods.mcsc.mod.ui.window.ModalWindow;
+import fr.clixmods.mcsc.mod.ui.window.CreditsWindow;
 import fr.clixmods.mcsc.mod.ui.window.ModelsWindow;
 import fr.clixmods.mcsc.mod.ui.window.NameWindow;
 import fr.clixmods.mcsc.mod.ui.window.SkinsWindow;
@@ -74,6 +75,8 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import com.mojang.blaze3d.platform.NativeImage;
+import fr.clixmods.mcsc.mod.skin.SkinBlend;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.PlayerModelType;
 import org.lwjgl.glfw.GLFW;
@@ -92,21 +95,15 @@ import org.lwjgl.glfw.GLFW;
  * scale, the player model, and a focus ring a keyboard can walk, which is also how
  * everything the site reveals on hover stays reachable without a mouse.
  *
- * <p>Nothing on screen waits on the network. Stacking an element shows it straight
- * away from the atlas buffer already in memory, and the server's composition replaces
- * it when it lands; a server that cannot compose costs a notification, not the
- * preview. Every texture this screen builds is released in {@link #removed()}, and a
- * reply arriving after it has gone is dropped rather than uploaded.
+ * <p>Nothing on screen waits on the network. The stack is composed here, by
+ * {@code mcsc-engine}, out of the atlas buffers already in memory: stacking an
+ * element, dragging a slider and reordering the stack all show on the next frame. A
+ * category whose pixels have not landed contributes nothing until they do, and then
+ * the sheet is composed again. Every texture this screen builds is released in
+ * {@link #removed()}, and a reply arriving after it has gone is dropped rather than
+ * uploaded.
  */
 public class SkinCreatorScreen extends Screen {
-
-    /**
-     * How long to wait before asking the server to compose.
-     *
-     * <p>One composition is one round trip, so a burst of clicks would be a burst of
-     * requests. Waiting for the picking to settle collapses them into one.
-     */
-    private static final long COMPOSE_DEBOUNCE_MS = 300;
 
     /**
      * How long to wait before asking the server what a search matches.
@@ -220,13 +217,15 @@ public class SkinCreatorScreen extends Screen {
     /** Rises with every search, so a slow answer cannot replace a newer one. */
     private int searchGeneration;
 
-    /** The stack waiting to be composed, and since when. */
-    private boolean composePending;
-    private long pendingSince;
-    /** Rises with every request, so a slow reply cannot overwrite a newer one. */
-    private int composeGeneration;
-    /** The last sheet the server sent back, which is what an export writes out. */
+    /** The composed sheet on the model, which is also what an export writes out. */
     private byte[] composed;
+    /** The composed stack decoded, so a blend does not decode a PNG twenty times a second. */
+    private NativeImage baseImage;
+    private byte[] baseOf;
+    /** The element under the pointer in the library, laid over the stack while it is. */
+    private byte[] hovered;
+    /** The atlas revision the composed sheet was made from. */
+    private int composedAtlases = -1;
     /**
      * The project revision the preview is showing.
      *
@@ -344,17 +343,24 @@ public class SkinCreatorScreen extends Screen {
     }
 
     /**
-     * Shows an element on the model without stacking it, and takes it straight back off
-     * on the way out.
+     * Shows an element <em>on</em> the model without stacking it, and takes it straight
+     * back off on the way out.
+     *
+     * <p>It used to replace the previewed skin with the element alone, so pointing at a
+     * pair of eyes emptied the scene and showed two eyes floating in it — which answers
+     * "what would this look like" by taking away everything it would look like against.
+     * The element is laid over the composed skin instead, which is exactly what picking
+     * it would do.
      *
      * <p>Nothing is written to the project, so cancelling costs nothing and can never
      * leave a stray layer behind.
      */
     private void previewItem(ItemTile tile) {
         if (tile == null) {
+            this.hovered = null;
             this.hoveredLabel = null;
             this.showingItem = false;
-            showTopLocally();
+            showComposed();
             return;
         }
         this.hoveredLabel = tile.label();
@@ -363,40 +369,27 @@ public class SkinCreatorScreen extends Screen {
         // rather than left to paint over the element and then reset the texture.
         this.highlight.drop();
         this.highlighting = false;
-        if (LibraryPanel.OUTFIT_SHEET.equals(tile.category().id())) {
-            previewOutfit(tile);
-            return;
-        }
-        show(this.sprites.get(tile.category().id()), tile.item().atlasIndex(this.project.isSlim()));
+        this.hovered = LibraryPanel.OUTFIT_SHEET.equals(tile.category().id())
+                ? outfitClothes(tile)
+                : buffer(this.sprites.get(tile.category().id()),
+                        tile.item().atlasIndex(this.project.isSlim()));
+        showHovered();
     }
 
     /**
-     * An outfit's tile picture stands the clothes on a mannequin, which is right for a
-     * thumbnail and wrong for the model: pointing at one has to show it over the skin
-     * being worn, which is what wearing it would do.
+     * An outfit's clothes alone, to be laid over the worn skin like any element. Its tile
+     * picture stands them on a mannequin, which is right for a thumbnail and would cover
+     * the skin being worn.
+     *
+     * @return null while the categories it is made of are still downloading
      */
-    private void previewOutfit(ItemTile tile) {
-        CatalogModel outfit = catalog.outfits().stream()
+    private byte[] outfitClothes(ItemTile tile) {
+        return catalog.outfits().stream()
                 .filter(candidate -> candidate.id().equals(tile.item().id()))
-                .findFirst().orElse(null);
-        byte[] worn = null;
-        if (outfit != null) {
-            byte[] body = this.composed != null ? this.composed : Composite.of(
-                    this.project.layers().stream().filter(Layer::visible)
-                            .map(layer -> layerBuffer(layer)).toList());
-            worn = ReadyMadeSkins.of(List.of(outfit), catalog, this.sprites::get,
-                    this.project.isSlim(), body).get(0);
-        }
-        boolean drawn = false;
-        for (int offset = 3; worn != null && offset < worn.length && !drawn; offset += 4) {
-            drawn = worn[offset] != 0;
-        }
-        if (drawn) {
-            show(worn);
-        } else {
-            // Its categories are still downloading: leave the skin as it is.
-            showTopLocally();
-        }
+                .findFirst()
+                .map(outfit -> ReadyMadeSkins.of(List.of(outfit), catalog, this.sprites::get,
+                        this.project.isSlim(), null).get(0))
+                .orElse(null);
     }
 
     /**
@@ -408,6 +401,8 @@ public class SkinCreatorScreen extends Screen {
      * the layer's texels over the stack instead, and so does this: see {@link Highlight}.
      */
     private void peekLayer(Layer layer) {
+        this.hovered = null;
+        this.showingItem = false;
         if (layer == null) {
             this.hoveredLabel = null;
             this.highlight.hide(System.currentTimeMillis());
@@ -446,31 +441,72 @@ public class SkinCreatorScreen extends Screen {
         }
         if (this.highlighting) {
             this.highlighting = false;
-            showTopLocally();
+            showComposed();
         }
     }
 
     /** The layer's own 64x64, straight out of the atlas its category arrived in. */
     private byte[] layerBuffer(Layer layer) {
-        CategorySprites sprites = this.sprites.get(layer.categoryId());
-        return sprites == null ? null : sprites.buffer(layer.atlasIndex(this.project.isSlim()));
+        return buffer(this.sprites.get(layer.categoryId()),
+                layer.atlasIndex(this.project.isSlim()));
     }
 
-    /**
-     * Puts the topmost visible layer on the model from the atlas buffer already in
-     * memory — it is a 64x64 skin in its own right — until the server's composition of
-     * the whole stack lands.
-     *
-     * <p>Picking therefore never waits on the network.
-     */
-    private void showTopLocally() {
-        if (this.composed != null) {
-            show(this.composed);
+    /** The base every blend is laid on: the composed stack, decoded once and kept. */
+    private NativeImage base() {
+        if (this.composed == null) {
+            this.baseImage = closed(this.baseImage);
+            this.baseOf = null;
+            return null;
+        }
+        if (this.baseImage != null && this.baseOf == this.composed) {
+            return this.baseImage;
+        }
+        this.baseImage = closed(this.baseImage);
+        try {
+            this.baseImage = PreviewSkin.decode(this.composed);
+            this.baseOf = this.composed;
+        } catch (IOException | RuntimeException cause) {
+            MCSkinCreatorClient.LOGGER.warn("Unreadable composed skin", cause);
+            this.baseOf = null;
+        }
+        return this.baseImage;
+    }
+
+    private static NativeImage closed(NativeImage image) {
+        if (image != null) {
+            image.close();
+        }
+        return null;
+    }
+
+    /** The element under the pointer, laid over the stack. */
+    private void showHovered() {
+        NativeImage base = base();
+        if (base == null || this.hovered == null) {
+            // Nothing composed yet, so there is nothing to lay it over: the element on
+            // its own is the best answer available, and it is the old one.
+            if (this.hovered != null) {
+                show(this.hovered);
+            }
             return;
         }
-        Layer top = this.project.topVisible();
-        if (top != null) {
-            show(this.sprites.get(top.categoryId()), top.atlasIndex(this.project.isSlim()));
+        this.preview.show(SkinBlend.over(base, this.hovered));
+    }
+
+    private static byte[] buffer(CategorySprites sprites, int index) {
+        return sprites == null ? null : sprites.buffer(index);
+    }
+
+    /** An element's pixels, out of the sheet its category was uploaded from. */
+    private byte[] atlasBuffer(String categoryId, int atlasIndex) {
+        CategorySprites sheet = this.sprites.get(categoryId);
+        return sheet == null ? null : sheet.buffer(atlasIndex);
+    }
+
+    /** Puts the stack back on the model: what leaving a thumbnail or a layer row returns to. */
+    private void showComposed() {
+        if (this.composed != null) {
+            show(this.composed);
         }
     }
 
@@ -493,30 +529,22 @@ public class SkinCreatorScreen extends Screen {
         }
     }
 
-    /** Puts the stack back in the queue, restarting the wait. */
-    private void queueCompose() {
-        this.composePending = true;
-        this.pendingSince = System.currentTimeMillis();
-    }
-
     @Override
     public void tick() {
         super.tick();
         this.scene.tick();
         syncWorldPreview();
 
-        if (this.shownRevision != this.project.revision()) {
+        // Either the stack changed, or pixels it was missing have arrived: a layer can
+        // be stacked before its category's atlas is here, and that is the moment it
+        // goes into the sheet.
+        if (this.shownRevision != this.project.revision() || this.composedAtlases != this.atlasRevision) {
             this.shownRevision = this.project.revision();
+            this.composedAtlases = this.atlasRevision;
             this.preview.model(this.project.model());
-            // The composition on hand belongs to the stack as it was, so it goes, and
-            // the top layer stands in until the server answers for the new one.
-            this.composed = null;
-            if (this.project.isEmpty()) {
-                this.preview.clear();
-            } else {
-                showTopLocally();
-            }
-            queueCompose();
+            // What was laid over the old stack no longer fits the new one.
+            this.hovered = null;
+            compose();
         }
 
         // Only while what needs them is on screen: a sheet is a few hundred stacks
@@ -529,10 +557,6 @@ public class SkinCreatorScreen extends Screen {
         }
 
         long now = System.currentTimeMillis();
-        if (this.composePending && now - this.pendingSince >= COMPOSE_DEBOUNCE_MS) {
-            this.composePending = false;
-            compose();
-        }
         if (this.searchPending && now - this.searchSince >= SEARCH_DEBOUNCE_MS) {
             this.searchPending = false;
             search();
@@ -581,31 +605,22 @@ public class SkinCreatorScreen extends Screen {
         }
     }
 
+    /**
+     * Composes the stack and puts it on the model.
+     *
+     * <p>Straight from {@link #tick()} rather than after a wait: the work is local and
+     * takes a fraction of a frame, so there is nothing to collapse into one request
+     * and nothing to be an edit behind. It used to be a round trip per change behind a
+     * debounce, which a dragged slider would never have survived.
+     */
     private void compose() {
         if (this.project.isEmpty()) {
             this.composed = null;
+            this.preview.clear();
             return;
         }
-        int generation = ++this.composeGeneration;
-        String body = ProjectJson.project(this.project);
-
-        McscApi.shared().compose(body).whenComplete((texture, failure) ->
-                Minecraft.getInstance().execute(() -> {
-                    if (this.closed || generation != this.composeGeneration) {
-                        return;
-                    }
-                    if (failure != null) {
-                        // The stack is already on the model, so this is a note rather
-                        // than a dead end: the preview is the top layer on its own.
-                        MCSkinCreatorClient.LOGGER.warn("Composing the project failed", failure);
-                        this.toasts.failed("compose",
-                                Component.translatable("preview.mcskincreator.compose_failed"));
-                        return;
-                    }
-                    this.toasts.succeeded("compose");
-                    this.composed = texture;
-                    show(texture);
-                }));
+        this.composed = Composite.of(this.project, this::atlasBuffer);
+        show(this.composed);
     }
 
     // ------------------------------------------------------------------ the catalogue
@@ -1010,16 +1025,21 @@ public class SkinCreatorScreen extends Screen {
                 TextWindow.Line.warning("about.mcskincreator.local_only")), null));
     }
 
+    /**
+     * The one door the library's foot still has.
+     *
+     * <p>About and the beta notice both hung here as well, and both were a second way
+     * into a room the top bar already opens — the mark opens About, and the badge beside
+     * it says beta. The legal notice went with them: it said what the mod is not, which
+     * is About's job and is in About.
+     */
     private void openFooterLink(String link) {
-        switch (link) {
-            case "about" -> openAbout();
-            case "legal" -> open(new TextWindow("window.mcskincreator.legal",
-                    List.of(TextWindow.Line.of("legal.mcskincreator.body")), null));
-            case "credits" -> open(new TextWindow("window.mcskincreator.credits",
-                    this::creditsLines, null));
-            default -> open(new TextWindow("window.mcskincreator.beta",
-                    List.of(TextWindow.Line.of("beta.mcskincreator.body")), null));
+        if ("credits".equals(link)) {
+            open(new CreditsWindow("window.mcskincreator.credits",
+                    this::creditsNotice, this::creditsEntries, null));
+            return;
         }
+        openAbout();
     }
 
     /**
@@ -1034,10 +1054,14 @@ public class SkinCreatorScreen extends Screen {
      * <p>Elements the repository drew itself credit nobody outside it and are left out,
      * which is what the site does with them too.
      */
-    private List<TextWindow.Line> creditsLines() {
-        List<TextWindow.Line> lines = new ArrayList<>();
-        lines.add(TextWindow.Line.of("credits.mcskincreator.body"));
+    private Component creditsNotice() {
+        if (this.project.isEmpty()) {
+            return Component.translatable("credits.mcskincreator.nothing_stacked");
+        }
+        return Component.translatable("credits.mcskincreator.body");
+    }
 
+    private List<CreditsWindow.Entry> creditsEntries() {
         Map<CatalogWork, List<String>> used = new LinkedHashMap<>();
         for (Layer layer : this.project.layers()) {
             CatalogItem item = itemOf(layer).orElse(null);
@@ -1055,19 +1079,13 @@ public class SkinCreatorScreen extends Screen {
             }
         }
 
-        if (used.isEmpty()) {
-            lines.add(TextWindow.Line.of(this.project.isEmpty()
-                    ? "credits.mcskincreator.nothing_stacked"
-                    : "credits.mcskincreator.nothing_to_credit"));
-            return lines;
-        }
+        List<CreditsWindow.Entry> entries = new ArrayList<>();
         for (Map.Entry<CatalogWork, List<String>> entry : used.entrySet()) {
             CatalogWork work = entry.getKey();
-            lines.add(new TextWindow.Line(Component.translatable("credits.mcskincreator.work",
-                    work.title(), work.author(), licenceName(work),
-                    String.join(", ", entry.getValue())), false));
+            entries.add(new CreditsWindow.Entry(work.author(), work.title(),
+                    licenceName(work).getString(), work.url(), entry.getValue()));
         }
-        return lines;
+        return entries;
     }
 
     /** The catalogue entry a layer was stacked from, which it may have outlived. */
@@ -1487,16 +1505,25 @@ public class SkinCreatorScreen extends Screen {
     //?}
 
     private void paint(Canvas canvas, int mouseX, int mouseY, float delta) {
-        Paint paint = new Paint(canvas, mouseX, mouseY, System.currentTimeMillis(), this.focused);
+        List<Element> targets = targets();
+        // An open menu owns the pointer. Everything under it is drawn as though the
+        // pointer were not there at all, or the layer row behind the menu lights up,
+        // offers its tooltip and takes the model's gaze with it.
+        boolean blocked = false;
+        for (Element element : targets) {
+            blocked |= element.overlayActive();
+        }
+        Paint paint = new Paint(canvas, mouseX, mouseY, System.currentTimeMillis(),
+                this.focused, blocked);
         applyHighlight(paint.time());
 
         this.chrome.draw(paint, delta);
 
         // Overlays go over their own panel and take clicks before it, which is what
         // keeps an open menu from being painted over by the strip it belongs to.
-        for (Element element : targets()) {
+        for (Element element : targets) {
             if (element.overlayActive()) {
-                element.drawOverlay(paint);
+                element.drawOverlay(paint.unblocked());
             }
         }
 
@@ -1509,6 +1536,11 @@ public class SkinCreatorScreen extends Screen {
     }
 
     private void drawTooltip(Paint paint) {
+        if (paint.blocked()) {
+            // The pointer is on an open menu; whatever it happens to be over has
+            // nothing to say about it.
+            return;
+        }
         for (Element element : targets()) {
             if (element.contains(paint.mouseX(), paint.mouseY()) && !element.tooltip().isEmpty()) {
                 paint.canvas().tooltip(element.tooltip(), paint.mouseX(), paint.mouseY());
@@ -1672,6 +1704,13 @@ public class SkinCreatorScreen extends Screen {
             relayout();
             return true;
         }
+        for (Element element : targets()) {
+            if (element.overlayActive()) {
+                // The wheel belongs to whatever is open over the screen, not to the
+                // column it happens to be floating above.
+                return true;
+            }
+        }
         if (this.library.visible() && this.library.scroll(mouseX, mouseY, scrollY)) {
             return true;
         }
@@ -1833,6 +1872,8 @@ public class SkinCreatorScreen extends Screen {
         }
         AppliedSkin.stopPreviewing();
         this.preview.close();
+        this.baseImage = closed(this.baseImage);
+        this.baseOf = null;
         if (this.modelSprites != null) {
             this.modelSprites.close();
             this.modelSprites = null;
