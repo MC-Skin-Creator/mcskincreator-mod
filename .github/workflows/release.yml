@@ -25,13 +25,9 @@ permissions:
   # a public package. Every jar of a release embeds it through Jar-in-Jar.
   packages: read
 
-# A newer push to develop supersedes a pre-release still building. main is never
-# cancelled: a stable release may be halfway through tagging and pushing.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref_name == 'develop' }}
-
-# Two merges in a row must not compute the same number at once.
+# Two merges in a row must not compute the same number at once. A key can only
+# appear once at the top level, so this is the only concurrency block: nothing is
+# cancelled, because a stable release may be halfway through tagging and pushing.
 concurrency:
   group: release
   cancel-in-progress: false
