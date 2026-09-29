@@ -52,7 +52,7 @@ What is in:
   for Minecraft's profile servers, which is what the confirmation warns about
 - English, French and Spanish, with a label and a tooltip for every control
 - multi-version builds through [Stonecutter](https://stonecutter.kikugie.dev/):
-  **Minecraft 1.21.11 and 26.2** from the same code
+  **Minecraft 1.21.10, 1.21.11, 26.1, 26.2 and 26.3** from the same code
 - CI building every supported version on each push and pull request
 
 What is not in yet: the pixel drawing tools, per-element colours, importing a
@@ -107,8 +107,11 @@ delete the skins on the server, but it does lose the way back to them.
 
 | Minecraft | Java | Fabric Loader | Fabric API |
 |---|---|---|---|
+| 1.21.10 | 21 | 0.19.3 or newer | 0.138.4+1.21.10 |
 | 1.21.11 | 21 | 0.19.3 or newer | 0.141.6+1.21.11 |
+| 26.1, 26.1.1, 26.1.2 | 25 | 0.19.3 or newer | 0.155.3+26.1.2 |
 | 26.2 | 25 | 0.19.3 or newer | 0.160.0+26.2 |
+| 26.3 | 25 | 0.19.3 or newer | 0.161.0+26.3 |
 
 Drop the jar matching your Minecraft version into `.minecraft/mods/`.
 
@@ -123,13 +126,15 @@ page, one jar per supported Minecraft version:
 You know the mod is loaded when the log prints `MC Skin Creator 0.1.0 loaded` and
 the title screen shows the **Skin Creator** panel against its right edge.
 
-> The 1.21.11 jar is the one that has been exercised in a real game. The 26.2 jar
-> compiles and carries the right metadata, but has not been run yet.
+> The 1.21.11 jar is the one that has been exercised in a real game. The others
+> compile, pass the tests and carry the right metadata, but have not been run yet.
+> The 26.1 jar is built against 26.1.2 and named after it, and declares every 26.1
+> release.
 
 ## Build from source
 
-Requires a JDK 21. Gradle downloads the Java 25 toolchain needed by the 26.2
-target on its own.
+Requires a JDK 21. Gradle downloads the Java 25 toolchain needed by the 26.x
+targets on its own.
 
 ```sh
 ./gradlew build            # every supported Minecraft version

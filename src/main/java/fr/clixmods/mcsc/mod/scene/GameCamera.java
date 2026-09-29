@@ -12,6 +12,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
+//? if >=26.3 {
+/*import net.minecraft.world.item.component.SwingAnimation;
+*///?}
 
 /**
  * The game's own camera, borrowed for the two views that look at the real world.
@@ -259,20 +262,23 @@ public final class GameCamera {
         if (player != null) {
             // MAIN_HAND, not a side: the game already knows which arm that is, so a
             // left-handed player's left arm swings.
+            //? if >=26.3 {
+            /*player.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, false);
+            *///?} else {
             player.swing(InteractionHand.MAIN_HAND);
+            //?}
         }
     }
 
     /**
      * Whether the game is currently drawing its own HUD.
      *
-     * <p>The one thing in this class the two targets disagree about: 1.21.11 keeps the
-     * flag on {@code Options}, 26.2 moved it into {@code Hud} behind a getter and a
-     * toggle. Both are public, so it stays a rename rather than becoming a reason for a
+     * <p>Where the targets disagree about the HUD: up to 26.1 the flag lives on
+     * {@code Options}, 26.2 moved it into {@code Hud} behind a getter and a toggle. Both are public, so it stays a rename rather than becoming a reason for a
      * mixin.
      */
     private boolean hudHidden() {
-        //? if >=26.1 {
+        //? if >=26.2 {
         /*return this.client.gui.hud.isHidden();
         *///?} else {
         return this.client.options.hideGui;
@@ -280,7 +286,7 @@ public final class GameCamera {
     }
 
     private void hideHud(boolean hidden) {
-        //? if >=26.1 {
+        //? if >=26.2 {
         /*if (this.client.gui.hud.isHidden() != hidden) {
             this.client.gui.hud.toggle();
         }

@@ -25,10 +25,10 @@ Minecraft. There is no server side and no server entry point.
 | | |
 |---|---|
 | Loader | Fabric |
-| Supported Minecraft versions | `1.21.11`, `26.2` |
+| Supported Minecraft versions | `1.21.10`, `1.21.11`, `26.1` (built on 26.1.2), `26.2`, `26.3` |
 | Active / default version | `1.21.11` |
 | Mappings | Official Mojang mappings on every target |
-| Java | 21 on 1.21.11, **25** on 26.2 (Mojang's requirement, not a choice) |
+| Java | 21 on 1.21.x, **25** on 26.x (Mojang's requirement, not a choice) |
 | Mod id / package | `mcskincreator` / `fr.clixmods.mcsc.mod` |
 
 Yarn mappings are **not** usable here: they have no build past 1.21.11, which is
@@ -117,8 +117,8 @@ version.
 `1.17-SNAPSHOT`; the 1.18 line refuses to run below a Java 25 JVM, which would
 force Java 25 on every target.
 
-Gradle itself runs on Java 21 and downloads the Java 25 toolchain for the 26.2
-target on its own.
+Gradle itself runs on Java 21 and downloads the Java 25 toolchain for the 26.x
+targets on its own.
 
 ## Commands
 
@@ -204,6 +204,21 @@ and `}` are load-bearing: breaking them silently changes what a target compiles.
 | Hide the game HUD | `Options.hideGui` | `Gui.hud.toggle()` / `isHidden()` | `scene/GameCamera` |
 | Draw the HUD | `Gui#render` | `Gui#extractRenderState` | `mixin/GuiMixin` |
 
+The table above compares the two ends that were supported first. The other targets
+differ from their neighbours in a few more places:
+
+| Concern | Versions | Where |
+|---|---|---|
+| `ResourceLocation` renamed `Identifier` | 1.21.10 says `ResourceLocation` | regex replacement in `build.gradle.kts` — the sources say `Identifier` |
+| Hide the game HUD | `Options.hideGui` up to 26.1, `Gui.hud` from 26.2 | `scene/GameCamera` |
+| Draw the HUD | `Gui#render` on 1.21.x, `Gui#extractRenderState(GuiGraphicsExtractor, DeltaTracker)` on 26.1, `(DeltaTracker, boolean, boolean)` from 26.2 | `mixin/GuiMixin` |
+| Keyboard | GLFW up to 26.2, SDL on 26.3 with other key codes | `InputConstants` everywhere, never `org.lwjgl.glfw` |
+| Swing the arm | `swing(hand)` and `attackArm`/`attackTime` up to 26.2, `swing(hand, SwingAnimation, boolean)` and `currentSwing`/`swingAnimation` on 26.3 | `scene/GameCamera`, `scene/ScenePose` |
+
+Key codes are the one trap here that compiles: 26.3 moved from GLFW to SDL, so a
+GLFW constant is a different key there. Always read keys through Mojang's
+`InputConstants`, which follows the platform on every target.
+
 26.x replaced immediate-mode GUI drawing with a render-state extraction pass, so
 any new drawing code will need the same treatment.
 
@@ -264,7 +279,9 @@ the point.
 This is the one mixin that carries a Stonecutter directive, because the HUD is drawn
 under different names on the two targets — `Gui#render` against
 `Gui#extractRenderState`. The class is the same on both, which is what keeps it one
-mixin: 1.21.11 cancels the call outright, and 26.2 forces to false the first of the two
+mixin: 1.21.x and 26.1 cancel the call outright — on 26.1 it is renamed
+`extractRenderState(GuiGraphicsExtractor, DeltaTracker)` and is still the HUD and nothing
+else — and 26.2 onward forces to false the first of the two
 booleans, the one that gates the HUD. Not the second: that gates the screen, so
 cancelling there would take the editor with it.
 
@@ -429,7 +446,8 @@ artifacts for testing a PR, not a release artifact.
 mcskincreator-<mod version>+mc<minecraft version>.jar
 ```
 
-e.g. `mcskincreator-0.1.0+mc1.21.11.jar`, `mcskincreator-0.1.0+mc26.2.jar`, and for
+e.g. `mcskincreator-0.1.0+mc1.21.11.jar`, `mcskincreator-0.1.0+mc26.2.jar`
+(`+mc26.1.2` for the 26.1 target, built against its last hotfix), and for
 a development build `mcskincreator-0.2.0-dev.7+mc1.21.11.jar`.
 
 Publishing to Modrinth/CurseForge is still not set up; building and publishing are

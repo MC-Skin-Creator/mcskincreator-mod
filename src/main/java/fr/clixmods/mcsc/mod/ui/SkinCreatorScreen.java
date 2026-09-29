@@ -20,6 +20,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.google.gson.JsonParser;
+import com.mojang.blaze3d.platform.InputConstants;
 
 import fr.clixmods.mcsc.mod.MCSkinCreatorClient;
 import fr.clixmods.mcsc.mod.account.AccountSkin;
@@ -75,7 +76,6 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.PlayerModelType;
-import org.lwjgl.glfw.GLFW;
 
 /**
  * The editor.
@@ -1652,8 +1652,8 @@ public class SkinCreatorScreen extends Screen {
     @Override
     public boolean keyPressed(KeyEvent event) {
         int key = event.key();
-        boolean control = (event.modifiers() & GLFW.GLFW_MOD_CONTROL) != 0;
-        boolean shift = (event.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0;
+        boolean control = (event.modifiers() & InputConstants.MOD_CONTROL) != 0;
+        boolean shift = (event.modifiers() & InputConstants.MOD_SHIFT) != 0;
 
         if (typingTarget() != null && typingTarget().keyDown(key, event.modifiers())) {
             return true;
@@ -1662,7 +1662,7 @@ public class SkinCreatorScreen extends Screen {
             return true;
         }
 
-        if (key == GLFW.GLFW_KEY_ESCAPE) {
+        if (key == InputConstants.KEY_ESCAPE) {
             // Escape unwinds one layer at a time: an open menu, then the window, then
             // the screen. Closing the window under an open menu loses whatever was in it.
             for (Element element : targets()) {
@@ -1679,20 +1679,20 @@ public class SkinCreatorScreen extends Screen {
             return true;
         }
 
-        if (key == GLFW.GLFW_KEY_TAB) {
+        if (key == InputConstants.KEY_TAB) {
             moveFocus(shift ? -1 : 1);
             return true;
         }
 
         if (this.window instanceof NameWindow named
-                && (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER)) {
+                && (key == InputConstants.KEY_RETURN || key == InputConstants.KEY_NUMPADENTER)) {
             if (named.accept()) {
                 closeWindow();
             }
             return true;
         }
 
-        if (this.focused != null && (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_SPACE)
+        if (this.focused != null && (key == InputConstants.KEY_RETURN || key == InputConstants.KEY_SPACE)
                 && !this.focused.capturesTyping()) {
             return this.focused.activate();
         }
@@ -1703,19 +1703,19 @@ public class SkinCreatorScreen extends Screen {
             return false;
         }
 
-        if (control && key == GLFW.GLFW_KEY_Z) {
+        if (control && key == InputConstants.KEY_Z) {
             if (shift ? this.history.redo() : this.history.undo()) {
                 relayout();
             }
             return true;
         }
-        if (control && key == GLFW.GLFW_KEY_Y) {
+        if (control && key == InputConstants.KEY_Y) {
             if (this.history.redo()) {
                 relayout();
             }
             return true;
         }
-        if (control && key == GLFW.GLFW_KEY_S) {
+        if (control && key == InputConstants.KEY_S) {
             openExport();
             return true;
         }
