@@ -12,13 +12,21 @@ WHAT IS ALLOWED, without prior permission:
   2. Cloning the repository and building the mod for your own personal use.
   3. Quoting parts of the code for analysis, vulnerability reports, security
      reviews, commentary or teaching.
-  4. Proposing changes through a pull request on the official repository.
+  4. Forking the repository on GitHub for the sole purpose of proposing a change to
+     it through a pull request. Contributions are not expected and there is no
+     promise to review, answer or merge any of them. By sending one, you allow the
+     copyright holder to use it in this project under this license.
+  5. Including the mod in a modpack, and distributing that modpack, provided the
+     mod's jar is the unmodified official one, it is offered free of charge, and
+     the modpack is not sold or put behind a paywall or an ad-gated download.
 
 WHAT IS NOT ALLOWED without prior written permission from the copyright holder:
 
   1. Redistributing the mod, compiled or as source, in any form, including on a
-     mod distribution platform, in a modpack or through a third-party launcher.
-  2. Publishing a derivative work, a fork or a modified version.
+     mod distribution platform or through a third-party launcher. Modpacks are
+     covered by the permission above.
+  2. Publishing a derivative work, a modified version, or a fork used for anything
+     other than the pull requests described above.
   3. Reusing any part of the code in another project.
   4. Any commercial use.
 
