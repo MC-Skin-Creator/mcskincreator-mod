@@ -78,7 +78,7 @@ public final class EditorPreview {
         this.scene = new ScenePanel(this.preview, new PreviewFigure(), new GameCamera(null),
                 this::invalidate, () -> null);
         this.layers = new LayersPanel(this.project, () -> this.catalog, id -> null, this.history,
-                this::invalidate, () -> { }, () -> { }, layer -> { });
+                this::invalidate, () -> { }, () -> { }, layer -> { }, (layer, key) -> { });
         this.chrome = new EditorChrome(this.topBar, this.library, this.scene, this.layers,
                 this::invalidate);
     }
@@ -231,10 +231,30 @@ public final class EditorPreview {
         for (String itemName : itemNames) {
             items.add(new CatalogItem(id + "/" + itemName.toLowerCase(java.util.Locale.ROOT),
                     new CatalogText(itemName, itemName, itemName), items.size(),
-                    CatalogItem.NONE, null, ""));
+                    CatalogItem.NONE, null, "", sampleColors(id)));
         }
         return new CatalogCategory(id, region, new CatalogText(name, name, name),
                 "skin".equals(id), crop, "", items);
+    }
+
+    /**
+     * Colour keys the way the catalogue gives them: most elements have one or two, and
+     * the selected shirt has enough to show how the swatch row wraps — or does not.
+     */
+    private static java.util.Map<String, Integer> sampleColors(String categoryId) {
+        java.util.Map<String, Integer> colors = new java.util.LinkedHashMap<>();
+        switch (categoryId) {
+            case "skin" -> colors.put("tone", 0xC89878);
+            case "shirt" -> {
+                colors.put("main", 0x3C6E9E);
+                colors.put("accent", 0xE0C060);
+                colors.put("collar", 0xF2F2F2);
+                colors.put("button", 0x5A3A22);
+                colors.put("stripe", 0xA03B31);
+            }
+            default -> colors.put("main", 0x6A8A4A);
+        }
+        return colors;
     }
 
     /** The one call a caller needs when all it wants is a picture. */

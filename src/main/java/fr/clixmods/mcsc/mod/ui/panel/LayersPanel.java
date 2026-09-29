@@ -26,6 +26,8 @@ import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
 import fr.clixmods.mcsc.mod.ui.Paint;
 import fr.clixmods.mcsc.mod.ui.ScrollPane;
+import fr.clixmods.mcsc.mod.ui.window.ColorWindow;
+import fr.clixmods.mcsc.mod.ui.widget.ColorSwatch;
 import fr.clixmods.mcsc.mod.ui.widget.LayerRow;
 import fr.clixmods.mcsc.mod.ui.widget.Dropdown;
 import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
@@ -63,6 +65,7 @@ public class LayersPanel extends Panel {
     private final Runnable onAddRequested;
     private final Runnable onImportRequested;
     private final java.util.function.Consumer<Layer> onPeek;
+    private final java.util.function.BiConsumer<Layer, String> onColorRequested;
 
     private final ScrollPane scroll = new ScrollPane();
     private final List<PlacedRow> rows = new ArrayList<>();
@@ -90,7 +93,8 @@ public class LayersPanel extends Panel {
     public LayersPanel(SkinProject project, Supplier<Catalog> catalog,
                        Function<String, CategorySprites> sprites, History history,
                        Runnable relayout, Runnable onAddRequested, Runnable onImportRequested,
-                       java.util.function.Consumer<Layer> onPeek) {
+                       java.util.function.Consumer<Layer> onPeek,
+                       java.util.function.BiConsumer<Layer, String> onColorRequested) {
         super("panel.mcskincreator.layers", false);
         this.project = project;
         this.catalog = catalog;
@@ -100,6 +104,7 @@ public class LayersPanel extends Panel {
         this.onAddRequested = onAddRequested;
         this.onImportRequested = onImportRequested;
         this.onPeek = onPeek;
+        this.onColorRequested = onColorRequested;
     }
 
     @Override
@@ -252,7 +257,10 @@ public class LayersPanel extends Panel {
         return total;
     }
 
-    /** How tall the settings band wants to be: its heading, four sliders and a button. */
+    /**
+     * How tall the settings band wants to be: its heading, four sliders, the colour
+     * swatches when the element has any, and a button.
+     */
     private int settingsHeight(Canvas canvas) {
         if (this.project.isEmpty()) {
             // No layers, so nothing to select and nothing to say about a selection. The
@@ -266,7 +274,24 @@ public class LayersPanel extends Panel {
             return heading + canvas.lineHeight() + Metrics.PAD;
         }
         return heading + (Slider.heightFor(canvas) + Metrics.PAD_TIGHT) * 4
+                + swatchesHeight(this.project.selected().colorKeys().size())
                 + Metrics.BUTTON_HEIGHT_COMPACT + Metrics.PAD_TIGHT;
+    }
+
+    /** How many swatches fit on one line of the band. */
+    private int swatchesPerRow() {
+        int width = contentRight() - contentLeft();
+        return Math.max(1, (width + Metrics.SEGMENT_GAP) / (Metrics.BUTTON_HEIGHT_COMPACT + Metrics.SEGMENT_GAP));
+    }
+
+    /** The swatch rows, wrapped to the column, and the gap under them; none when no keys. */
+    private int swatchesHeight(int keys) {
+        if (keys == 0) {
+            return 0;
+        }
+        int rows = (keys + swatchesPerRow() - 1) / swatchesPerRow();
+        return rows * (Metrics.BUTTON_HEIGHT_COMPACT + Metrics.SEGMENT_GAP) - Metrics.SEGMENT_GAP
+                + Metrics.PAD_TIGHT;
     }
 
     /** The settings of the selected layer, pinned at the foot of the column. */
@@ -289,6 +314,23 @@ public class LayersPanel extends Panel {
         cursorY = addSlider(canvas, left, cursorY, width, "brightness", -50, 50,
                 layer::brightness, layer::setBrightness,
                 value -> Component.literal(Integer.toString(value)));
+
+        // One swatch per key the element declares, and only those: the server recolours
+        // by these keys and has nothing to apply another to. An element with none shows
+        // no row at all rather than an empty one.
+        List<String> keys = layer.colorKeys();
+        int perRow = swatchesPerRow();
+        for (int index = 0; index < keys.size(); index++) {
+            String key = keys.get(index);
+            ColorSwatch swatch = new ColorSwatch(ColorWindow.keyName(key), () -> layer.color(key),
+                    () -> this.onColorRequested.accept(layer, key));
+            int step = Metrics.BUTTON_HEIGHT_COMPACT + Metrics.SEGMENT_GAP;
+            swatch.setBounds(left + (index % perRow) * step, cursorY + (index / perRow) * step,
+                    Metrics.BUTTON_HEIGHT_COMPACT, Metrics.BUTTON_HEIGHT_COMPACT);
+            this.settings.add(addChild(swatch));
+            this.fixed.add(swatch);
+        }
+        cursorY += swatchesHeight(keys.size());
 
         PixelButton reset = new PixelButton(Component.translatable("gui.mcskincreator.reset_colors"),
                 PixelButton.Style.NORMAL, () -> {

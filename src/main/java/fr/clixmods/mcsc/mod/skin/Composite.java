@@ -8,9 +8,18 @@
 package fr.clixmods.mcsc.mod.skin;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
+import fr.clixmods.mcsc.engine.ColorKey;
 import fr.clixmods.mcsc.engine.Composition;
+import fr.clixmods.mcsc.engine.Preset;
+import fr.clixmods.mcsc.engine.PresetSource;
+import fr.clixmods.mcsc.engine.TextureEngine;
+import fr.clixmods.mcsc.mod.catalog.CatalogItem;
+import fr.clixmods.mcsc.mod.catalog.Rgb;
 import fr.clixmods.mcsc.mod.project.Layer;
 import fr.clixmods.mcsc.mod.project.SkinProject;
 
@@ -26,8 +35,9 @@ import fr.clixmods.mcsc.mod.project.SkinProject;
  * have been a fourth to watch.
  *
  * <p>Two things are stacked, and they are not the same thing. The editor's project
- * carries an opacity and hue/saturation/brightness per layer, which the library
- * applies; a ready-made stack is plain buffers, one on top of the other, and is
+ * carries per-key colours, an opacity and hue/saturation/brightness per layer, which
+ * the library applies; a ready-made stack is plain buffers, one on top of the other,
+ * recoloured where the catalogue says so, and is
  * composed here rather than asked for — the catalogue offers two hundred and odd of
  * them, and two hundred requests to fill one panel is not a thing to do to the
  * service or to somebody waiting on it.
@@ -35,6 +45,23 @@ import fr.clixmods.mcsc.mod.project.SkinProject;
 public final class Composite {
     /** Bytes of one RGBA skin buffer. */
     public static final int BYTES = Composition.BYTES;
+
+    /**
+     * The library's recolouring, which lives on an engine because it caches each
+     * element's decoded zone map. The pixels are always handed to it, so the source it
+     * would otherwise read them from is never asked.
+     */
+    private static final TextureEngine ENGINE = new TextureEngine(new PresetSource() {
+        @Override
+        public Optional<Preset> preset(String cat, String id) {
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<int[]> pixels(Preset preset, boolean slim) {
+            return Optional.empty();
+        }
+    });
 
     /**
      * Where an element's pixels come from: its rank in its category's atlas, which is
@@ -82,10 +109,42 @@ public final class Composite {
             if (buffer == null || buffer.length < BYTES) {
                 continue;
             }
-            int[] adjusted = Composition.adjustBuffer(toInts(buffer), adjustments(layer));
+            // Recoloured first, then shifted: the order the library's own project
+            // composition applies them in, and so the order the site does.
+            int[] recolored = recolor(layer.categoryId(), layer.item(), layer.changedColors(),
+                    project.isSlim(), toInts(buffer));
+            int[] adjusted = Composition.adjustBuffer(recolored, adjustments(layer));
             stack.add(new Composition.ComposedLayer(true, layer.opacity() / 100.0, adjusted));
         }
         return toBytes(Composition.composite(stack));
+    }
+
+    /**
+     * One element's buffer with some of its colour keys moved, bytes in and bytes out:
+     * what a ready-made piece with a colour override needs before it is stacked.
+     */
+    public static byte[] recolor(String categoryId, CatalogItem item, Map<String, Integer> colors,
+                                 boolean slim, byte[] buffer) {
+        return colors.isEmpty() ? buffer : toBytes(recolor(categoryId, item, colors, slim, toInts(buffer)));
+    }
+
+    /**
+     * Moves each key the library is told about by the HSL distance between the
+     * element's own colour for that key and the one chosen, pixel by pixel through the
+     * element's zone map — which is what keeps its shading and its grain.
+     */
+    private static int[] recolor(String categoryId, CatalogItem item, Map<String, Integer> colors,
+                                 boolean slim, int[] buffer) {
+        if (colors.isEmpty()) {
+            return buffer;
+        }
+        List<ColorKey> keys = new ArrayList<>(item.colors().size());
+        item.colors().forEach((key, rgb) -> keys.add(new ColorKey(key, Rgb.format(rgb))));
+        Map<String, String> wanted = new LinkedHashMap<>();
+        colors.forEach((key, rgb) -> wanted.put(key, Rgb.format(rgb)));
+        Preset element = new Preset(categoryId, item.id(), keys, item.hasSlim(),
+                item.colorMap(), item.slimColorMap());
+        return ENGINE.applyColors(element, buffer, wanted, slim);
     }
 
     /**

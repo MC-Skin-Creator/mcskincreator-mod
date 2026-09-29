@@ -188,4 +188,38 @@ class CompositeTest {
             assertArrayEquals(new int[] {0, 255, 0, 255}, composed());
         }
     }
+
+    @Nested
+    class Colours {
+        /** A hat whose one key is pure red, with no zone map: every opaque pixel is that key. */
+        private final CatalogItem redHat = new CatalogItem("cap", new CatalogText("Cap", "Cap", "Cap"),
+                0, CatalogItem.NONE, null, "", Map.of("main", 0xFF0000));
+
+        @Test
+        void a_recoloured_key_reaches_the_pixels() {
+            byte[] sheet = Composite.recolor(CATEGORY, this.redHat, Map.of("main", 0x0000FF), false,
+                    filled(255, 0, 0, 255));
+
+            assertArrayEquals(new int[] {0, 0, 255, 255}, first(sheet));
+        }
+
+        @Test
+        void no_recolour_is_the_same_buffer() {
+            byte[] buffer = filled(255, 0, 0, 255);
+
+            assertEquals(buffer, Composite.recolor(CATEGORY, this.redHat, Map.of(), false, buffer));
+        }
+
+        @Test
+        void a_layers_colours_are_composed_into_the_project() {
+            CatalogCategory hats = new CatalogCategory(CATEGORY, "head", new CatalogText("Hats", "Hats", "Hats"),
+                    false, null, "", java.util.List.of(this.redHat));
+            SkinProject project = new SkinProject();
+            project.add(hats, this.redHat, "en_us").setColor("main", 0x00FF00);
+
+            byte[] sheet = Composite.of(project, (category, index) -> filled(255, 0, 0, 255));
+
+            assertArrayEquals(new int[] {0, 255, 0, 255}, first(sheet));
+        }
+    }
 }

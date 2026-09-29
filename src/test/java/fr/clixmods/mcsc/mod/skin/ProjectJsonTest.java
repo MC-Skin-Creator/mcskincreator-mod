@@ -261,4 +261,51 @@ class ProjectJsonTest {
 
         assertTrue(this.project.isEmpty(), "opening a saved skin is not stacking it on this one");
     }
+
+    private final CatalogCategory coloredHats = new CatalogCategory("hats", "head",
+            new fr.clixmods.mcsc.mod.catalog.CatalogText("Hats", "Hats", "Hats"), false,
+            fr.clixmods.mcsc.mod.catalog.ThumbCrop.HEAD, "", List.of(
+                    new fr.clixmods.mcsc.mod.catalog.CatalogItem("cap",
+                            new fr.clixmods.mcsc.mod.catalog.CatalogText("Cap", "Cap", "Cap"),
+                            0, fr.clixmods.mcsc.mod.catalog.CatalogItem.NONE, null, "",
+                            java.util.Map.of("main", 0x359E61))));
+
+    @Test
+    void aRecolouredKeyIsWrittenAsTheServerReadsIt() {
+        Layer layer = this.project.add(this.coloredHats, this.coloredHats.items().get(0), "en_us");
+        String untouched = ProjectJson.project(this.project);
+        layer.setColor("main", 0xFF0000);
+
+        JsonObject entry = layersOf(ProjectJson.project(this.project)).get(0).getAsJsonObject();
+
+        assertFalse(layersOf(untouched).get(0).getAsJsonObject().has("colors"),
+                "the element's own colours have nothing to say");
+        assertEquals("#ff0000", entry.getAsJsonObject("colors").get("main").getAsString());
+    }
+
+    @Test
+    void aRecolouredKeyComesBackFromStorage() {
+        this.project.add(this.coloredHats, this.coloredHats.items().get(0), "en_us")
+                .setColor("main", 0x123456);
+        String written = ProjectJson.project(this.project);
+
+        SkinProject reopened = new SkinProject();
+        ProjectJson.read(parse(written), reopened, catalog(this.coloredHats), "en_us");
+
+        assertEquals(0x123456, reopened.layers().get(0).color("main"));
+    }
+
+    @Test
+    void aStoredKeyTheElementNoLongerHasIsLetGo() {
+        String stored = """
+                {"v": 1, "slim": false, "layers": [{"kind": "preset", "cat": "hats",
+                 "preset": "cap", "colors": {"main": "#0000ff", "feather": "#ff0000"}}]}
+                """;
+
+        int dropped = ProjectJson.read(parse(stored), this.project, catalog(this.coloredHats), "en_us");
+
+        assertEquals(0, dropped, "the layer itself is still there");
+        assertEquals(List.of("main"), this.project.layers().get(0).colorKeys());
+        assertEquals(0x0000FF, this.project.layers().get(0).color("main"));
+    }
 }

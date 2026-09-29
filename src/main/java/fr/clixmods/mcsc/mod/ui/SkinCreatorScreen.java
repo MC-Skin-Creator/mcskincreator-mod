@@ -58,6 +58,7 @@ import fr.clixmods.mcsc.mod.ui.widget.Dropdown;
 import fr.clixmods.mcsc.mod.ui.widget.ItemTile;
 import fr.clixmods.mcsc.mod.ui.window.AboutWindow;
 import fr.clixmods.mcsc.mod.ui.window.CardWindow;
+import fr.clixmods.mcsc.mod.ui.window.ColorWindow;
 import fr.clixmods.mcsc.mod.ui.window.ConfirmWindow;
 import fr.clixmods.mcsc.mod.ui.window.ModalWindow;
 import fr.clixmods.mcsc.mod.ui.window.CreditsWindow;
@@ -279,7 +280,7 @@ public class SkinCreatorScreen extends Screen {
                     this::relayout, () -> this.hoveredLabel);
             this.layers = new LayersPanel(this.project, () -> catalog, this.sprites::get,
                     this.history, this::relayout, this::revealLibrary, this::openImport,
-                    this::peekLayer);
+                    this::peekLayer, this::openColor);
             this.chrome = new EditorChrome(this.topBar, this.library, this.scene, this.layers,
                     this::relayout);
         }
@@ -1184,6 +1185,23 @@ public class SkinCreatorScreen extends Screen {
                 }));
     }
 
+    /**
+     * After an undo or a redo. The stack is now copies of the layers it held, so a
+     * colour window still open would go on recolouring one that is no longer in it —
+     * every change after the undo silently lost. It closes instead.
+     */
+    private void historyMoved() {
+        if (this.window instanceof ColorWindow) {
+            closeWindow();
+        } else {
+            relayout();
+        }
+    }
+
+    private void openColor(Layer layer, String key) {
+        open(new ColorWindow(this.project, this.history, layer, key));
+    }
+
     private void openSaveName() {
         // Nothing to undo on cancel: the window's own close already gives the library
         // back, and closing twice would take it away with it.
@@ -1768,13 +1786,13 @@ public class SkinCreatorScreen extends Screen {
 
         if (control && key == GLFW.GLFW_KEY_Z) {
             if (shift ? this.history.redo() : this.history.undo()) {
-                relayout();
+                historyMoved();
             }
             return true;
         }
         if (control && key == GLFW.GLFW_KEY_Y) {
             if (this.history.redo()) {
-                relayout();
+                historyMoved();
             }
             return true;
         }
