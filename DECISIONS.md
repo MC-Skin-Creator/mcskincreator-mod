@@ -449,9 +449,10 @@ are added there, never removed or renamed, and a client compiled against it keep
 working. A mod is installed on somebody's machine and is a version — or ten — behind,
 so it is the second one it calls, and only the second one.
 
-That decides what the mod can be built on. The eleven routes of the contract are
-all used: the catalogue and its atlases, the search, an element's provenance, the
-composed texture and the front view, and the five routes of the saved-skin library.
+That decides what the mod can be built on. Only the routes
+that read or render are used: the catalogue and its atlases, the search, an element's
+provenance, and the front view. The five routes of the saved-skin library are not: see
+below.
 The routes outside it are left alone even where they would be convenient — the
 editor's autosave, the PNG import, the share image, the random draws, and the
 `POST /credits` that would group the works of a whole stack in one call. The mod
@@ -459,7 +460,7 @@ groups them itself, out of the catalogue it already holds, rather than lean on a
 route that may move.
 
 **The project document is the site's, to the letter.** It is one shape everywhere:
-stored by `PUT /skins/{id}`, read back from storage, and drawn as a standing figure
+written to the local library, and drawn as a standing figure
 by `POST /thumbnails`. Its rules are the server's validator, and three of them are silent when
 broken — the model is a `slim` boolean rather than a `model` string, a layer names
 its element with `cat` and `preset`, and opacity and the adjustments are factors
@@ -468,13 +469,12 @@ way is refused with a 400 naming the path, which is how the first version of thi
 was found: nothing ever composed. `ProjectJson` is therefore the only place that
 writes or reads a project, and it has a test per rule.
 
-**The saved skins are per installation, not per account.** There is no account yet.
-The storage routes ask for an `X-Client-Id` header, a UUID, and refuse the call
-outright without one; the site draws it in the browser, and the mod draws it once and
-keeps it in `config/mcskincreator-client.txt`. That file is the way back to the
-library rather than the library itself — losing it leaves the skins on the server and
-loses the door to them. The day accounts exist, one will gather several of these ids
-without this side of the contract changing (issue #9).
+**The saved skins are local files, and only that.** The mod stores nothing on the
+server: no `PUT /skins`, no `X-Client-Id`, no identifier drawn per installation. A skin
+is `config/mcskincreator/skins/<id>.json` and its front view `<id>.png` beside it,
+drawn once per version through `POST /thumbnails` (a render, not a store). Skins saved
+on the server by earlier builds are not migrated; `config/mcskincreator-client.txt` is
+no longer read and can be deleted.
 
 ## 9. The texture engine is a shared library, not a port
 
@@ -498,7 +498,7 @@ Two consequences, neither obvious from the build file:
   trip per change, which a 300 ms debounce made tolerable for a burst of clicks and
   which was never going to work under a dragged slider. `Composite` does it in a
   fraction of a frame, so the preview simply follows the stack. What the API is still
-  asked for is data: the catalogue, the atlases, the saved skins;
+  asked for is data: the catalogue, the atlases;
 - **the library ships inside the mod jar** (`include`, Fabric's Jar-in-Jar). The
   player installs one file and never learns the library exists. Leaving that line out
   compiles and then crashes in game, which is why it has its own paragraph in
@@ -520,7 +520,7 @@ The editor used to start empty on every opening and forget the stack on closing.
 now keeps one **project in progress**, which outlives the window: closing and reopening
 the editor puts it back exactly as it was left. It lives in two places, for two
 reasons. `config/mcskincreator-project.json` brings it back at once and offline. The
-player's library on the server is where it can be *seen*: it is an entry of "My skins"
+player's library, a folder on this machine, is where it can be *seen*: it is an entry of "My skins"
 under its own identifier, marked as the project in progress, with no delete cross.
 Edits are written down after a short debounce and on closing, and the entry's date
 moves with them: it says when the project last changed.

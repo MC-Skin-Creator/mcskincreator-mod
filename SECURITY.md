@@ -59,7 +59,7 @@ You can check the first ones yourself: search the repository for `getAccessToken
 
 | Address | What for | Carries |
 |---|---|---|
-| `https://mcskincreator.app/api/v1` | the catalogue, the atlases, search, credits, the composed texture, the saved-skin library | the skin project, and a random client identifier (below). **No token.** |
+| `https://mcskincreator.app/api/v1` | the catalogue, the atlases, search, credits, and the front-view picture of a skin | the skin project, to be drawn (the server keeps nothing). No identifier, **no token.** |
 | `https://api.minecraftservices.com/minecraft/profile/skins` | applying a skin to your account | the session token and the PNG, **only when you press Apply** |
 | `https://sessionserver.mojang.com/session/minecraft/profile/` and `textures.minecraft.net` | reading the skin an account is wearing | nothing of the session |
 
@@ -71,13 +71,13 @@ the mod sets it. The token goes to the Mojang endpoint above whatever that addre
 
 | File | Where | What it holds |
 |---|---|---|
-| `mcskincreator-client.txt` | the game's `config/` folder | a random identifier the mod draws once, and sends with the saved-skin calls. It is not derived from your account, your name or your machine. |
+| `mcskincreator/skins/` | the game's `config/` folder | your saved skins, one file each, and the picture drawn for the list. They are stored here and nowhere else. |
 | `mcskincreator-project.json` | the game's `config/` folder | the skin you are editing, so it survives a restart |
 | exported PNGs | the game's `mcskincreator/` folder | the skins you chose to export |
 
 Nothing else is written. In particular there is nothing that resembles a credential
-in any of them. Deleting `mcskincreator-client.txt` does not delete your saved skins
-on the server, but it does lose the way back to them.
+in any of them. Nothing you save is sent to a server, and the mod sends no identifier:
+an older `mcskincreator-client.txt` is no longer read and can be deleted.
 
 ## Reporting a vulnerability
 

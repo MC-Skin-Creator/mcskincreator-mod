@@ -19,10 +19,9 @@ import net.minecraft.resources.Identifier;
 /**
  * The pictures of the saved skins, one per entry of the library.
  *
- * <p>They come from {@code GET /api/v1/skins/{id}/thumbnail.png}: the server already
- * composed that skin when it stored it, so a front view of it costs a request and no
- * composition at all — which is what makes a list of a dozen skins open without the
- * mod rebuilding a dozen stacks it is not showing.
+ * <p>They are files kept beside the skins in the library folder, drawn once per
+ * version, so a list of a dozen skins opens without the mod rebuilding a dozen stacks
+ * it is not showing.
  *
  * <p>A picture is kept for one version of its entry — the date the entry was last
  * written with — and a newer version asks for it again. An entry is edited in place,
@@ -45,7 +44,7 @@ public final class SkinThumbnails implements AutoCloseable {
      * Whether this version of the entry, or a newer one, has been asked for already, and
      * so need not be asked for. Marks it asked when it has not.
      *
-     * <p>Never goes backwards: the list read from the server can still carry the version
+     * <p>Never goes backwards: the list read from disk can still carry the version
      * before an edit the mod has just written, and that older picture is not wanted.
      */
     public boolean asked(String skinId, long version) {
