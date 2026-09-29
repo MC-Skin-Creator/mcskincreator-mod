@@ -73,7 +73,7 @@ public final class Surface {
         }
     }
 
-    /** A pure black frame, two pixels thick, drawn on the outer edge of the element. */
+    /** A pure black frame, drawn on the outer edge of the element. */
     public static void outline(Canvas canvas, int x, int y, int width, int height) {
         int thickness = Metrics.OUTLINE;
         canvas.fill(x, y, width, thickness, Palette.OUTLINE);
@@ -117,9 +117,9 @@ public final class Surface {
     }
 
     /**
-     * A window: the same stone, a three pixel bevel instead of two, and a black rim
-     * around the outside. Those two differences are what tell a window from a panel at
-     * a glance, without either one needing a colour of its own.
+     * A window: the same stone, a bevel one pixel deeper than a panel's, and a black
+     * rim around the outside. Those two differences are what tell a window from a panel
+     * at a glance, without either one needing a colour of its own.
      */
     public static void window(Canvas canvas, int x, int y, int width, int height) {
         int rim = Metrics.WINDOW_RIM;
@@ -191,7 +191,35 @@ public final class Surface {
     /** A slider rail: a carved groove, like every other track in the interface. */
     public static void sliderRail(Canvas canvas, int x, int y, int width, int height,
                                   boolean hovered) {
+        sliderRail(canvas, x, y, width, height, hovered, 0, 0);
+    }
+
+    /**
+     * The rail, with the distance between the setting's resting value and where the
+     * handle is now filled in.
+     *
+     * <p>Four unfilled troughs in a column tell you nothing until you read the four
+     * numbers beside them. Filled, the slider is the value at a glance, which is the
+     * whole reason it is a slider and not a text field.
+     *
+     * <p>It fills from the resting value and not from the left end, because half these
+     * settings rest in the middle of their range: hue at zero turns nothing, and a bar
+     * half full of green beside the word "0" says the opposite.
+     *
+     * @param from where the setting rests, and {@code to} where it is now — both in
+     *             pixels from the rail's left edge, in either order
+     */
+    public static void sliderRail(Canvas canvas, int x, int y, int width, int height,
+                                  boolean hovered, int from, int to) {
         slot(canvas, x, y, width, height, hovered ? Palette.SLOT_HOVER : Palette.SLOT);
+        int inset = Metrics.SLOT_INSET;
+        int room = width - inset * 2;
+        int left = Math.max(0, Math.min(Math.min(from, to), room));
+        int right = Math.max(0, Math.min(Math.max(from, to), room));
+        if (right > left && height > inset * 2) {
+            canvas.fill(x + inset + left, y + inset, right - left, height - inset * 2,
+                    hovered ? Palette.GREEN_HOVER : Palette.GREEN);
+        }
     }
 
     public static void sliderHandle(Canvas canvas, int x, int y, int height, boolean hovered) {
@@ -226,6 +254,109 @@ public final class Surface {
         checkbox(canvas, x, y, Metrics.CHECKBOX, ticked, hovered);
     }
 
+    /**
+     * A chevron, pointing left or right: the sign a column folds away or comes back.
+     *
+     * <p>It was the font's {@code <} and {@code >}, which are a less-than and a
+     * greater-than sign — bottom-heavy, off-centre in a square button, and a different
+     * weight from every other mark on the row. Two diagonals meeting at a point are the
+     * same drawing at any size and sit where they are put.
+     */
+    public static void chevron(Canvas canvas, int x, int y, int size, boolean pointsRight,
+                               int ink) {
+        int half = size / 2;
+        for (int step = 0; step <= half; step++) {
+            // The tip is the point it aims at, so it is the far column when it points
+            // right and the near one when it points left; the arms open the other way.
+            int column = pointsRight ? half - step : step;
+            canvas.fill(x + column, y + half - step, 1, 1, ink);
+            canvas.fill(x + column, y + half + step, 1, 1, ink);
+        }
+    }
+
+    /** Play: a filled triangle, which is what the sign has meant since tape decks. */
+    public static void play(Canvas canvas, int x, int y, int size, int ink) {
+        // Across the whole box, widest at the left edge and narrowing to a point on
+        // the right. Half the box was half a triangle sitting against the left side of
+        // its button, which reads as a stray wedge rather than as play.
+        for (int column = 0; column < size; column++) {
+            int top = column / 2;
+            canvas.fill(x + column, y + top, 1, Math.max(1, size - top * 2), ink);
+        }
+    }
+
+    /** Pause: two bars, as wide apart as they are wide. */
+    public static void pause(Canvas canvas, int x, int y, int size, int ink) {
+        int bar = Math.max(1, size / 3);
+        canvas.fill(x, y, bar, size, ink);
+        canvas.fill(x + size - bar, y, bar, size, ink);
+    }
+
+    /** A plus: two bars, which is the one mark that means "add" in this interface. */
+    public static void plus(Canvas canvas, int x, int y, int size, int ink) {
+        int middle = (size - 1) / 2;
+        canvas.fill(x, y + middle, size, 1, ink);
+        canvas.fill(x + middle, y, 1, size, ink);
+    }
+
+    /**
+     * The grip: six dots in two columns, which is what says "this row can be pulled".
+     *
+     * <p>The site draws a {@code ⠿} and the game has no such glyph, so it is six
+     * rectangles. Six and not four: four reads as a decoration and six reads as a
+     * texture you could take hold of, which is the whole job of the thing.
+     */
+    public static void grip(Canvas canvas, int x, int y, int ink) {
+        for (int row = 0; row < GRIP_ROWS; row++) {
+            for (int column = 0; column < GRIP_COLUMNS; column++) {
+                canvas.fill(x + column * 2, y + row * 2, 1, 1, ink);
+            }
+        }
+    }
+
+    public static final int GRIP_COLUMNS = 2;
+    public static final int GRIP_ROWS = 3;
+    /** Three columns of pixels wide: two dots and the gap between them. */
+    public static final int GRIP_WIDTH = GRIP_COLUMNS * 2 - 1;
+    public static final int GRIP_HEIGHT = GRIP_ROWS * 2 - 1;
+
+    /**
+     * Duplication: two squares, one behind the other and offset.
+     *
+     * <p>It was a {@code +}, which is what an <em>add</em> button says everywhere else
+     * in this interface — the one at the head of the layers column adds a layer, and
+     * the one on a row did something else entirely. Two overlapping squares is the sign
+     * every editor uses for a copy, and it cannot be read as an add.
+     */
+    public static void copies(Canvas canvas, int x, int y, int size, int ink) {
+        int square = Math.max(3, size - 2);
+        // The sheet in front, whole. The one behind is two edges and not a second
+        // square: two complete squares at this size overlap into one box inside
+        // another, which is a frame, not a copy.
+        int frontX = x + size - square;
+        int frontY = y + size - square;
+        canvas.fill(frontX, frontY, square, 1, ink);
+        canvas.fill(frontX, frontY + square - 1, square, 1, ink);
+        canvas.fill(frontX, frontY, 1, square, ink);
+        canvas.fill(frontX + square - 1, frontY, 1, square, ink);
+        canvas.fill(x, y, square - 1, 1, ink);
+        canvas.fill(x, y, 1, square - 1, ink);
+    }
+
+    /**
+     * A cross drawn from pixels rather than typed as a letter.
+     *
+     * <p>An {@code x} in this font is five pixels of lower case sitting off the middle
+     * of its box; the control beside it is a square. Two diagonals of the same length
+     * centre properly and read at any size.
+     */
+    public static void cross(Canvas canvas, int x, int y, int size, int ink) {
+        for (int step = 0; step < size; step++) {
+            canvas.fill(x + step, y + step, 1, 1, ink);
+            canvas.fill(x + size - 1 - step, y + step, 1, 1, ink);
+        }
+    }
+
     public static void caret(Canvas canvas, int x, int y, int ink) {
         for (int row = 0; row < Metrics.CARET_HEIGHT; row++) {
             int width = Metrics.CARET_WIDTH - row * 2;
@@ -240,7 +371,33 @@ public final class Surface {
      * not read as an element with black in it.
      */
     public static void checker(Canvas canvas, int x, int y, int width, int height) {
+        // The square doubles as the area grows, so the count stays bounded: a thumbnail
+        // gets the site's own eight-pixel square, and a model's portrait — which is
+        // twenty times the area — gets a bigger one rather than four hundred quads.
         int cell = Metrics.CHECKER;
+        while (width / cell > CHECKER_LIMIT || height / cell > CHECKER_LIMIT) {
+            cell *= 2;
+        }
+        checker(canvas, x, y, width, height, cell);
+    }
+
+    /** The most squares a checker draws along either edge. */
+    private static final int CHECKER_LIMIT = 16;
+
+    /**
+     * The same checker at a chosen square size.
+     *
+     * <p>Every square is a quad, so the count is the area over the square — which is
+     * fine behind a thumbnail and ruinous behind the 64x64 sheet, where a fixed square
+     * meant five and a half thousand quads a frame and the editor crawled. Behind
+     * something drawn at a whole zoom the square belongs in <em>texture</em> pixels:
+     * it then scales with the picture, stays put against it, and costs the same
+     * sixty-four squares however far in the view is zoomed.
+     */
+    public static void checker(Canvas canvas, int x, int y, int width, int height, int cell) {
+        if (cell < 1) {
+            cell = 1;
+        }
         for (int row = 0; row * cell < height; row++) {
             for (int column = 0; column * cell < width; column++) {
                 int shade = ((row + column) % 2 == 0) ? Palette.CHECKER_DARK : Palette.CHECKER_LIGHT;
