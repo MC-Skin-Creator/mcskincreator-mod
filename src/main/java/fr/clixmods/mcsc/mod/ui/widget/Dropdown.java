@@ -32,6 +32,9 @@ import org.lwjgl.glfw.GLFW;
  * Escape closes the menu and stops there. Closing the window underneath as well is
  * the kind of thing that loses someone's work.
  *
+ * <p>An option may be null, which is how a list offers "any of them": the naming
+ * function is asked what to call it like any other.
+ *
  * @param <T> what the options stand for
  */
 public class Dropdown<T> extends Element {
@@ -44,6 +47,7 @@ public class Dropdown<T> extends Element {
     private final Consumer<T> write;
     private final java.util.function.Predicate<T> available;
 
+    private Component label;
     private boolean open;
     private int highlighted;
     private int screenHeight = Integer.MAX_VALUE;
@@ -61,6 +65,22 @@ public class Dropdown<T> extends Element {
         this.height = Metrics.BUTTON_HEIGHT_COMPACT;
     }
 
+    /**
+     * Sizes the control to its label and its longest option, so the value never slides
+     * under the caret as it changes.
+     */
+    public Dropdown<T> fit(Canvas canvas) {
+        int widest = 0;
+        for (T option : this.options) {
+            widest = Math.max(widest, canvas.textWidth(this.naming.apply(option)));
+        }
+        int labelWidth = this.label == null ? 0
+                : canvas.textWidth(this.label) + Metrics.PAD_TIGHT;
+        this.width = (Metrics.BUTTON_INSET + Metrics.PAD_HAIR) * 2
+                + labelWidth + widest + ARROW;
+        return this;
+    }
+
     private int rowHeight(Canvas canvas) {
         return canvas.lineHeight() + Metrics.PAD_TIGHT * 2;
     }
@@ -76,12 +96,23 @@ public class Dropdown<T> extends Element {
                 hot ? Surface.State.HOVERED : Surface.State.NORMAL);
 
         int inset = Metrics.BUTTON_INSET + Metrics.PAD_HAIR;
+        int cursorX = this.x + inset;
         int room = this.width - inset - ARROW;
+        int textY = this.y + (this.height - canvas.lineHeight()) / 2;
+        if (this.label != null) {
+            // Quieter than the value: what the control decides is context, what it holds
+            // is the answer, and the answer is what the eye should land on.
+            int labelWidth = canvas.textWidth(this.label);
+            if (labelWidth + Metrics.PAD_TIGHT < room) {
+                canvas.text(this.label, cursorX, textY, Palette.INK_FAINT);
+                cursorX += labelWidth + Metrics.PAD_TIGHT;
+                room -= labelWidth + Metrics.PAD_TIGHT;
+            }
+        }
         Component current = this.naming.apply(this.read.get());
         canvas.text(Component.literal(fr.clixmods.mcsc.mod.ui.Marquee.cut(
                         canvas, current.getString(), room)),
-                this.x + inset, this.y + (this.height - canvas.lineHeight()) / 2,
-                hot ? Palette.INK_HOVERED : Palette.INK);
+                cursorX, textY, hot ? Palette.INK_HOVERED : Palette.INK);
 
         Surface.caret(canvas,
                 this.x + this.width - Metrics.BUTTON_INSET - Metrics.PAD_HAIR
@@ -115,7 +146,7 @@ public class Dropdown<T> extends Element {
             T option = this.options.get(index);
             int rowY = top + inset + index * row;
             boolean usable = this.available.test(option);
-            boolean current = option.equals(this.read.get());
+            boolean current = java.util.Objects.equals(option, this.read.get());
             boolean lit = usable && (index == this.highlighted
                     || paint.over(this.x, rowY, this.width, row));
 
@@ -130,6 +161,21 @@ public class Dropdown<T> extends Element {
             canvas.text(this.naming.apply(option), this.x + inset + Metrics.PAD_TIGHT,
                     rowY + (row - canvas.lineHeight()) / 2, ink);
         }
+    }
+
+    /**
+     * Names what the dropdown is for, shown in front of the value it holds.
+     *
+     * <p>For a control that stands on its own rather than under a panel's title. A
+     * dropdown reading "3D" is perfectly clear about what it says and silent about what
+     * it decides; "View: 3D" answers both, and answers the second one before it is
+     * opened. The punctuation after the name belongs to the translation, because where
+     * a colon goes and whether it takes a space before it is a question about a
+     * language and not about a control.
+     */
+    public Dropdown<T> withLabel(Component label) {
+        this.label = label;
+        return this;
     }
 
     /** Told by the screen, so the menu knows when it would fall off the bottom. */

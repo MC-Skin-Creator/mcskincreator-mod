@@ -17,6 +17,7 @@ import fr.clixmods.mcsc.mod.style.Surface;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
 import fr.clixmods.mcsc.mod.ui.Paint;
+import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
 import net.minecraft.network.chat.Component;
 
 /**
@@ -55,23 +56,37 @@ public abstract class Panel extends Element {
         this.folded = !this.folded;
     }
 
-    /**
-     * The chevron the fold button shows, pointing the way the panel would go.
-     *
-     * <p>Drawn in the game's own font. Vanilla's page arrow is the only arrow it
-     * ships, and at 23 by 13 pixels of near-white it swamps a header this size — the
-     * font's chevron is the same typeface as everything else on the row.
-     */
+    /** What the fold button is called, which is what its tooltip and a reader say. */
     public Component foldLabel() {
-        return Component.literal(this.folded != this.foldsLeft ? "<" : ">");
+        return Component.translatable(this.folded
+                ? "gui.mcskincreator.unfold" : "gui.mcskincreator.fold");
+    }
+
+    /** The way the chevron points: the way the panel would go if it were pressed. */
+    public PixelButton.Glyph foldGlyph() {
+        return this.folded != this.foldsLeft
+                ? PixelButton.Glyph.CHEVRON_LEFT : PixelButton.Glyph.CHEVRON_RIGHT;
     }
 
     public String foldTooltipKey() {
         return this.folded ? "gui.mcskincreator.unfold.tooltip" : "gui.mcskincreator.fold.tooltip";
     }
 
+    /**
+     * The title band: tall enough for the buttons in it, not merely for the title.
+     *
+     * <p>It used to be the line height plus its padding, so the buttons — which are
+     * taller than a line — overflowed it, and the rule meant to close the band off was
+     * drawn straight across them. A header is as tall as the tallest thing in it.
+     */
     protected int headerHeight(Canvas canvas) {
-        return canvas.lineHeight() + Metrics.PANEL_INSET + Metrics.PAD_TIGHT;
+        return Math.max(canvas.lineHeight(), Metrics.HEADER_BUTTON)
+                + Metrics.PANEL_INSET + Metrics.PAD_TIGHT;
+    }
+
+    /** Where a control in the header sits, so the panels do not each work it out. */
+    protected int headerButtonY() {
+        return this.y + Metrics.PANEL_INSET;
     }
 
     /**
@@ -111,6 +126,20 @@ public abstract class Panel extends Element {
     }
 
     /** Positions everything. Called on resize and whenever the contents change. */
+    /**
+     * True when the pointer is inside this panel's scrolling band.
+     *
+     * <p>Both columns used to answer the wheel on the strength of its <em>height</em>
+     * alone, and the screen offers the wheel to the library first — so with the pointer
+     * over the layers, the library took it and scrolled instead. A band has two
+     * dimensions, and a panel is not the only panel on the screen.
+     */
+    protected boolean inBody(double mouseX, double mouseY, int bodyTop, int bodyHeight) {
+        return !folded()
+                && mouseX >= this.x && mouseX < this.x + this.width
+                && mouseY >= bodyTop && mouseY < bodyTop + bodyHeight;
+    }
+
     public abstract void layout(Canvas canvas);
 
     protected void drawFrame(Paint paint) {
@@ -121,11 +150,13 @@ public abstract class Panel extends Element {
             return;
         }
 
-        // A heading and a rule under it, which is how the game titles its own lists.
+        // A heading, its controls beside it, and a rule closing the band off underneath
+        // all of them — not through them.
         int header = headerHeight(canvas);
         String title = Component.translatable(this.titleKey).getString().toUpperCase(Locale.ROOT);
         canvas.textTracked(title, contentLeft(),
-                this.y + Metrics.PANEL_INSET, Palette.INK, Metrics.TITLE_TRACKING);
-        Surface.rule(canvas, contentLeft(), this.y + header - Metrics.PAD_TIGHT, contentWidth());
+                headerButtonY() + (Metrics.HEADER_BUTTON - canvas.lineHeight()) / 2,
+                Palette.INK, Metrics.TITLE_TRACKING);
+        Surface.rule(canvas, contentLeft(), this.y + header - 1, contentWidth());
     }
 }

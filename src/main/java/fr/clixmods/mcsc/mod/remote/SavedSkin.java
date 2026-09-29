@@ -70,6 +70,11 @@ public record SavedSkin(String id, String name, long at, JsonObject data) {
         return List.copyOf(skins);
     }
 
+    /** One entry on its own, as the mod also writes it down: null when it is not one. */
+    public static SavedSkin parseOne(JsonElement element) {
+        return of(element);
+    }
+
     /** @return the entry, or null when it carries no identifier or no project */
     static SavedSkin of(JsonElement element) {
         if (element == null || !element.isJsonObject()) {

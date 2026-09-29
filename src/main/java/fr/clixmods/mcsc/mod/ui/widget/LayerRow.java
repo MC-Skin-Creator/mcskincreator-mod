@@ -12,7 +12,6 @@ import java.util.function.Consumer;
 
 import java.util.function.Supplier;
 
-import fr.clixmods.mcsc.mod.catalog.ThumbCrop;
 import fr.clixmods.mcsc.mod.project.Layer;
 import fr.clixmods.mcsc.mod.skin.CategorySprites;
 import fr.clixmods.mcsc.mod.style.Metrics;
@@ -28,27 +27,21 @@ import net.minecraft.network.chat.Component;
  * One line of the layer stack: a slot holding a visibility box, a thumbnail, the name
  * with its subtitle, and the actions.
  *
- * <p>The actions are not merely invisible when the row is at rest — they are out of
- * reach. Leaving them clickable is how someone deletes a layer by clicking a cross
- * they never saw. They come back when the row is pointed at, when it has the focus,
- * and when it is the selected layer.
+ * <p>Left to right, the site's order: the grip, the tick, the picture, the name over
+ * its subtitle, and the two actions. The actions keep their room at rest and are drawn
+ * only when the row is lit — and they are out of reach the rest of the time, because
+ * leaving them clickable is how someone deletes a layer by clicking a cross they never
+ * saw.
  *
- * <p>The selected row is the game's selected tab, which is what a Minecraft menu uses
- * to say "this one of several"; the site's green fill would be a colour the game does
- * not speak. A hidden layer drops to half opacity, and a row being dragged takes a
- * shadow and a band down its left flank.
+ * <p>The name is set at the full size and the category under it at the half. The name
+ * is what the row is for and what has to read across the column; the category is read
+ * once you are already looking at the row, and the site sets the two that way round too.
+ *
+ * <p>The selected row is a tinted slot with a green band down its flank. A hidden layer
+ * drops to half opacity, and a row being dragged takes a shadow, fades, and leaves a
+ * ghost of itself where it came from.
  */
 public class LayerRow extends Element {
-    private static final int BAND = Metrics.ui(6);
-    /**
-     * Below this, the name is an ellipsis and the row stops being worth reading.
-     *
-     * <p>Wide enough for a short word and not for a long one, which is the honest
-     * threshold: "Bandana" is 42 pixels, and a row that can show it in full is a row
-     * worth giving the picture up for.
-     */
-    private static final int MIN_NAME_ROOM = 45;
-
     private final Layer layer;
     private final Supplier<CategorySprites> sprites;
     private final Supplier<Boolean> slim;
@@ -100,14 +93,19 @@ public class LayerRow extends Element {
         boolean hot = paint.hot(this);
         boolean lit = hot || selected;
 
-        // Pointing at a row makes the layer blink on the model, so you can tell which
-        // of three brown layers is the one you are about to change.
-        if (hot != this.wasHot) {
-            this.wasHot = hot;
-            this.onPeek.accept(hot ? this.layer : null);
+        // Pointing at a row lights the layer up on the model, so you can tell which of
+        // three brown layers is the one you are about to change. It follows the pointer
+        // alone: a click leaves the row focused, and focus counts as hot for the look
+        // of the row, so keying it off `hot` kept the light on after the pointer left.
+        boolean pointed = enabled() && contains(paint.mouseX(), paint.mouseY());
+        if (pointed != this.wasHot) {
+            this.wasHot = pointed;
+            this.onPeek.accept(pointed ? this.layer : null);
         }
 
         if (this.dragging) {
+            // A dragged row is a row in the air: a shadow under it, and the row itself
+            // faded, so what you are moving is plainly not where it came from yet.
             canvas.fill(this.x + Metrics.ui(4), this.y + Metrics.ui(4), this.width, this.height,
                     Palette.SHADOW);
         }
@@ -123,58 +121,66 @@ public class LayerRow extends Element {
             Surface.slot(canvas, this.x, this.y, this.width, this.height,
                     hot ? Palette.SLOT_HOVER : Palette.SLOT);
         }
-        if (this.dragging) {
-            canvas.fill(this.x + Metrics.SLOT_INSET / 2, this.y + Metrics.SLOT_INSET / 2,
-                    BAND, this.height - Metrics.SLOT_INSET, Palette.INK_HOVERED);
-        }
 
-        int cursorX = checkboxX();
+        int cursorX = gripX();
+
+        // The grip. It says the row can be pulled, which nothing else on the row does —
+        // and a row you can reorder without knowing you can is a row nobody reorders.
+        Surface.grip(canvas, cursorX, this.y + (this.height - Surface.GRIP_HEIGHT) / 2,
+                lit ? Palette.INK_MUTED : Palette.INK_DISABLED);
+        cursorX += Surface.GRIP_WIDTH + Metrics.PAD_HAIR;
 
         // Visibility is a yes or a no, so it is a tick box rather than an eye the game
-        // has no icon for — at the size the site gives its eye.
-        Surface.checkbox(canvas, cursorX, this.y + (this.height - Metrics.LAYER_TOGGLE) / 2,
-                Metrics.LAYER_TOGGLE, this.layer.visible(),
-                paint.over(cursorX, this.y, Metrics.LAYER_TOGGLE, this.height));
-        cursorX += Metrics.LAYER_TOGGLE + Metrics.PAD_TIGHT;
+        // has no icon for. At the ordinary tick size: the row's own size is set by the
+        // two lines of text on it, and a box taller than both of them together was the
+        // largest thing on a row whose subject is a name.
+        int box = Metrics.CHECKBOX;
+        Surface.checkbox(canvas, cursorX, this.y + (this.height - box) / 2, box,
+                this.layer.visible(), paint.over(cursorX, this.y, box, this.height));
+        cursorX += box + Metrics.PAD_HAIR;
 
-        boolean duplicate = showsDuplicate(contentX());
-        int actionsWidth = !lit ? 0
-                : duplicate ? actionWidth() * 2 + Metrics.PAD_TIGHT : actionWidth();
-        int rightEdge = this.x + this.width - Metrics.SLOT_INSET - actionsWidth;
-
-        // The thumbnail is dropped rather than shrunk when the row is narrow. A tick
-        // box and a picture take 39 of a hundred pixels, and what was left was a name
-        // cut after six letters — "Braided c…" identifies a layer no better than no
-        // picture and the whole word do.
+        // The picture, in a slot of its own. It used to be blitted straight onto the
+        // row at whatever size its crop came out, so a full-body element ran over the
+        // name beside it; now it is letterboxed into one box, the same box every row.
         int preview = Metrics.LAYER_PREVIEW;
-        if (rightEdge - cursorX - preview - Metrics.PAD_TIGHT >= MIN_NAME_ROOM) {
-            Thumbnail.draw(canvas, this.sprites.get(), this.layer.atlasIndex(this.slim.get()),
-                    ThumbCrop.ALL, cursorX, this.y + (this.height - preview) / 2, preview, preview);
-            cursorX += preview + Metrics.PAD_TIGHT;
-        }
+        int previewY = this.y + (this.height - preview) / 2;
+        Surface.slot(canvas, cursorX, previewY, preview, preview);
+        int inner = Metrics.SLOT_INSET;
+        int picture = preview - inner * 2;
+        Surface.checker(canvas, cursorX + inner, previewY + inner, picture, picture);
+        // The layer's own crop, the same one the library tile used. Asking for the
+        // whole body here drew the middle fifteen rows of it — the torso — so every
+        // hat, every pair of eyes and every hairstyle came out blank.
+        Thumbnail.draw(canvas, this.sprites.get(), this.layer.atlasIndex(this.slim.get()),
+                this.layer.thumbCrop(), cursorX + inner, previewY + inner, picture, picture);
+        cursorX += preview + Metrics.PAD_TIGHT;
 
-        int room = rightEdge - cursorX;
+        // The actions keep their room whether or not they are drawn, so a name does not
+        // grow and shrink as the pointer crosses the row.
+        int rightEdge = this.x + this.width - Metrics.SLOT_INSET - actionsWidth();
+        int room = Math.max(0, rightEdge - Metrics.PAD_HAIR - cursorX);
 
-        int nameY = this.y + Metrics.SLOT_INSET;
-        this.marquee.draw(paint, this.layer.name(), cursorX, nameY, room,
+        // Both lines are the small text. The site's layer name is 11 pixels in a column
+        // of 318; ours at full size is 8 in a column of 161, half again as large against
+        // everything around it — which is why this row read as three times the site's.
+        int nameY = this.y + (this.height - canvas.smallLineHeight() * 2 - 2) / 2;
+        this.marquee.drawSmall(paint, this.layer.name(), cursorX, nameY, room,
                 hot ? Palette.INK_HOVERED : Palette.INK, hot);
-        canvas.textFlat(Component.literal(Marquee.cut(canvas, subtitle().getString(), room)),
-                cursorX, nameY + canvas.lineHeight() + 1, Palette.INK_MUTED);
+        canvas.textSmall(Component.literal(Marquee.cutSmall(canvas, subtitle().getString(), room)),
+                cursorX, nameY + canvas.smallLineHeight() + 2, Palette.INK_FAINT);
 
         if (lit) {
-            int actionX = this.x + this.width - Metrics.SLOT_INSET - actionWidth();
-            drawCross(canvas, paint, actionX, this.y + (this.height - Metrics.CROSS) / 2);
-            if (duplicate) {
-                drawAction(canvas, paint, actionX - actionWidth() - Metrics.PAD_TIGHT, "+",
-                        Palette.INK_MUTED);
-            }
+            int actionY = this.y + (this.height - Metrics.CROSS) / 2;
+            int removeX = removeX();
+            drawAction(canvas, paint, removeX, actionY, true);
+            drawAction(canvas, paint, duplicateX(removeX), actionY, false);
         }
 
-        if (!this.layer.visible()) {
-            // Half opacity, laid over the finished row: the game dims what is off
-            // rather than recolouring it.
+        if (!this.layer.visible() || this.dragging) {
+            // Half opacity, laid over the finished row: what is off is dimmed rather
+            // than recoloured, and what is being dragged is a ghost of where it was.
             canvas.fill(this.x, this.y, this.width, this.height,
-                    Palette.withAlpha(0xFF000000, 128));
+                    Palette.withAlpha(0xFF000000, this.dragging ? 96 : 128));
         }
     }
 
@@ -191,51 +197,56 @@ public class LayerRow extends Element {
         return Metrics.CROSS;
     }
 
-    /**
-     * Whether the row is wide enough to also offer duplication.
-     *
-     * <p>In a narrow column the two actions and the thumbnail leave the name a handful
-     * of pixels, and a stack of rows all reading "..." is a stack you cannot use.
-     * Removing is the one that must always be there, so duplication is what goes.
-     */
-    private boolean showsDuplicate(int contentX) {
-        int room = this.x + this.width - Metrics.SLOT_INSET - contentX;
-        return room - (actionWidth() * 2 + Metrics.PAD_TIGHT) >= MIN_NAME_ROOM;
+    /** Both actions and the hair between them, always reserved and sometimes drawn. */
+    private static int actionsWidth() {
+        return actionWidth() * 2 + Metrics.PAD_HAIR;
     }
 
-    /** Where the row's own content starts, past the visibility box. */
+    private int removeX() {
+        return this.x + this.width - Metrics.SLOT_INSET - actionWidth();
+    }
+
+    private static int duplicateX(int removeX) {
+        return removeX - Metrics.PAD_HAIR - actionWidth();
+    }
+
     /**
      * Where the row's contents start: past the frame, and past the band when the row is
      * the selected one — the band is drawn inside the frame, so everything shifts.
      */
-    private int checkboxX() {
+    private int gripX() {
         return this.x + Metrics.SLOT_INSET
                 + (this.selection.get() == this.layer ? Metrics.BAND : 0);
     }
 
-    private int contentX() {
-        return checkboxX() + Metrics.LAYER_TOGGLE + Metrics.PAD_TIGHT
-                + Metrics.LAYER_PREVIEW + Metrics.PAD_TIGHT;
+    private int checkboxX() {
+        return gripX() + Surface.GRIP_WIDTH + Metrics.PAD_HAIR;
     }
 
-    /** Removing a layer is the game's close cross, which is what it means everywhere. */
-    private void drawCross(Canvas canvas, Paint paint, int x, int y) {
-        boolean over = paint.over(x, y, Metrics.CROSS, Metrics.CROSS);
-        // Red only once the pointer is on it. A permanently red cross beside four
-        // quiet rows reads as an alarm rather than as a control.
-        Surface.button(canvas, x, y, Metrics.CROSS, Metrics.CROSS,
-                over ? Surface.Tone.RED : Surface.Tone.NEUTRAL, over, false);
-        canvas.textCentered(Component.literal("x"), x + Metrics.CROSS / 2,
-                y + (Metrics.CROSS - canvas.lineHeight()) / 2 + 1, Palette.INK);
-    }
-
-    private void drawAction(Canvas canvas, Paint paint, int x, String glyph, int ink) {
+    /**
+     * One of the two actions, both of them buttons.
+     *
+     * <p>Removing was a button and duplicating was a bare {@code +} floating beside it,
+     * which is two answers to the same question on the same row: one of them looked
+     * pressable and the other did not, and they do equally serious things.
+     */
+    private void drawAction(Canvas canvas, Paint paint, int x, int y, boolean remove) {
         int size = actionWidth();
-        int y = this.y + (this.height - size) / 2;
         boolean over = paint.over(x, y, size, size);
-        canvas.textCentered(Component.literal(glyph), x + size / 2,
-                y + (size - paint.canvas().lineHeight()) / 2,
-                over ? Palette.INK_HOVERED : ink);
+        // Red only once the pointer is on it. A permanently red cross beside four quiet
+        // rows reads as an alarm rather than as a control.
+        Surface.button(canvas, x, y, size, size,
+                remove && over ? Surface.Tone.RED : Surface.Tone.NEUTRAL, over, false);
+        int ink = over ? Palette.INK : Palette.INK_MUTED;
+        // Half the button, which is what every other mark in this interface takes. At
+        // two thirds — where this was — the mark ran into the frame and the pair read as
+        // one thick smudged border rather than as a button with a sign on it.
+        int glyph = Math.max(3, size / 2 | 1);
+        if (remove) {
+            Surface.cross(canvas, x + (size - glyph) / 2, y + (size - glyph) / 2, glyph, ink);
+        } else {
+            Surface.copies(canvas, x + (size - glyph) / 2, y + (size - glyph) / 2, glyph, ink);
+        }
     }
 
     @Override
@@ -248,32 +259,31 @@ public class LayerRow extends Element {
         if (button != 0 || !contains(mouseX, mouseY)) {
             return false;
         }
-        if (mouseX < checkboxX() + Metrics.LAYER_TOGGLE) {
+        int checkbox = checkboxX();
+        if (mouseX >= checkbox && mouseX < checkbox + Metrics.CHECKBOX) {
             this.onToggleVisible.accept(this.layer);
             return true;
         }
 
-        // Reaching this point means the press landed inside the row, which is the
-        // same condition that drew the actions a frame ago — so there is never a
-        // target here without a glyph on it. A row that is not pointed at draws
-        // nothing here and cannot be pressed here either, because the press would
-        // not be inside it.
-        int removeX = this.x + this.width - Metrics.SLOT_INSET - actionWidth();
-        int duplicateX = removeX - actionWidth() - Metrics.PAD_TIGHT;
-        if (mouseX >= removeX) {
+        // The actions keep their room at rest and are only drawn when the row is lit,
+        // so they are only pressable then either: a cross nobody can see is how someone
+        // deletes a layer they never meant to touch. A press is inside the row, which is
+        // most of what lights it — the selection is the other half.
+        boolean lit = this.wasHot || this.selection.get() == this.layer;
+        int removeX = removeX();
+        int duplicateX = duplicateX(removeX);
+        if (lit && mouseX >= removeX) {
             this.onRemove.accept(this.layer);
             return true;
         }
-        // Only where the glyph was actually drawn: a narrow row has no duplicate
-        // action, and must not have an invisible one either.
-        if (showsDuplicate(contentX()) && mouseX >= duplicateX) {
+        if (lit && mouseX >= duplicateX && mouseX < duplicateX + actionWidth()) {
             this.onDuplicate.accept(this.layer);
             return true;
         }
 
-        // Anywhere else on the row selects it and begins a drag. The site puts a grip
-        // on the left for that; the game draws no grip, and a row that moves when you
-        // pull it needs no handle to say so.
+        // Anywhere else on the row selects it and begins a drag. The grip says so; the
+        // rest of the row obliges anyway, because a row that only moves by its handle is
+        // a row most people never discover moves.
         this.onSelect.accept(this.layer);
         this.onGrab.accept(this.layer);
         return true;

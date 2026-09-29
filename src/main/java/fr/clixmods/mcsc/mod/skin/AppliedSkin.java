@@ -104,7 +104,7 @@ public final class AppliedSkin {
      * restarts. This is the same override, at the other door.
      *
      * <p>Wrapping the supplier rather than the result is what keeps it live:
-     * {@code PlayerSkinWidget} keeps the supplier and calls it as it draws, on both
+     * {@code MenuFigure} keeps the supplier and calls it as it draws, on both
      * targets, so a panel built before the upload shows the new skin the moment it
      * lands, without being rebuilt.
      */

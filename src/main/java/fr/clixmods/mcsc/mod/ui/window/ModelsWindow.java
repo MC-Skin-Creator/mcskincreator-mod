@@ -23,6 +23,7 @@ import fr.clixmods.mcsc.mod.style.Surface;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
 import fr.clixmods.mcsc.mod.ui.Paint;
+import fr.clixmods.mcsc.mod.ui.Prose;
 import fr.clixmods.mcsc.mod.ui.widget.Thumbnail;
 import net.minecraft.network.chat.Component;
 
@@ -43,9 +44,10 @@ public class ModelsWindow extends ModalWindow {
      * The narrowest a tile may be. A ready-made stack is a whole character rather than
      * a hat, so it is shown as a full-length portrait and wants more room than a
      * library thumbnail: packing more, smaller tiles into the row would save scrolling
-     * and cost the very thing the window is for.
+     * and cost the very thing the window is for. Seven to a row left a name five
+     * letters wide, so a knight came out as "ht in bro"; five leave it a word or two.
      */
-    private static final int TILE_PICTURE = Metrics.ui(72);
+    private static final int TILE_PICTURE = Metrics.ui(100);
 
     private final Supplier<List<CatalogModel>> models;
     private final Function<CatalogText, Component> naming;
@@ -76,12 +78,13 @@ public class ModelsWindow extends ModalWindow {
         // rather than the other way round. Floored at a pixel: a window narrow enough
         // to make this negative would otherwise lay the whole body out upside down.
         int picture = Math.max(1, (tileWidth - inset * 2) * FrontSprite.HEIGHT / FrontSprite.WIDTH);
-        return inset * 2 + picture + canvas.lineHeight();
+        return inset * 2 + picture + Metrics.PAD_TIGHT + canvas.lineHeight();
     }
 
     /** The line above the grid, saying the one thing that is expensive to learn by trying. */
     private int noticeHeight(Canvas canvas, int width) {
-        return canvas.wrappedHeight(notice(), width) + Metrics.PAD_TIGHT;
+        return Prose.wrap(canvas, notice(), width).size() * (canvas.lineHeight() + 1)
+                + Metrics.PAD;
     }
 
     private static Component notice() {
@@ -90,7 +93,7 @@ public class ModelsWindow extends ModalWindow {
 
     @Override
     protected int contentHeight(Canvas canvas) {
-        int width = width() - Metrics.PAD * 2;
+        int width = bodyWidth();
         int columns = columns(width);
         int rows = (this.models.get().size() + columns - 1) / columns;
         int tile = tileHeight(canvas, tileWidth(width, columns)) + Metrics.PAD_TIGHT;
@@ -118,8 +121,14 @@ public class ModelsWindow extends ModalWindow {
 
     @Override
     protected void drawBody(Paint paint, int left, int top, int width) {
-        // The tiles are children, so the window draws them with everything else.
-        paint.canvas().textWrapped(notice(), left, top, width, Palette.INK_DIM);
+        // The tiles are children, so the window draws them with everything else. The
+        // notice is set the way every other window sets prose, a pixel between rows.
+        Canvas canvas = paint.canvas();
+        int rowY = top;
+        for (String row : Prose.wrap(canvas, notice(), width)) {
+            canvas.text(Component.literal(row), left, rowY, Palette.INK_MUTED);
+            rowY += canvas.lineHeight() + 1;
+        }
     }
 
     /** One starter model: its picture, its name, and the whole tile is the button. */
@@ -150,17 +159,20 @@ public class ModelsWindow extends ModalWindow {
             int boxX = this.x + inset;
             int boxY = this.y + inset;
             int boxWidth = this.width - inset * 2;
-            int boxHeight = this.height - inset * 2 - canvas.lineHeight();
+            int boxHeight = this.height - inset * 2 - Metrics.PAD_TIGHT - canvas.lineHeight();
             Surface.checker(canvas, boxX, boxY, boxWidth, boxHeight);
             // Nothing while its categories are still downloading: a model drawn
             // half-dressed looks like a model that comes half-dressed.
             Thumbnail.draw(canvas, this.sprites.get(), this.index, ThumbCrop.ALL,
                     boxX, boxY, boxWidth, boxHeight);
 
-            canvas.pushScissor(boxX, boxY + boxHeight, boxWidth, canvas.lineHeight());
-            canvas.textCentered(this.label, boxX + boxWidth / 2, boxY + boxHeight,
-                    hot ? Palette.GOLD : Palette.INK_DIM);
-            canvas.popScissor();
+            // Cut to the tile rather than clipped to it. A scissor flushes the
+            // interface's draw batch, so one per tile was one flush per tile — which is
+            // why this window crawled with a few dozen models in it.
+            canvas.textCentered(Component.literal(fr.clixmods.mcsc.mod.ui.Marquee.cut(
+                            canvas, this.label.getString(), boxWidth)),
+                    boxX + boxWidth / 2, boxY + boxHeight + Metrics.PAD_TIGHT,
+                    hot ? Palette.GOLD : Palette.INK_MUTED);
         }
 
         @Override

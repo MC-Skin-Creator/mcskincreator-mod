@@ -34,6 +34,9 @@ public final class SkinProject {
     /** The server refuses a project past 300 layers, so the mod never builds one. */
     public static final int MAX_LAYERS = 300;
 
+    /** The skin a new project starts from: plain, shade A. */
+    public static final String DEFAULT_SKIN = "skin-uni";
+
     private final List<Layer> layers = new ArrayList<>();
     private PlayerModelType model = PlayerModelType.WIDE;
     private Layer selected;
@@ -157,12 +160,50 @@ public final class SkinProject {
                     .filter(candidate -> candidate.id().equals(piece.itemId()))
                     .findFirst()
                     .orElse(null);
-            if (item != null && add(category, item, languageCode) != null) {
+            Layer layer = item == null ? null : add(category, item, languageCode);
+            if (layer != null) {
+                piece.colors().forEach(layer::setColor);
                 stacked++;
             }
         }
         touch();
         return stacked;
+    }
+
+    /**
+     * Starts again from a bare body: the plain skin the catalogue calls
+     * {@value #DEFAULT_SKIN}, on the wide model.
+     *
+     * <p>A new project is never an empty stack, because an empty stack is not a skin
+     * anyone could wear. The element is named, which is fragile, so a catalogue that
+     * has dropped it falls back to the first element of the first single category —
+     * the skin category — rather than to nothing.
+     */
+    public void startFresh(Catalog catalog, String languageCode) {
+        this.layers.clear();
+        this.selected = null;
+        this.model = PlayerModelType.WIDE;
+        CatalogCategory fallback = null;
+        for (CatalogCategory category : catalog.categories()) {
+            if (!category.single() || category.items().isEmpty()) {
+                continue;
+            }
+            if (fallback == null) {
+                fallback = category;
+            }
+            for (CatalogItem item : category.items()) {
+                if (item.id().equals(DEFAULT_SKIN)) {
+                    add(category, item, languageCode);
+                    this.selected = null;
+                    return;
+                }
+            }
+        }
+        if (fallback != null) {
+            add(fallback, fallback.items().get(0), languageCode);
+            this.selected = null;
+        }
+        touch();
     }
 
     public void remove(Layer layer) {
