@@ -61,6 +61,7 @@ import fr.clixmods.mcsc.mod.ui.window.CardWindow;
 import fr.clixmods.mcsc.mod.ui.window.ConfirmWindow;
 import fr.clixmods.mcsc.mod.ui.window.ModalWindow;
 import fr.clixmods.mcsc.mod.ui.window.CreditsWindow;
+import fr.clixmods.mcsc.mod.ui.window.ProvenanceWindow;
 import fr.clixmods.mcsc.mod.ui.window.ModelsWindow;
 import fr.clixmods.mcsc.mod.ui.window.NameWindow;
 import fr.clixmods.mcsc.mod.ui.window.SkinsWindow;
@@ -722,7 +723,7 @@ public class SkinCreatorScreen extends Screen {
         if (this.loadingCredit) {
             requestCredit(tile);
         }
-        open(new TextWindow("window.mcskincreator.provenance", this::provenanceLines, this.window));
+        open(new ProvenanceWindow("window.mcskincreator.provenance", this::provenanceView, this.window));
     }
 
     private static String creditKey(ItemTile tile) {
@@ -763,52 +764,44 @@ public class SkinCreatorScreen extends Screen {
      * sheet says the provenance is not documented, which is an open question rather
      * than a silence.
      */
-    private List<TextWindow.Line> provenanceLines() {
+    private ProvenanceWindow.View provenanceView() {
         ItemTile tile = this.creditTile;
         if (tile == null) {
-            return List.of();
+            return new ProvenanceWindow.View(Component.empty(), null, null);
         }
-
-        List<TextWindow.Line> lines = new ArrayList<>();
-        lines.add(new TextWindow.Line(Component.translatable("provenance.mcskincreator.body",
-                tile.label(), name(tile.category().name())), false));
+        Component intro = Component.translatable("provenance.mcskincreator.body",
+                tile.label(), name(tile.category().name()));
 
         ItemCredit credit = this.credits.get(creditKey(tile));
         CatalogWork work = credit != null && credit.hasWork()
                 ? credit.work()
                 : catalog.workOf(tile.item());
-        if (work.isEmpty()) {
-            lines.add(TextWindow.Line.warning("provenance.mcskincreator.undocumented"));
-        } else {
-            lines.add(new TextWindow.Line(Component.translatable("provenance.mcskincreator.work",
-                    work.title().isBlank() ? tile.label().getString() : work.title(),
-                    work.author(), licenceName(work)), false));
-            if (work.hasUrl()) {
-                lines.add(new TextWindow.Line(Component.literal(work.url()), false));
-            }
-        }
+        ProvenanceWindow.Work shown = work.isEmpty() ? null : new ProvenanceWindow.Work(
+                work.author(),
+                work.title().isBlank() ? tile.label().getString() : work.title(),
+                licenceName(work).getString(), work.url());
 
+        Component models = null;
         if (this.loadingCredit) {
-            lines.add(TextWindow.Line.of("provenance.mcskincreator.loading"));
+            models = Component.translatable("provenance.mcskincreator.loading");
         } else if (credit != null) {
-            lines.add(modelsLine(credit));
+            models = modelsText(credit);
         }
-        return lines;
+        return new ProvenanceWindow.View(intro, shown, models);
     }
 
     /** Which starter models this element is a piece of, which says what to expect of it. */
-    private TextWindow.Line modelsLine(ItemCredit credit) {
+    private Component modelsText(ItemCredit credit) {
         if (credit.total() == 0) {
-            return TextWindow.Line.of("provenance.mcskincreator.no_models");
+            return Component.translatable("provenance.mcskincreator.no_models");
         }
         String named = credit.models().stream()
                 .map(model -> model.name().forLanguage(this.minecraft.options.languageCode))
                 .collect(Collectors.joining(", "));
         int unnamed = credit.unnamedModels();
-        Component text = unnamed == 0
-                ? Component.translatable("provenance.mcskincreator.models", credit.total(), named)
-                : Component.translatable("provenance.mcskincreator.models_more", credit.total(), named, unnamed);
-        return new TextWindow.Line(text, false);
+        return unnamed == 0
+                ? Component.literal(named)
+                : Component.translatable("provenance.mcskincreator.models_more", named, unnamed);
     }
 
     /**
