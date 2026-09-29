@@ -63,7 +63,8 @@ src/main/java/fr/clixmods/mcsc/mod/
     ├── EditorScale.java       the GUI scale this screen takes for itself, and gives back
     ├── SkinCreatorScreen.java the editor: project, catalogue, requests, windows, input
     ├── Figure.java, PlayerFigure.java   the player in the scene, and the game's way of drawing one
-    ├── MenuButtons.java, SkinPanel.java   the entry on the vanilla menus
+    ├── MenuButtons.java, SkinPanel.java, MenuFigure.java   the entry on the vanilla menus,
+    │                           and its figure that watches the pointer
     ├── widget/                button, tabs, tile, field, slider, checkbox, dropdown, layer row
     ├── panel/                 top bar, library, scene, layers
     └── window/                the modal base and the windows built on it
@@ -200,6 +201,7 @@ and `}` are load-bearing: breaking them silently changes what a target compiles.
 | Draw a widget | `Renderable#render` | `Renderable#extractRenderState` | `Canvas` |
 | Centered text | `drawCenteredString` | `centeredText` | `SkinCreatorScreen` |
 | Draw an entity | `GuiGraphics#submitEntityRenderState` | `GuiGraphicsExtractor#entity` | `Canvas` |
+| Widget draw hook | `AbstractWidget#renderWidget` | `extractWidgetRenderState` | `MenuFigure` |
 | Screen backdrop hook | `renderBackground(GuiGraphics, …)` | `extractBackground(GuiGraphicsExtractor, …)` | `SkinCreatorScreen` |
 | Hide the game HUD | `Options.hideGui` | `Gui.hud.toggle()` / `isHidden()` | `scene/GameCamera` |
 | Draw the HUD | `Gui#render` | `Gui#extractRenderState` | `mixin/GuiMixin` |

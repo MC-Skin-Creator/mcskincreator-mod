@@ -67,7 +67,7 @@ panel on the title and pause menus has no entity and asks `SkinManager` for a su
 instead, so it wraps that supplier with `AppliedSkin.over(…)`. Missing the second door
 is what left the menu preview showing the old skin while the player in the world already
 wore the new one. Wrapping the supplier rather than its result is deliberate:
-`PlayerSkinWidget` keeps the supplier and calls it as it draws, so a panel built before
+`MenuFigure` keeps the supplier and calls it as it draws, so a panel built before
 the upload updates without being rebuilt.
 
 Three further choices are deliberate:

@@ -208,8 +208,10 @@ rendering, with its overlay layer, its animation and its classic or slim proport
 
 That path is what gives the scene a camera and an animation chooser, and it replaced
 vanilla's `PlayerSkinWidget`, which turns under the mouse and does nothing else. The
-widget is still what the panel on the vanilla menus uses (`SkinPanel`), where turning
-is all that is wanted.
+panel on the vanilla menus (`SkinPanel`) goes through the same path, as `MenuFigure`,
+so that its figure can watch the pointer. The editor's does not: there the player turns
+the figure to look at a skin, and a head chasing the mouse would move what they are
+looking at.
 
 **The animations are named in the game's terms, not the site's.** The site had to
 write its ten out by hand — limb angles, cycle lengths, a coordinate change and a
