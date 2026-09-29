@@ -112,8 +112,9 @@ class WindowPreviewTest {
             skins.add(new SavedSkin("skin" + index, names[index], now - index * 86_400_000L,
                     new JsonObject()));
         }
+        // The first entry is the project in progress, so the preview shows both kinds of row.
         return new SkinsWindow(() -> new SkinsWindow.Library(skins, false, Component.empty()),
-                new SkinThumbnails(), skin -> { }, skin -> { }, () -> { });
+                () -> "skin0", new SkinThumbnails(), skin -> { }, skin -> { }, () -> { });
     }
 
     private static void write(String name, ModalWindow window, int pointerX, int pointerY)
