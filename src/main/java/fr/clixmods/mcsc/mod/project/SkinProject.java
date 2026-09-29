@@ -160,7 +160,9 @@ public final class SkinProject {
                     .filter(candidate -> candidate.id().equals(piece.itemId()))
                     .findFirst()
                     .orElse(null);
-            if (item != null && add(category, item, languageCode) != null) {
+            Layer layer = item == null ? null : add(category, item, languageCode);
+            if (layer != null) {
+                piece.colors().forEach(layer::setColor);
                 stacked++;
             }
         }

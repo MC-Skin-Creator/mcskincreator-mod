@@ -28,7 +28,8 @@ What is in:
   goes away — it shrinks, it never hides. Point at an element to try it on
 - the **layers**, right: the stack grouped by region, drag to reorder, show and
   hide, duplicate and remove, and an inspector for opacity, hue, saturation and
-  brightness
+  brightness, with a swatch for each colour the element declares — the same keys
+  the site recolours by
 - **where every element comes from**: the "i" on a thumbnail opens the work it was
   cut out of — title, author, licence — and the starter models it is a piece of
 - the **outfits** the site offers, on their own shelf in the library between the
@@ -55,7 +56,7 @@ What is in:
   **Minecraft 1.21.11 and 26.2** from the same code
 - CI building every supported version on each push and pull request
 
-What is not in yet: the pixel drawing tools, per-element colours, importing a
+What is not in yet: the pixel drawing tools, importing a
 texture, the MC Skin Creator account the saved skins will hang off, and the local
 fitting room — trying a skin on in your own client without touching the account.
 They all live in the
@@ -130,6 +131,17 @@ the title screen shows the **Skin Creator** panel against its right edge.
 
 Requires a JDK 21. Gradle downloads the Java 25 toolchain needed by the 26.2
 target on its own.
+
+The mod composes skins with
+[`mcsc-engine`](https://github.com/MC-Skin-Creator/mcskincreator-engine), published
+to GitHub Packages — which asks for a token even for a public package. Put a personal
+token with the `read:packages` scope in `~/.gradle/gradle.properties` before
+building, or the build stops on a 401 while resolving it:
+
+```properties
+gpr.user=your-github-account
+gpr.token=ghp_…
+```
 
 ```sh
 ./gradlew build            # every supported Minecraft version

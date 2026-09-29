@@ -171,4 +171,63 @@ class LayerTest {
         assertEquals("Cap", new Layer(category(), item(), "en_us").name().getString());
         assertEquals("Chapeaux", new Layer(category(), item(), "fr_fr").categoryName().getString());
     }
+
+    private static Layer colored() {
+        java.util.Map<String, Integer> colors = new java.util.LinkedHashMap<>();
+        colors.put("main", 0x359E61);
+        colors.put("band", 0xFFFFFF);
+        CatalogItem hat = new CatalogItem("cap", LABELS, 4, 5, null, "", colors);
+        return new Layer(category(), hat, "en_us");
+    }
+
+    @Test
+    void theKeysAreTheElementsInTheCataloguesOrder() {
+        Layer layer = colored();
+
+        assertEquals(List.of("main", "band"), layer.colorKeys());
+        assertEquals(0x359E61, layer.color("main"));
+        assertTrue(layer.changedColors().isEmpty(), "a fresh layer has changed nothing");
+    }
+
+    @Test
+    void aKeyTheElementDoesNotDeclareIsRefused() {
+        Layer layer = colored();
+
+        assertFalse(layer.setColor("cape", 0xFF0000));
+        assertEquals(List.of("main", "band"), layer.colorKeys());
+        assertTrue(layer().colorKeys().isEmpty(), "an element without keys has none to offer");
+    }
+
+    @Test
+    void onlyTheKeysMovedOffTheirOwnColourAreCarried() {
+        Layer layer = colored();
+
+        layer.setColor("band", 0xFF0000);
+        assertEquals(java.util.Map.of("band", 0xFF0000), layer.changedColors());
+
+        layer.setColor("band", 0xFFFFFF);
+        assertTrue(layer.changedColors().isEmpty(), "put back is not a change");
+    }
+
+    @Test
+    void theOriginalColoursButtonPutsTheKeysBackToo() {
+        Layer layer = colored();
+        layer.setColor("main", 0x123456);
+        layer.setHue(40);
+
+        layer.resetAdjustments();
+
+        assertEquals(0x359E61, layer.color("main"));
+        assertTrue(layer.isUnadjusted());
+    }
+
+    @Test
+    void aCopyDoesNotShareItsColours() {
+        Layer layer = colored();
+        Layer copy = layer.copy();
+
+        layer.setColor("main", 0x123456);
+
+        assertEquals(0x359E61, copy.color("main"), "a history snapshot must not move with the layer");
+    }
 }

@@ -62,6 +62,35 @@ public interface Canvas {
      * this, and it is what makes a title read as a title without needing a second font
      * size the game does not have.
      */
+    /**
+     * Half-size text, and everything needed to lay it out.
+     *
+     * <p>The game's font is a bitmap eight pixels tall and cannot be redrawn smaller —
+     * but it can be <em>scaled</em>, and at a half it lands on exactly one screen pixel
+     * per font pixel whenever the GUI scale is even, which is the scale this editor
+     * takes for itself. So it is not a blurred small font, it is the same font at the
+     * sharpest size a screen can show it.
+     *
+     * <p>This is what the site's proportions actually need. Its interface is an 11 px
+     * font in about 1900 px; ours is 8 px in 960, which is half again as large relative
+     * to everything around it — and that, not the padding, is why a layer row read as
+     * three times the size of the site's. The full size stays for what is meant to be
+     * read across the room: titles, buttons, an element's name. The half size is for
+     * what is read when you are already looking at it: a subtitle, a count, a hint, a
+     * value beside its slider.
+     */
+    int smallLineHeight();
+
+    int smallTextWidth(Component text);
+
+    int smallTextWidth(String text);
+
+    /** As much of the string as fits in {@code room}, at the small size. */
+    String trimToSmallWidth(String text, int room);
+
+    /** Half-size text, flat: a shadow under four pixels of letter is mud, not depth. */
+    void textSmall(Component text, int x, int y, int argb);
+
     void textTracked(String text, int x, int y, int argb, int tracking);
 
     /** Width {@link #textTracked} will take. */

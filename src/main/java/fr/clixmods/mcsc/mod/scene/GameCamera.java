@@ -10,7 +10,6 @@ package fr.clixmods.mcsc.mod.scene;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 
 /**
@@ -245,22 +244,6 @@ public final class GameCamera {
         this.borrowedType = null;
         this.borrowedEntity = null;
         this.held = CameraMode.WORKSHOP;
-    }
-
-    /**
-     * Swings the main hand, so the arm can be seen doing what it does in play.
-     *
-     * <p>Worth knowing: the swing runs on ticks, and the editor pauses a single-player
-     * game, so it plays out on a server and stands still at home. Pausing is the more
-     * important of the two — nobody wants to be eaten while choosing a hat.
-     */
-    public void swing() {
-        LocalPlayer player = player();
-        if (player != null) {
-            // MAIN_HAND, not a side: the game already knows which arm that is, so a
-            // left-handed player's left arm swings.
-            player.swing(InteractionHand.MAIN_HAND);
-        }
     }
 
     /**
