@@ -31,6 +31,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref_name == 'develop' }}
 
+# Two merges in a row must not compute the same number at once.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -149,6 +154,12 @@ jobs:
           set -euo pipefail
 
           args=(--generate-notes --title "v${VERSION}")
+
+          # Below 1.0.0 the mod is in beta: say so, and keep it off GitHub's
+          # "Latest" badge. 1.0.0 is the day this stops applying.
+          if [ "$CHANNEL" = 'stable' ] && [[ $VERSION == 0.* ]]; then
+            args=(--generate-notes --title "v${VERSION} (beta)" --prerelease)
+          fi
 
           if [ "$CHANNEL" = 'dev' ]; then
             # Marked as a pre-release so it never displays as the latest version.

@@ -467,6 +467,12 @@ skips `**.md` and `LICENSE`):
 | `main` | derived from the commits | tag `vX.Y.Z`, GitHub release, every target's jar attached, `mod.version` committed back to `main` |
 | `develop` | next version + `-dev.<run number>` | GitHub **pre-release**, jars attached, nothing committed |
 
+While the mod is below `1.0.0` a `main` release is published as a GitHub
+**pre-release** titled `vX.Y.Z (beta)`, so it never claims to be the stable line;
+`1.0.0`, cut by hand, is the first one that does not carry it. Releases are
+serialised (`concurrency: release`), so two merges in a row cannot compute the same
+number.
+
 A merge into `main` whose commits earn nothing produces no release and no noise.
 A merge into `develop` always produces a build, so there is always a permanent link
 to the latest state — `-dev.` builds are previews and are not tested.
