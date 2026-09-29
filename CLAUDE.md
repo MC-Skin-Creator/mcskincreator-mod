@@ -504,5 +504,7 @@ mcskincreator-<mod version>+mc<minecraft version>.jar
 e.g. `mcskincreator-0.1.0+mc1.21.11.jar`, `mcskincreator-0.1.0+mc26.2.jar`, and for
 a development build `mcskincreator-0.2.0-dev.7+mc1.21.11.jar`.
 
-Publishing to Modrinth/CurseForge is still not set up; building and publishing are
-separate concerns (see issue #15).
+Stable releases are also uploaded to Modrinth (project `pYSOnbJQ`) by two `mc-publish`
+steps at the end of `release.yml`, one per Minecraft version, using the `MODRINTH_TOKEN`
+repository secret. Without that secret the steps are skipped. `-dev` builds are never
+uploaded. CurseForge is still not set up (see issue #15).
