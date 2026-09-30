@@ -5,7 +5,7 @@
 mod.id = "mcskincreator"
 mod.name = "MC Skin Creator"
 mod.group = "fr.clixmods.mcsc"
-mod.version = "0.4.0"
+mod.version = "0.4.1"
 
 deps.fabric_loader = "0.19.3"
 
