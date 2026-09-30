@@ -11,7 +11,9 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.util.List;
 
+//? if fabric {
 import net.fabricmc.fabric.api.client.screen.v1.Screens;
+//?}
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
@@ -43,6 +45,7 @@ public final class ScreenCompat {
         //?}
     }
 
+    //? if fabric {
     /** {@code Screens#getButtons} became {@code getWidgets} in Fabric screen API v5. */
     static List<AbstractWidget> widgets(Screen screen) {
         //? if >=26.1 {
@@ -51,6 +54,7 @@ public final class ScreenCompat {
         return Screens.getButtons(screen);
         //?}
     }
+    //?}
 
     /**
      * {@code Util.getPlatform().openUri} moved to {@code Blaze3D.openUri} in 26.3. The

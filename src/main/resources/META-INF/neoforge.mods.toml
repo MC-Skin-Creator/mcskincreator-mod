@@ -1,0 +1,28 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "LicenseRef-Proprietary-SourceAvailable"
+issueTrackerURL = "https://github.com/MC-Skin-Creator/mcskincreator-mod/issues"
+
+[[mods]]
+modId = "${id}"
+version = "${version}"
+displayName = "${name}"
+description = "Build and edit your Minecraft skin from inside the game."
+authors = "clixmods"
+displayURL = "https://github.com/MC-Skin-Creator"
+logoFile = "assets/mcskincreator/icon.png"
+
+[[mixins]]
+config = "mcskincreator.mixins.json"
+
+[[dependencies.${id}]]
+modId = "neoforge"
+type = "required"
+versionRange = "${neoforge}"
+side = "CLIENT"
+
+[[dependencies.${id}]]
+modId = "minecraft"
+type = "required"
+versionRange = "${minecraft}"
+side = "CLIENT"

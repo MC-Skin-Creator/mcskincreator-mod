@@ -30,12 +30,12 @@ restating the diff line by line — a couple of sentences on the why is enough.
 
 ## What this is
 
-A Fabric **client-side** mod that brings the MC Skin Creator skin editor into
+A Fabric and NeoForge **client-side** mod that brings the MC Skin Creator skin editor into
 Minecraft. There is no server side and no server entry point.
 
 | | |
 |---|---|
-| Loader | Fabric |
+| Loaders | Fabric, NeoForge — both on every supported version, see **Loaders** |
 | Supported Minecraft versions | `1.21.10`, `1.21.11`, `26.1` (built on 26.1.2), `26.2`, `26.3` |
 | Active / default version | `1.21.11` |
 | Mappings | Official Mojang mappings on every target |
@@ -49,7 +49,8 @@ why the whole project is on Mojang mappings.
 
 ```
 src/main/java/fr/clixmods/mcsc/mod/
-├── MCSkinCreatorClient.java   ClientModInitializer: logs on load, registers the menu buttons
+├── MCSkinCreatorClient.java   the entry point on both loaders: logs on load, registers the menu buttons
+├── Platform.java              the config folder, the game folder and the mod version, per loader
 ├── remote/                    the HTTP side of the site's /api/v1 contract
 ├── catalog/                   what the catalogue says: regions, categories, elements, crops,
 │                               and the ready-made models and outfits it offers
@@ -123,7 +124,8 @@ version.
 | `settings.gradle.kts` | Declares the Stonecutter targets and the plugins: Stonecutter, `loom-back-compat`, foojay toolchain resolver |
 | `stonecutter.gradle.kts` | Holds the active version (`stonecutter active "…"`) — **rewritten by the switch task, do not edit by hand** |
 | `stonecutter.properties.toml` | Every mod and per-version value: mod identity, Fabric Loader, Loom variant version, and one table per target |
-| `build.gradle.kts` | Applied to each target: Java level per version, Mojang mappings, dependencies, resource processing, `buildAndCollect` |
+| `build.gradle.kts` | Applied to each Fabric target: Java level per version, Mojang mappings, dependencies, resource processing, `buildAndCollect` |
+| `build.neoforge.gradle.kts` | The same, for each NeoForge target, through ModDevGradle instead of Loom |
 | `versions/` | Generated per-target build output. Git-ignored, never committed |
 
 `dev.kikugie.loom-back-compat` picks the Loom variant per target: Minecraft below
@@ -153,6 +155,7 @@ All of these were run and verified in this repository.
 ./gradlew build                        # builds and tests EVERY target
 ./gradlew :1.21.11:build               # builds and tests one target
 ./gradlew :26.2.x:build
+./gradlew :1.21.11-neoforge:build      # the same game version on NeoForge
 ./gradlew test                         # every target's tests, nothing else
 ./gradlew :26.2.x:test                 # one target's tests
 ./gradlew buildAndCollect              # all targets, jars collected in build/libs/0.1.0/
@@ -184,6 +187,35 @@ every conditional in the repository.
 
 `./gradlew runClient` launches a development game, and takes the active version.
 It has never been run in this environment (no GPU); treat it as unverified.
+
+## Loaders
+
+Every game version is built twice, once per loader, from the same sources. The Fabric
+nodes keep their plain names (`1.21.11`, `26.2.x`); the NeoForge nodes carry a
+`-neoforge` suffix (`1.21.11-neoforge`) and use `build.neoforge.gradle.kts`, which
+builds with ModDevGradle. `stonecutter.gradle.kts` turns that suffix into two
+constants, so sources branch with `//? if fabric {` … `//?} else {` the same way they
+branch on a version.
+
+The loader is named in exactly three places, because they are the three places a
+loader hands the mod control or answers it:
+
+| Concern | Fabric | NeoForge | Where |
+|---|---|---|---|
+| Entry point | `ClientModInitializer`, listed in `fabric.mod.json` | `@Mod(dist = Dist.CLIENT)` constructor | `MCSkinCreatorClient` |
+| Folders and mod version | `FabricLoader` | `FMLPaths`, `ModList` | `Platform` |
+| Add the menu entry | `ScreenEvents.AFTER_INIT`, a live widget list | `ScreenEvent.Init.Post`, a read-only list plus `addListener` | `ui/MenuButtons` |
+
+Anything else that reaches for a loader API goes through `Platform` rather than
+growing a fourth place. The mixins are the same on both: NeoForge runs the game under
+Mojang's names, which are the names the sources are written in, and loads the mixin
+config from `META-INF/neoforge.mods.toml`. The three targets were checked with `javap`
+on the NeoForge-patched 1.21.11 jar and have the same descriptors there.
+
+Each build excludes the other loader's metadata file from its jar. A NeoForge jar is
+named `mcskincreator-0.1.0+mc1.21.11-neoforge.jar`: the loader goes after the game
+version so the release workflow's `*+mc1.21.11.jar` globs keep matching the Fabric jar
+alone.
 
 ## Compatibility rules
 
@@ -241,7 +273,7 @@ differ from their neighbours in a few more places:
 
 | Concern | Versions | Where |
 |---|---|---|
-| `ResourceLocation` renamed `Identifier` | 1.21.10 says `ResourceLocation` | regex replacement in `build.gradle.kts` — the sources say `Identifier` |
+| `ResourceLocation` renamed `Identifier` | 1.21.10 says `ResourceLocation` | regex replacement in `stonecutter.gradle.kts` — the sources say `Identifier` |
 | Hide the game HUD | `Options.hideGui` up to 26.1, `Gui.hud` from 26.2 | `scene/GameCamera` |
 | Draw the HUD | `Gui#render` on 1.21.x, `Gui#extractRenderState(GuiGraphicsExtractor, DeltaTracker)` on 26.1, `(DeltaTracker, boolean, boolean)` from 26.2 | `mixin/GuiMixin` |
 | Keyboard and mouse | GLFW up to 26.2, SDL on 26.3 with other key codes and other mouse buttons (left is 1, right is 3) | `InputConstants` everywhere, never `org.lwjgl.glfw` and never a bare button number |
@@ -412,12 +444,15 @@ nothing else is ever looked up there.
 
 ## Adding a Minecraft version
 
-1. Add the node in `settings.gradle.kts` (`versions(…)` or `version(alias, value)`).
-2. Add its table to `stonecutter.properties.toml`: `mod.mc_compat`,
-   `mod.mc_releases`, `deps.fabric_api`.
-3. Extend `requiredJava` in `build.gradle.kts` if that version needs a different
+1. Add the node in `settings.gradle.kts` (`versions(…)` or `version(alias, value)`),
+   and its `-neoforge` twin in the loop below it.
+2. Add its tables to `stonecutter.properties.toml`: `mod.mc_compat`,
+   `mod.mc_releases`, `deps.fabric_api` for Fabric; `mod.mc_compat`,
+   `mod.mc_releases`, `deps.neoforge`, `deps.neoforge_compat` for NeoForge, with
+   Maven ranges rather than Fabric's syntax.
+3. Extend `requiredJava` in both build scripts if that version needs a different
    Java level.
-4. Add the version to the CI matrix in `.github/workflows/build.yml`.
+4. Add both nodes to the CI matrix in `.github/workflows/build.yml`.
 5. Open the pull request and fix what CI's compiler reports for the new target,
    keeping shared code shared.
 6. Every target's CI job must be green, not just the new one.

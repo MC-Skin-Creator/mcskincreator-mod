@@ -56,7 +56,10 @@ catalogue, search, textures and the saved-skin library.
 
 ## Install
 
-Requires [Fabric Loader](https://fabricmc.net/use/) and the Fabric API.
+Runs on **Fabric** or on **NeoForge**: each release has one jar per Minecraft version
+and per loader.
+
+On Fabric, it requires [Fabric Loader](https://fabricmc.net/use/) and the Fabric API.
 
 | Minecraft | Java | Fabric Loader | Fabric API |
 |---|---|---|---|
@@ -66,7 +69,18 @@ Requires [Fabric Loader](https://fabricmc.net/use/) and the Fabric API.
 | 26.2 | 25 | 0.19.3 or newer | 0.160.0+26.2 |
 | 26.3 | 25 | 0.19.3 or newer | 0.161.0+26.3 |
 
-Drop the jar matching your Minecraft version into `.minecraft/mods/`. You know it is
+On [NeoForge](https://neoforged.net/), nothing else is needed. The NeoForge jars end in
+`-neoforge.jar`.
+
+| Minecraft | Java | NeoForge |
+|---|---|---|
+| 1.21.10 | 21 | 21.10.64 or newer |
+| 1.21.11 | 21 | 21.11.45 or newer |
+| 26.1, 26.1.1, 26.1.2 | 25 | 26.1.2.112 or newer |
+| 26.2 | 25 | 26.2.0.88 or newer |
+| 26.3 | 25 | 26.3.0.36-beta or newer |
+
+Drop the jar matching your Minecraft version and your loader into `.minecraft/mods/`. You know it is
 loaded when the title screen shows the **Skin Creator** panel against its right edge.
 
 Jars come from the [releases](https://github.com/MC-Skin-Creator/mcskincreator-mod/releases)

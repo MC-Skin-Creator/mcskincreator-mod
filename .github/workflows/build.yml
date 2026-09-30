@@ -37,6 +37,12 @@ jobs:
           - '26.1.x'
           - '26.2.x'
           - '26.3.x'
+          # The same game versions on NeoForge: the same sources, another build script.
+          - '1.21.10-neoforge'
+          - '1.21.11-neoforge'
+          - '26.1.x-neoforge'
+          - '26.2.x-neoforge'
+          - '26.3.x-neoforge'
 
     name: build ${{ matrix.minecraft }}
     runs-on: ubuntu-latest
