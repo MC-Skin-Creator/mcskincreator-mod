@@ -572,9 +572,10 @@ e.g. `mcskincreator-0.1.0+mc1.21.11.jar`, `mcskincreator-0.1.0+mc26.2.jar`
 (`+mc26.1.2` for the 26.1 target, built against its last hotfix), and for
 a development build `mcskincreator-0.2.0-dev.7+mc1.21.11.jar`.
 
-Stable releases are also uploaded to Modrinth (project `pYSOnbJQ`) by the `mc-publish`
-steps at the end of `release.yml`, one per jar, using the `MODRINTH_TOKEN` repository
-secret: Fabric for 1.21.11 and 26.2, NeoForge for every supported version. A NeoForge
-step picks its jar by the `-neoforge` suffix, and is `alpha` until that version has
-run in a real game on NeoForge. Without that secret the steps are skipped. `-dev` builds are never
-uploaded. CurseForge is still not set up (see issue #15).
+Stable releases are also uploaded to Modrinth (project `pYSOnbJQ`) and CurseForge
+(project `1718964`) by the `mc-publish` steps at the end of `release.yml`, one per jar,
+each step sending its jar to both, using the `MODRINTH_TOKEN` and `CURSEFORGE_TOKEN`
+repository secrets: Fabric for 1.21.11 and 26.2, NeoForge for every supported version.
+A NeoForge step picks its jar by the `-neoforge` suffix, and is `alpha` until that
+version has run in a real game on NeoForge. Without either secret the steps are
+skipped. `-dev` builds are never uploaded.

@@ -35,12 +35,14 @@ concurrency:
 env:
   # Not a secret: the id is public. The token is, and lives in the repository secrets.
   MODRINTH_ID: pYSOnbJQ
+  CURSEFORGE_ID: 1718964
 
 jobs:
   release:
     runs-on: ubuntu-latest
     env:
       MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+      CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
 
     steps:
       - name: Checkout
@@ -182,39 +184,44 @@ jobs:
           gh release create "v${VERSION}" "${args[@]}" build/libs/"${VERSION}"/*.jar
 
       # Stable releases only: the -dev builds are untested previews and stay on GitHub.
-      # Skipped, not failed, while the MODRINTH_TOKEN secret does not exist yet.
+      # Skipped, not failed, while neither the MODRINTH_TOKEN nor the CURSEFORGE_TOKEN secret
+      # exists yet. Each step publishes the same jar to both platforms.
       # One Modrinth version per Minecraft version, so one step per jar. The game
       # versions repeat mod.mc_releases from stonecutter.properties.toml.
-      - name: Publish to Modrinth (1.21.11)
-        if: steps.version.outputs.release == 'true' && steps.version.outputs.channel == 'stable' && env.MODRINTH_TOKEN != ''
+      - name: Publish to Modrinth and CurseForge (1.21.11)
+        if: steps.version.outputs.release == 'true' && steps.version.outputs.channel == 'stable' && (env.MODRINTH_TOKEN != '' || env.CURSEFORGE_TOKEN != '')
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           modrinth-id: ${{ env.MODRINTH_ID }}
           modrinth-token: ${{ env.MODRINTH_TOKEN }}
+          curseforge-id: ${{ env.CURSEFORGE_ID }}
+          curseforge-token: ${{ env.CURSEFORGE_TOKEN }}
           files: build/libs/${{ steps.version.outputs.version }}/*+mc1.21.11.jar
           name: MC Skin Creator ${{ steps.version.outputs.version }} (1.21.11)
           version: ${{ steps.version.outputs.version }}+mc1.21.11
           version-type: beta
           loaders: fabric
           game-versions: 1.21.11
-          dependencies: fabric-api(required){modrinth:P7dR8mSH}
+          dependencies: fabric-api(required){modrinth:P7dR8mSH}{curseforge:306612}
           changelog: |
             See the full notes on GitHub: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.version }}
 
       # 26.2 has compiled but never been run in a real game: alpha until it has.
-      - name: Publish to Modrinth (26.2)
-        if: steps.version.outputs.release == 'true' && steps.version.outputs.channel == 'stable' && env.MODRINTH_TOKEN != ''
+      - name: Publish to Modrinth and CurseForge (26.2)
+        if: steps.version.outputs.release == 'true' && steps.version.outputs.channel == 'stable' && (env.MODRINTH_TOKEN != '' || env.CURSEFORGE_TOKEN != '')
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           modrinth-id: ${{ env.MODRINTH_ID }}
           modrinth-token: ${{ env.MODRINTH_TOKEN }}
+          curseforge-id: ${{ env.CURSEFORGE_ID }}
+          curseforge-token: ${{ env.CURSEFORGE_TOKEN }}
           files: build/libs/${{ steps.version.outputs.version }}/*+mc26.2.jar
           name: MC Skin Creator ${{ steps.version.outputs.version }} (26.2)
           version: ${{ steps.version.outputs.version }}+mc26.2
           version-type: alpha
           loaders: fabric
           game-versions: 26.2
-          dependencies: fabric-api(required){modrinth:P7dR8mSH}
+          dependencies: fabric-api(required){modrinth:P7dR8mSH}{curseforge:306612}
           changelog: |
             See the full notes on GitHub: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.version }}
 
@@ -224,12 +231,14 @@ jobs:
       # a real game on NeoForge, like 26.2 on Fabric.
 
       # Not yet run in a real game on NeoForge.
-      - name: Publish to Modrinth (NeoForge 1.21.10)
-        if: steps.version.outputs.release == 'true' && steps.version.outputs.channel == 'stable' && env.MODRINTH_TOKEN != ''
+      - name: Publish to Modrinth and CurseForge (NeoForge 1.21.10)
+        if: steps.version.outputs.release == 'true' && steps.version.outputs.channel == 'stable' && (env.MODRINTH_TOKEN != '' || env.CURSEFORGE_TOKEN != '')
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           modrinth-id: ${{ env.MODRINTH_ID }}
           modrinth-token: ${{ env.MODRINTH_TOKEN }}
+          curseforge-id: ${{ env.CURSEFORGE_ID }}
+          curseforge-token: ${{ env.CURSEFORGE_TOKEN }}
           files: build/libs/${{ steps.version.outputs.version }}/*+mc1.21.10-neoforge.jar
           name: MC Skin Creator ${{ steps.version.outputs.version }} (NeoForge 1.21.10)
           version: ${{ steps.version.outputs.version }}+mc1.21.10-neoforge
@@ -240,12 +249,14 @@ jobs:
             See the full notes on GitHub: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.version }}
 
       # Not yet run in a real game on NeoForge.
-      - name: Publish to Modrinth (NeoForge 1.21.11)
-        if: steps.version.outputs.release == 'true' && steps.version.outputs.channel == 'stable' && env.MODRINTH_TOKEN != ''
+      - name: Publish to Modrinth and CurseForge (NeoForge 1.21.11)
+        if: steps.version.outputs.release == 'true' && steps.version.outputs.channel == 'stable' && (env.MODRINTH_TOKEN != '' || env.CURSEFORGE_TOKEN != '')
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           modrinth-id: ${{ env.MODRINTH_ID }}
           modrinth-token: ${{ env.MODRINTH_TOKEN }}
+          curseforge-id: ${{ env.CURSEFORGE_ID }}
+          curseforge-token: ${{ env.CURSEFORGE_TOKEN }}
           files: build/libs/${{ steps.version.outputs.version }}/*+mc1.21.11-neoforge.jar
           name: MC Skin Creator ${{ steps.version.outputs.version }} (NeoForge 1.21.11)
           version: ${{ steps.version.outputs.version }}+mc1.21.11-neoforge
@@ -256,12 +267,14 @@ jobs:
             See the full notes on GitHub: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.version }}
 
       # Not yet run in a real game on NeoForge. Built on 26.1.2, it runs on the whole 26.1 line.
-      - name: Publish to Modrinth (NeoForge 26.1.2)
-        if: steps.version.outputs.release == 'true' && steps.version.outputs.channel == 'stable' && env.MODRINTH_TOKEN != ''
+      - name: Publish to Modrinth and CurseForge (NeoForge 26.1.2)
+        if: steps.version.outputs.release == 'true' && steps.version.outputs.channel == 'stable' && (env.MODRINTH_TOKEN != '' || env.CURSEFORGE_TOKEN != '')
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           modrinth-id: ${{ env.MODRINTH_ID }}
           modrinth-token: ${{ env.MODRINTH_TOKEN }}
+          curseforge-id: ${{ env.CURSEFORGE_ID }}
+          curseforge-token: ${{ env.CURSEFORGE_TOKEN }}
           files: build/libs/${{ steps.version.outputs.version }}/*+mc26.1.2-neoforge.jar
           name: MC Skin Creator ${{ steps.version.outputs.version }} (NeoForge 26.1.2)
           version: ${{ steps.version.outputs.version }}+mc26.1.2-neoforge
@@ -275,12 +288,14 @@ jobs:
             See the full notes on GitHub: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.version }}
 
       # Not yet run in a real game on NeoForge.
-      - name: Publish to Modrinth (NeoForge 26.2)
-        if: steps.version.outputs.release == 'true' && steps.version.outputs.channel == 'stable' && env.MODRINTH_TOKEN != ''
+      - name: Publish to Modrinth and CurseForge (NeoForge 26.2)
+        if: steps.version.outputs.release == 'true' && steps.version.outputs.channel == 'stable' && (env.MODRINTH_TOKEN != '' || env.CURSEFORGE_TOKEN != '')
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           modrinth-id: ${{ env.MODRINTH_ID }}
           modrinth-token: ${{ env.MODRINTH_TOKEN }}
+          curseforge-id: ${{ env.CURSEFORGE_ID }}
+          curseforge-token: ${{ env.CURSEFORGE_TOKEN }}
           files: build/libs/${{ steps.version.outputs.version }}/*+mc26.2-neoforge.jar
           name: MC Skin Creator ${{ steps.version.outputs.version }} (NeoForge 26.2)
           version: ${{ steps.version.outputs.version }}+mc26.2-neoforge
@@ -291,12 +306,14 @@ jobs:
             See the full notes on GitHub: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.version }}
 
       # Run in a real game on NeoForge 26.3. NeoForge itself is still a beta on 26.3.
-      - name: Publish to Modrinth (NeoForge 26.3)
-        if: steps.version.outputs.release == 'true' && steps.version.outputs.channel == 'stable' && env.MODRINTH_TOKEN != ''
+      - name: Publish to Modrinth and CurseForge (NeoForge 26.3)
+        if: steps.version.outputs.release == 'true' && steps.version.outputs.channel == 'stable' && (env.MODRINTH_TOKEN != '' || env.CURSEFORGE_TOKEN != '')
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           modrinth-id: ${{ env.MODRINTH_ID }}
           modrinth-token: ${{ env.MODRINTH_TOKEN }}
+          curseforge-id: ${{ env.CURSEFORGE_ID }}
+          curseforge-token: ${{ env.CURSEFORGE_TOKEN }}
           files: build/libs/${{ steps.version.outputs.version }}/*+mc26.3-neoforge.jar
           name: MC Skin Creator ${{ steps.version.outputs.version }} (NeoForge 26.3)
           version: ${{ steps.version.outputs.version }}+mc26.3-neoforge
