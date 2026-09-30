@@ -10,6 +10,8 @@ package fr.clixmods.mcsc.mod.ui.widget;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
+import com.mojang.blaze3d.platform.InputConstants;
+
 import fr.clixmods.mcsc.mod.style.Metrics;
 import fr.clixmods.mcsc.mod.style.Palette;
 import fr.clixmods.mcsc.mod.style.Surface;
@@ -63,7 +65,7 @@ public class Checkbox extends Element {
 
     @Override
     public boolean mouseDown(double mouseX, double mouseY, int button) {
-        return button == 0 && contains(mouseX, mouseY) && activate();
+        return button == InputConstants.MOUSE_BUTTON_LEFT && contains(mouseX, mouseY) && activate();
     }
 
     @Override

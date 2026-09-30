@@ -214,7 +214,7 @@ public class Dropdown<T> extends Element {
 
     @Override
     public boolean mouseDown(double mouseX, double mouseY, int button) {
-        if (button != 0) {
+        if (button != InputConstants.MOUSE_BUTTON_LEFT) {
             return false;
         }
         if (this.open) {

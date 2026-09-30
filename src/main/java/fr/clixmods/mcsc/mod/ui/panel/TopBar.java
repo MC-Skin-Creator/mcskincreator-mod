@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
+import com.mojang.blaze3d.platform.InputConstants;
+
 import fr.clixmods.mcsc.mod.project.History;
 import fr.clixmods.mcsc.mod.style.Metrics;
 import fr.clixmods.mcsc.mod.style.Palette;
@@ -250,7 +252,8 @@ public class TopBar extends Element {
 
         @Override
         public boolean mouseDown(double mouseX, double mouseY, int button) {
-            return button == 0 && contains(mouseX, mouseY) && activate();
+            return button == InputConstants.MOUSE_BUTTON_LEFT && contains(mouseX, mouseY)
+                    && activate();
         }
 
         @Override

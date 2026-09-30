@@ -14,6 +14,8 @@ import java.util.Locale;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import com.mojang.blaze3d.platform.InputConstants;
+
 import fr.clixmods.mcsc.mod.catalog.Catalog;
 import fr.clixmods.mcsc.mod.project.History;
 import fr.clixmods.mcsc.mod.project.Layer;
@@ -556,7 +558,7 @@ public class LayersPanel extends Panel {
 
     @Override
     public boolean mouseDown(double mouseX, double mouseY, int button) {
-        if (folded() || button != 0) {
+        if (folded() || button != InputConstants.MOUSE_BUTTON_LEFT) {
             return false;
         }
         return this.scroll.barMouseDown(mouseX, mouseY,
