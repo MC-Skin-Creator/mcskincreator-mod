@@ -12,6 +12,8 @@ import java.util.function.Consumer;
 
 import java.util.function.Supplier;
 
+import com.mojang.blaze3d.platform.InputConstants;
+
 import fr.clixmods.mcsc.mod.project.Layer;
 import fr.clixmods.mcsc.mod.skin.CategorySprites;
 import fr.clixmods.mcsc.mod.style.Metrics;
@@ -256,7 +258,7 @@ public class LayerRow extends Element {
 
     @Override
     public boolean mouseDown(double mouseX, double mouseY, int button) {
-        if (button != 0 || !contains(mouseX, mouseY)) {
+        if (button != InputConstants.MOUSE_BUTTON_LEFT || !contains(mouseX, mouseY)) {
             return false;
         }
         int checkbox = checkboxX();

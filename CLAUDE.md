@@ -244,13 +244,16 @@ differ from their neighbours in a few more places:
 | `ResourceLocation` renamed `Identifier` | 1.21.10 says `ResourceLocation` | regex replacement in `build.gradle.kts` — the sources say `Identifier` |
 | Hide the game HUD | `Options.hideGui` up to 26.1, `Gui.hud` from 26.2 | `scene/GameCamera` |
 | Draw the HUD | `Gui#render` on 1.21.x, `Gui#extractRenderState(GuiGraphicsExtractor, DeltaTracker)` on 26.1, `(DeltaTracker, boolean, boolean)` from 26.2 | `mixin/GuiMixin` |
-| Keyboard | GLFW up to 26.2, SDL on 26.3 with other key codes | `InputConstants` everywhere, never `org.lwjgl.glfw` |
+| Keyboard and mouse | GLFW up to 26.2, SDL on 26.3 with other key codes and other mouse buttons (left is 1, right is 3) | `InputConstants` everywhere, never `org.lwjgl.glfw` and never a bare button number |
 | Open a link or a folder | `Util.getPlatform().openUri`/`openPath` up to 26.2 (`net.minecraft.Util` on 1.21.10, `net.minecraft.util.Util` after), `Blaze3D.openUri`/`openPath` on 26.3 | `ScreenCompat` |
 | Swing the arm | `swing(hand)` and `attackArm`/`attackTime` up to 26.2, `swing(hand, SwingAnimation, boolean)` and `currentSwing`/`swingAnimation` on 26.3 | `scene/GameCamera`, `scene/ScenePose` |
 
 Key codes are the one trap here that compiles: 26.3 moved from GLFW to SDL, so a
-GLFW constant is a different key there. Always read keys through Mojang's
-`InputConstants`, which follows the platform on every target.
+GLFW constant is a different key there. Mouse buttons moved the same way: `button == 0`
+is the left button up to 26.2 and nothing at all on 26.3, where the left button is 1
+and 1 means right everywhere else. Always read keys and buttons through Mojang's
+`InputConstants` (`MOUSE_BUTTON_LEFT`, `MOUSE_BUTTON_RIGHT`), which follows the
+platform on every target.
 
 26.x replaced immediate-mode GUI drawing with a render-state extraction pass, so
 any new drawing code will need the same treatment.

@@ -12,6 +12,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import com.mojang.blaze3d.platform.InputConstants;
+
 import fr.clixmods.mcsc.mod.catalog.CatalogModel;
 import fr.clixmods.mcsc.mod.catalog.CatalogText;
 import fr.clixmods.mcsc.mod.catalog.ThumbCrop;
@@ -187,7 +189,8 @@ public class ModelsWindow extends ModalWindow {
 
         @Override
         public boolean mouseDown(double mouseX, double mouseY, int button) {
-            return button == 0 && contains(mouseX, mouseY) && activate();
+            return button == InputConstants.MOUSE_BUTTON_LEFT && contains(mouseX, mouseY)
+                    && activate();
         }
 
         @Override

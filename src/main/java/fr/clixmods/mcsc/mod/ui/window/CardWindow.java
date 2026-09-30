@@ -10,6 +10,8 @@ package fr.clixmods.mcsc.mod.ui.window;
 import java.util.List;
 import java.util.function.Supplier;
 
+import com.mojang.blaze3d.platform.InputConstants;
+
 import fr.clixmods.mcsc.mod.style.Metrics;
 import fr.clixmods.mcsc.mod.style.Palette;
 import fr.clixmods.mcsc.mod.style.Surface;
@@ -231,7 +233,8 @@ public class CardWindow extends ModalWindow {
 
         @Override
         public boolean mouseDown(double mouseX, double mouseY, int button) {
-            return button == 0 && contains(mouseX, mouseY) && activate();
+            return button == InputConstants.MOUSE_BUTTON_LEFT && contains(mouseX, mouseY)
+                    && activate();
         }
 
         @Override
@@ -278,7 +281,8 @@ public class CardWindow extends ModalWindow {
 
         @Override
         public boolean mouseDown(double mouseX, double mouseY, int button) {
-            return button == 0 && contains(mouseX, mouseY) && activate();
+            return button == InputConstants.MOUSE_BUTTON_LEFT && contains(mouseX, mouseY)
+                    && activate();
         }
 
         @Override

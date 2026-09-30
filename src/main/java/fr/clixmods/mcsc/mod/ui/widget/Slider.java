@@ -131,7 +131,7 @@ public class Slider extends Element {
 
     @Override
     public boolean mouseDown(double mouseX, double mouseY, int button) {
-        if (button != 0 || !contains(mouseX, mouseY)) {
+        if (button != InputConstants.MOUSE_BUTTON_LEFT || !contains(mouseX, mouseY)) {
             return false;
         }
         this.dragging = true;

@@ -12,6 +12,8 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import com.mojang.blaze3d.platform.InputConstants;
+
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
 import fr.clixmods.mcsc.mod.catalog.CatalogItem;
 import fr.clixmods.mcsc.mod.skin.CategorySprites;
@@ -182,7 +184,7 @@ public class ItemTile extends Element {
             this.onInfo.accept(this);
             return true;
         }
-        return button == 0 && activate();
+        return button == InputConstants.MOUSE_BUTTON_LEFT && activate();
     }
 
     @Override
