@@ -17,11 +17,11 @@ import fr.clixmods.mcsc.mod.style.Palette;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Paint;
 import fr.clixmods.mcsc.mod.ui.Prose;
+import fr.clixmods.mcsc.mod.ui.ScreenCompat;
 import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
-import net.minecraft.util.Util;
 
 /**
  * Who drew what, one entry at a time.
@@ -128,7 +128,7 @@ public class CreditsWindow extends ModalWindow {
      */
     private static void open(String url) {
         try {
-            Util.getPlatform().openUri(new URI(url));
+            ScreenCompat.openUri(new URI(url));
         } catch (Exception failure) {
             MCSkinCreatorClient.LOGGER.warn("Could not open the credited source {}", url, failure);
         }

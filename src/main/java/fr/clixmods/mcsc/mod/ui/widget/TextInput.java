@@ -9,6 +9,8 @@ package fr.clixmods.mcsc.mod.ui.widget;
 
 import java.util.function.Consumer;
 
+import com.mojang.blaze3d.platform.InputConstants;
+
 import fr.clixmods.mcsc.mod.style.Metrics;
 import fr.clixmods.mcsc.mod.style.Palette;
 import fr.clixmods.mcsc.mod.style.Surface;
@@ -16,7 +18,6 @@ import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
 import fr.clixmods.mcsc.mod.ui.Paint;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
 
 /**
  * A text field.
@@ -139,7 +140,7 @@ public class TextInput extends Element {
             return false;
         }
         switch (key) {
-            case GLFW.GLFW_KEY_BACKSPACE -> {
+            case InputConstants.KEY_BACKSPACE -> {
                 if (this.cursor > 0) {
                     this.value = this.value.substring(0, this.cursor - 1) + this.value.substring(this.cursor);
                     this.cursor--;
@@ -147,26 +148,26 @@ public class TextInput extends Element {
                 }
                 return true;
             }
-            case GLFW.GLFW_KEY_DELETE -> {
+            case InputConstants.KEY_DELETE -> {
                 if (this.cursor < this.value.length()) {
                     this.value = this.value.substring(0, this.cursor) + this.value.substring(this.cursor + 1);
                     this.onChange.accept(this.value);
                 }
                 return true;
             }
-            case GLFW.GLFW_KEY_LEFT -> {
+            case InputConstants.KEY_LEFT -> {
                 this.cursor = Math.max(0, this.cursor - 1);
                 return true;
             }
-            case GLFW.GLFW_KEY_RIGHT -> {
+            case InputConstants.KEY_RIGHT -> {
                 this.cursor = Math.min(this.value.length(), this.cursor + 1);
                 return true;
             }
-            case GLFW.GLFW_KEY_HOME -> {
+            case InputConstants.KEY_HOME -> {
                 this.cursor = 0;
                 return true;
             }
-            case GLFW.GLFW_KEY_END -> {
+            case InputConstants.KEY_END -> {
                 this.cursor = this.value.length();
                 return true;
             }

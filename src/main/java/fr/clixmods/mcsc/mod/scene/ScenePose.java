@@ -11,6 +11,11 @@ import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.Pose;
+//? if >=26.3 {
+/*import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.component.SwingAnimation;
+*///?}
 
 /**
  * What the figure in the scene is doing.
@@ -140,8 +145,18 @@ public enum ScenePose {
             case SWIM -> gait(state, RUN_SPEED, seconds);
             case ATTACK -> {
                 float tick = seconds * TICKS_PER_SECOND % ATTACK_TICKS;
+                //? if >=26.3 {
+                /*// 26.3 names the swing by hand, not by arm: the right arm is the main
+                // hand only for a right-handed figure.
+                InteractionHand hand = state.mainArm == HumanoidArm.RIGHT
+                        ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
+                state.currentSwing = new LivingEntity.SwingDescription(
+                        hand, SwingAnimation.DEFAULT, (int) ATTACK_SWING_TICKS);
+                state.swingAnimation = Math.min(1.0F, tick / ATTACK_SWING_TICKS);
+                *///?} else {
                 state.attackArm = HumanoidArm.RIGHT;
                 state.attackTime = Math.min(1.0F, tick / ATTACK_SWING_TICKS);
+                //?}
             }
             default -> {
                 // Standing, sitting, lying and gliding have no cycle of their own:
@@ -162,7 +177,12 @@ public enum ScenePose {
     public static void reset(AvatarRenderState state) {
         state.walkAnimationSpeed = 0;
         state.walkAnimationPos = 0;
+        //? if >=26.3 {
+        /*state.currentSwing = null;
+        state.swingAnimation = 0;
+        *///?} else {
         state.attackTime = 0;
+        //?}
         state.swimAmount = 0;
         state.isCrouching = false;
         state.isVisuallySwimming = false;

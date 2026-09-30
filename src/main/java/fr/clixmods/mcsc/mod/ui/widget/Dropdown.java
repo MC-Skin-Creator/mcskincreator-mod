@@ -10,6 +10,8 @@ package fr.clixmods.mcsc.mod.ui.widget;
 import java.util.List;
 import java.util.function.Consumer;
 
+import com.mojang.blaze3d.platform.InputConstants;
+
 import fr.clixmods.mcsc.mod.style.Metrics;
 import fr.clixmods.mcsc.mod.style.Palette;
 import fr.clixmods.mcsc.mod.style.Surface;
@@ -17,7 +19,6 @@ import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
 import fr.clixmods.mcsc.mod.ui.Paint;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
 
 /**
  * A closed dropdown is a button with a pixel arrow; an open one is a menu of our own
@@ -213,7 +214,7 @@ public class Dropdown<T> extends Element {
 
     @Override
     public boolean mouseDown(double mouseX, double mouseY, int button) {
-        if (button != 0) {
+        if (button != InputConstants.MOUSE_BUTTON_LEFT) {
             return false;
         }
         if (this.open) {
@@ -253,33 +254,33 @@ public class Dropdown<T> extends Element {
     @Override
     public boolean keyDown(int key, int modifiers) {
         if (!this.open) {
-            if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_SPACE) {
+            if (key == InputConstants.KEY_RETURN || key == InputConstants.KEY_SPACE) {
                 return activate();
             }
             return false;
         }
         switch (key) {
-            case GLFW.GLFW_KEY_ESCAPE -> {
+            case InputConstants.KEY_ESCAPE -> {
                 this.open = false;
                 return true;
             }
-            case GLFW.GLFW_KEY_UP -> {
+            case InputConstants.KEY_UP -> {
                 this.highlighted = step(-1);
                 return true;
             }
-            case GLFW.GLFW_KEY_DOWN -> {
+            case InputConstants.KEY_DOWN -> {
                 this.highlighted = step(1);
                 return true;
             }
-            case GLFW.GLFW_KEY_HOME -> {
+            case InputConstants.KEY_HOME -> {
                 this.highlighted = 0;
                 return true;
             }
-            case GLFW.GLFW_KEY_END -> {
+            case InputConstants.KEY_END -> {
                 this.highlighted = this.options.size() - 1;
                 return true;
             }
-            case GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_SPACE -> {
+            case InputConstants.KEY_RETURN, InputConstants.KEY_SPACE -> {
                 T option = this.options.get(this.highlighted);
                 if (this.available.test(option)) {
                     this.write.accept(option);

@@ -11,6 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
+import com.mojang.blaze3d.platform.InputConstants;
+
 import fr.clixmods.mcsc.mod.scene.CameraMode;
 import fr.clixmods.mcsc.mod.scene.GameCamera;
 import fr.clixmods.mcsc.mod.scene.SceneBackdrop;
@@ -561,13 +563,14 @@ public class ScenePanel extends Element {
         if (!contains(mouseX, mouseY) || this.cameraMode == CameraMode.FIRST_PERSON) {
             return false;
         }
-        if (button != 0 && button != 1) {
+        if (button != InputConstants.MOUSE_BUTTON_LEFT
+                && button != InputConstants.MOUSE_BUTTON_RIGHT) {
             return false;
         }
         this.dragging = true;
         // The right button pans, and so does shift with the left: the site offers both
         // because a trackpad has no comfortable right-drag.
-        this.panning = button == 1 || shiftHeld();
+        this.panning = button == InputConstants.MOUSE_BUTTON_RIGHT || shiftHeld();
         return true;
     }
 

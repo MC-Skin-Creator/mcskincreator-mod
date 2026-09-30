@@ -123,6 +123,8 @@ tasks {
         // Java 21 on one target and Java 25 on the other. One hardcoded level would be
         // wrong on one of them.
         filesMatching(listOf("fabric.mod.json", "mcskincreator.mixins.json")) { expand(props) }
+        // NeoForge's metadata has nothing to say to Fabric.
+        exclude("META-INF/neoforge.mods.toml")
     }
 
     withType<Jar> {

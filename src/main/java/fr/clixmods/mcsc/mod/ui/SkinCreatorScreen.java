@@ -24,8 +24,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import com.google.gson.JsonParser;
+import com.mojang.blaze3d.platform.InputConstants;
 
 import fr.clixmods.mcsc.mod.MCSkinCreatorClient;
+import fr.clixmods.mcsc.mod.Platform;
 import fr.clixmods.mcsc.mod.account.AccountSkin;
 import fr.clixmods.mcsc.mod.account.WornSkin;
 import fr.clixmods.mcsc.mod.catalog.Catalog;
@@ -74,7 +76,6 @@ import fr.clixmods.mcsc.mod.ui.window.ModelsWindow;
 import fr.clixmods.mcsc.mod.ui.window.NameWindow;
 import fr.clixmods.mcsc.mod.ui.window.SkinsWindow;
 import fr.clixmods.mcsc.mod.ui.window.TextWindow;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.User;
 //? if >=26.1 {
@@ -91,9 +92,7 @@ import com.mojang.blaze3d.platform.NativeImage;
 import fr.clixmods.mcsc.mod.skin.SkinBlend;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.util.Util;
 import net.minecraft.world.entity.player.PlayerModelType;
-import org.lwjgl.glfw.GLFW;
 
 /**
  * The editor.
@@ -264,7 +263,7 @@ public class SkinCreatorScreen extends Screen {
     private SkinsWindow.Library skins = SkinsWindow.Library.LOADING;
     /** Where they are kept: a folder on this machine, and nowhere else. */
     private final SkinLibrary skinLibrary = new SkinLibrary(
-            FabricLoader.getInstance().getConfigDir().resolve("mcskincreator").resolve("skins"));
+            Platform.configDir().resolve("mcskincreator").resolve("skins"));
 
     /** The query waiting to go to the server, and since when. */
     private String query = "";
@@ -1148,7 +1147,7 @@ public class SkinCreatorScreen extends Screen {
 
     private void openAbout() {
         open(new AboutWindow(MCSkinCreatorClient.version(), "clixmods",
-                uri -> Util.getPlatform().openUri(uri)));
+                ScreenCompat::openUri));
     }
 
     /**
@@ -2205,8 +2204,8 @@ public class SkinCreatorScreen extends Screen {
     @Override
     public boolean keyPressed(KeyEvent event) {
         int key = event.key();
-        boolean control = (event.modifiers() & GLFW.GLFW_MOD_CONTROL) != 0;
-        boolean shift = (event.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0;
+        boolean control = (event.modifiers() & InputConstants.MOD_CONTROL) != 0;
+        boolean shift = (event.modifiers() & InputConstants.MOD_SHIFT) != 0;
 
         if (typingTarget() != null && typingTarget().keyDown(key, event.modifiers())) {
             return true;
@@ -2215,7 +2214,7 @@ public class SkinCreatorScreen extends Screen {
             return true;
         }
 
-        if (key == GLFW.GLFW_KEY_ESCAPE) {
+        if (key == InputConstants.KEY_ESCAPE) {
             // Escape unwinds one layer at a time: an open menu, then the window, then
             // the screen. Closing the window under an open menu loses whatever was in it.
             for (Element element : targets()) {
@@ -2232,20 +2231,20 @@ public class SkinCreatorScreen extends Screen {
             return true;
         }
 
-        if (key == GLFW.GLFW_KEY_TAB) {
+        if (key == InputConstants.KEY_TAB) {
             moveFocus(shift ? -1 : 1);
             return true;
         }
 
         if (this.window instanceof NameWindow named
-                && (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER)) {
+                && (key == InputConstants.KEY_RETURN || key == InputConstants.KEY_NUMPADENTER)) {
             if (named.accept()) {
                 closeWindow();
             }
             return true;
         }
 
-        if (this.focused != null && (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_SPACE)
+        if (this.focused != null && (key == InputConstants.KEY_RETURN || key == InputConstants.KEY_SPACE)
                 && !this.focused.capturesTyping()) {
             boolean done = this.focused.activate();
             if (done && this.focused.clickSound()) {
@@ -2260,19 +2259,19 @@ public class SkinCreatorScreen extends Screen {
             return false;
         }
 
-        if (control && key == GLFW.GLFW_KEY_Z) {
+        if (control && key == InputConstants.KEY_Z) {
             if (shift ? this.history.redo() : this.history.undo()) {
                 historyMoved();
             }
             return true;
         }
-        if (control && key == GLFW.GLFW_KEY_Y) {
+        if (control && key == InputConstants.KEY_Y) {
             if (this.history.redo()) {
                 historyMoved();
             }
             return true;
         }
-        if (control && key == GLFW.GLFW_KEY_S) {
+        if (control && key == InputConstants.KEY_S) {
             openExport();
             return true;
         }

@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import com.mojang.blaze3d.platform.InputConstants;
+
 import fr.clixmods.mcsc.mod.project.SavedSkin;
 import fr.clixmods.mcsc.mod.skin.SkinThumbnails;
 import fr.clixmods.mcsc.mod.style.Metrics;
@@ -258,7 +260,8 @@ public class SkinsWindow extends ModalWindow {
             // The remove button sits on top of the row, and the row is offered the press
             // first: the strip it occupies has to be left to the button.
             boolean onActions = mouseX >= this.x + this.width - this.actionsWidth;
-            return button == 0 && contains(mouseX, mouseY) && !onActions && activate();
+            return button == InputConstants.MOUSE_BUTTON_LEFT && contains(mouseX, mouseY)
+                    && !onActions && activate();
         }
 
         @Override

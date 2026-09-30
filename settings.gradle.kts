@@ -5,6 +5,13 @@ pluginManagement {
         maven("https://maven.fabricmc.net/")
         maven("https://maven.kikugie.dev/releases") { name = "KikuGie Releases" }
         maven("https://maven.kikugie.dev/snapshots") { name = "KikuGie Snapshots" }
+        maven("https://maven.neoforged.net/releases") { name = "NeoForged" }
+    }
+
+    // The NeoForge targets' build plugin, pinned here because their buildscript is
+    // applied per node and cannot carry a version of its own.
+    plugins {
+        id("net.neoforged.moddev") version "2.0.148"
     }
 }
 
@@ -22,8 +29,25 @@ plugins {
 
 stonecutter {
     create(rootProject) {
-        versions("1.21.11")
+        // Fabric targets: named after the game version alone, as they always were.
+        versions("1.21.10", "1.21.11")
+        version("26.1.x", "26.1.2")
         version("26.2.x", "26.2")
+        version("26.3.x", "26.3")
+
+        // NeoForge targets: the same game versions, the same sources, another build
+        // script. The -neoforge suffix is what stonecutter.gradle.kts reads the loader
+        // from.
+        for ((name, minecraft) in listOf(
+            "1.21.10" to "1.21.10",
+            "1.21.11" to "1.21.11",
+            "26.1.x" to "26.1.2",
+            "26.2.x" to "26.2",
+            "26.3.x" to "26.3",
+        )) {
+            version("$name-neoforge", minecraft).buildscript("build.neoforge.gradle.kts")
+        }
+
         vcsVersion = "1.21.11"
     }
 }
