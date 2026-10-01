@@ -366,6 +366,8 @@ changed shape. The boundaries below are where the API changed, read from the jar
 | Menu button | 1.20.2: `SpriteIconButton` | none, and no sprite atlas: a `Button` that blits the icon | `SkinPanel` |
 | Open a folder | 1.21: `openPath` | `openFile` | `ScreenCompat` |
 | A resource location | 1.21: `fromNamespaceAndPath` | the constructor | `MCSkinCreatorClient#id` |
+| A figure's depth flip | 1.20.5: `PoseStack#scale` flips the normals cleanly | the normals go wild under a negative scale and the faces flicker: the matrix alone is scaled | `scene/FigureScale` |
+| A mod's resources on Forge | 1.20.4: Forge writes the pack metadata itself | none without a `pack.mcmeta`, translations included: the build writes one from `mod.pack_format` | `build.forge.gradle.kts` |
 | Forge's event bus and entry point | 1.21.6: `ScreenEvent.Init.Post.BUS`, context constructor | `MinecraftForge.EVENT_BUS`, no-argument constructor | `MenuButtons`, `MCSkinCreatorClient` |
 
 **The figure's state is the one place a type is swapped rather than branched.** It has
