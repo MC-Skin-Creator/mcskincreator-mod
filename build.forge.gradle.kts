@@ -26,10 +26,16 @@ val requiredJava: JavaVersion = when {
 }
 
 // The mixins that pose the character for the in-world view, written into the mixin
-// config: one on AvatarRenderer from 1.21.9, two before render states existed - the
-// renderer turns and lays the body down, the model bends the limbs.
-val poseMixins: String = (if (sc.current.parsed >= "1.21.9") listOf("AvatarRendererMixin")
-        else listOf("PlayerRendererMixin", "PlayerModelMixin")).joinToString(", ") { "\"$it\"" }
+// config. From 1.21.2 one on the render state the renderer fills in - AvatarRenderer's
+// from 1.21.9, PlayerRenderer's before - and up to 1.21.5 an accessor for the player
+// renderers, which the editor's figure is drawn with there. Before 1.21.2 there are no
+// render states, and two take their place: the renderer turns and lays the body down,
+// the model bends the limbs.
+val poseMixins: String = when {
+    sc.current.parsed >= "1.21.6" -> listOf("AvatarRendererMixin")
+    sc.current.parsed >= "1.21.2" -> listOf("AvatarRendererMixin", "EntityRenderDispatcherAccessor")
+    else -> listOf("PlayerRendererMixin", "PlayerModelMixin")
+}.joinToString(", ") { "\"$it\"" }
 
 // Forge ships Sponge's Mixin 0.8.7, whose compatibility levels stop at JAVA_21: it has
 // no JAVA_25 to read. Java 25 mixin classes only make it log a warning - the game's own

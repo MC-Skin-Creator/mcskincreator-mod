@@ -40,7 +40,8 @@ plugins {
 stonecutter {
     create(rootProject) {
         // Fabric targets: named after the game version alone, as they always were.
-        versions("1.20.1", "1.21.1", "1.21.10", "1.21.11")
+        versions("1.20.1", "1.20.2", "1.20.4", "1.20.6", "1.21.1", "1.21.3", "1.21.4", "1.21.5",
+                "1.21.8", "1.21.10", "1.21.11")
         version("26.1.x", "26.1.2")
         version("26.2.x", "26.2")
         version("26.3.x", "26.3")
@@ -50,16 +51,26 @@ stonecutter {
         // from.
         val loaderNodes = listOf(
             "1.20.1" to "1.20.1",
+            "1.20.2" to "1.20.2",
+            "1.20.4" to "1.20.4",
+            "1.20.6" to "1.20.6",
             "1.21.1" to "1.21.1",
+            "1.21.3" to "1.21.3",
+            "1.21.4" to "1.21.4",
+            "1.21.5" to "1.21.5",
+            "1.21.8" to "1.21.8",
             "1.21.10" to "1.21.10",
             "1.21.11" to "1.21.11",
             "26.1.x" to "26.1.2",
             "26.2.x" to "26.2",
             "26.3.x" to "26.3",
         )
-        // Not 1.20.1: NeoForge forked from Forge at 1.20.1, and that fork is Forge 47
-        // under another name. The Forge node below is what 1.20.1 players run.
-        for ((name, minecraft) in loaderNodes.filter { it.first != "1.20.1" }) {
+        // From 1.20.6 only. 1.20.1's NeoForge is Forge 47 under another name, and the
+        // Forge node below is what its players run. 1.20.2 and 1.20.4 had a NeoForge of
+        // their own, but with the older metadata format, before the one this build
+        // writes; their players have Fabric, Quilt and Forge.
+        val noNeoForge = setOf("1.20.1", "1.20.2", "1.20.4")
+        for ((name, minecraft) in loaderNodes.filter { it.first !in noNeoForge }) {
             version("$name-neoforge", minecraft).buildscript("build.neoforge.gradle.kts")
         }
 

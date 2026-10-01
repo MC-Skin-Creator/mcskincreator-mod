@@ -155,14 +155,14 @@ compatibility. Adding a version is a table in a TOML file, not a branch.
 
 | Piece | Version | Why |
 |---|---|---|
-| Minecraft | `1.20.1`, `1.21.1`, `1.21.10`, `1.21.11`, `26.1.2`, `26.2`, `26.3` | Active target is 1.21.11, the version being tested in-game |
+| Minecraft | every release from `1.20` to `26.3`, from 14 targets | Active target is 1.21.11, the version being tested in-game |
 | Mappings | Official Mojang | See below |
 | Fabric Loader | `0.19.3` | Lowest version the mod is built and declared against |
-| Fabric API | `0.92.12+1.20.1`, `0.116.17+1.21.1`, `0.138.4+1.21.10`, `0.141.6+1.21.11`, `0.155.3+26.1.2`, `0.160.0+26.2`, `0.161.0+26.3` | Latest per target when added |
+| Fabric API | one per target, in `stonecutter.properties.toml`; `0.138.4+1.21.10`, `0.141.6+1.21.11`, `0.155.3+26.1.2`, `0.160.0+26.2`, `0.161.0+26.3` | Latest per target when added |
 | Stonecutter | `0.9.8` | Current release |
 | Loom | `1.17-SNAPSHOT` via `loom-back-compat` | See below |
 | Gradle | `9.7.1` | Required by the Loom plugin line |
-| Java | `17` on 1.20.1, `21` on 1.21.x, `25` on 26.x | Mojang's requirement per version |
+| Java | `17` up to 1.20.4, `21` from 1.20.5, `25` on 26.x | Mojang's requirement per version |
 
 **Yarn was dropped for official Mojang mappings.** Yarn has no build past
 1.21.11 — nothing for 26.1 and later — so a shared source tree spanning both
@@ -175,16 +175,18 @@ whole recent line: every one of them already has `AvatarRenderer` and the render
 states the scene and the mixins are built on. 26.1 is one target for its three
 releases, built against 26.1.2.
 
-**1.21.1 and 1.20.1 came after, for the audience.** They are where the mods are: on
-Modrinth, more mods and modpacks target each of them than any other version, and
-1.21.1 is NeoForge's long-lived line as 1.20.1 is Forge's. They predate `AvatarRenderer`
-and render states, which is what had kept them out, so they cost a second way of
-drawing and posing the figure: `scene/ModelFigure` bends the player model from the
-mod's own `FigureState`, ported from 1.21.11's model code so the poses match, and two
-mixins on the old renderer and model replace the one on the render state. The poses
-themselves stay one piece of code, through a type swap scoped to the files that pose
-the figure; `CLAUDE.md` has the table of everything else that differs. The versions in
-between are not targets: each would add branches for little audience.
+**Everything back to 1.20 came after, for the audience.** 1.21.1 and 1.20.1 are where
+the mods are: on Modrinth, more mods and modpacks target each of them than any other
+version, and 1.21.1 is NeoForge's long-lived line as 1.20.1 is Forge's. The releases in
+between followed, so that no player between 1.20 and 26.3 is left without a jar. They
+predate `AvatarRenderer`, and the oldest predate render states altogether, which is what
+had kept them out: before 1.21.2 `scene/ModelFigure` bends the player model from the
+mod's own `FigureState`, ported from 1.21.11's model code so the poses match; from 1.21.2
+to 1.21.5 `scene/StateFigure` draws the game's own render state by hand, since the
+picture-in-picture path only arrived in 1.21.6. The poses themselves stay one piece of
+code, through a type swap scoped to the files that pose the figure; `CLAUDE.md` has the
+table of everything else that differs. Hotfix siblings share a target where the API the
+mod uses did not move between them, which keeps it at 14 targets for 31 releases.
 
 **Loom is selected per version by `dev.kikugie.loom-back-compat`.** Minecraft
 below 26 is obfuscated and needs `fabric-loom-remap`; 26 and later ship

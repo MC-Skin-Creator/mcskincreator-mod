@@ -49,10 +49,11 @@ import org.joml.Vector3f;
  * editor's does not: there the player is turning the figure to look at a skin, and a
  * head that chased the mouse would move whatever they were trying to look at.
  *
- * <p>1.20.1 and 1.21.1 have no render states. There the state is a {@link FigureState},
- * swapped in by the figure marker at the top of this file, and the canvas bends and draws
- * the player model from it itself - so everything here, the camera numbers included, is
- * the same code on every target.
+ * <p>The state has had three names, and the figure marker at the top of this file swaps
+ * them in: {@code AvatarRenderState} from 1.21.9, {@code PlayerRenderState} from 1.21.2
+ * to 1.21.8, with the same fields, and before render states existed the mod's own
+ * {@link FigureState}, from which the canvas bends and draws the player model itself. So
+ * everything here, the camera numbers included, is the same code on every target.
  */
 public final class PosedPlayer {
     /** A player is 1.8 blocks tall and 0.6 wide; the box is what centres the figure. */

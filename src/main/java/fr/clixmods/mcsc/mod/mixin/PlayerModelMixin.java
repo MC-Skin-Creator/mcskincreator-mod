@@ -19,7 +19,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 // Bends the local player's limbs for the editor's in-game view, on the targets before
-// render states: 1.20.1 and 1.21.1.
+// render states: 1.20.1 to 1.21.1.
 //
 // From 1.21.9 AvatarRendererMixin does this by posing the render state the model is
 // bent from. Before render states the model is bent from the entity itself, so the

@@ -5,7 +5,7 @@
  * Proprietary, source-available. See the LICENSE file at the root of this
  * repository.
  */
-//? if <1.21 {
+//? if <1.20.5 {
 /*package fr.clixmods.mcsc.mod.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -22,7 +22,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 // Turns and lays down the local player for the editor's in-game view, on the targets
-// before render states: 1.20.1 and 1.21.1. PlayerModelMixin bends the limbs; this does
+// before render states: 1.20.1 to 1.21.1. PlayerModelMixin bends the limbs; this does
 // what the renderer does around them - which way the body faces, whether it lies in a
 // bed, glides or swims, and the drop of a crouch - from the same pose, through
 // ModelFigure, for the one player WorldPose names.
@@ -30,7 +30,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 // The body faces where it was when the view opened, not where the camera has gone:
 // that is the pose's bodyRot, used in place of the entity's.
 //
-// setupRotations took one argument fewer before 1.21, hence the two versions of this
+// setupRotations took one argument fewer before 1.20.5, hence the two versions of this
 // class. Both descriptors are spelled out, because the class also has the bridge
 // methods javac generates, with the entity typed as its superclass.
 @Mixin(PlayerRenderer.class)
@@ -79,7 +79,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 // Turns and lays down the local player for the editor's in-game view, on the targets
-// before render states: 1.20.1 and 1.21.1. PlayerModelMixin bends the limbs; this does
+// before render states: 1.20.1 to 1.21.1. PlayerModelMixin bends the limbs; this does
 // what the renderer does around them - which way the body faces, whether it lies in a
 // bed, glides or swims, and the drop of a crouch - from the same pose, through
 // ModelFigure, for the one player WorldPose names.
@@ -87,7 +87,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 // The body faces where it was when the view opened, not where the camera has gone:
 // that is the pose's bodyRot, used in place of the entity's.
 //
-// setupRotations took one argument fewer before 1.21, hence the two versions of this
+// setupRotations took one argument fewer before 1.20.5, hence the two versions of this
 // class. Both descriptors are spelled out, because the class also has the bridge
 // methods javac generates, with the entity typed as its superclass.
 @Mixin(PlayerRenderer.class)

@@ -11,7 +11,6 @@
 import java.util.List;
 
 import com.mojang.blaze3d.platform.Lighting;
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
@@ -29,9 +28,8 @@ import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.Pose;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
-import org.lwjgl.opengl.GL11;
 
-// The figure on the targets that came before render states: 1.20.1 and 1.21.1.
+// The figure on the targets that came before render states: 1.20.1 to 1.21.1.
 //
 // From 1.21.2 the game poses a player from a render state, and the editor hands it one.
 // Before, it poses the model from a live entity, inside the renderer, and the editor's
@@ -71,7 +69,7 @@ public final class ModelFigure {
         // the figure to a texture of its own and gets both for nothing.
         graphics.flush();
         graphics.enableScissor(x, y, x + width, y + height);
-        clearDepth();
+        GuiDepth.clear();
 
         PoseStack stack = graphics.pose();
         stack.pushPose();
@@ -95,7 +93,7 @@ public final class ModelFigure {
         Lighting.setupFor3DItems();
         stack.popPose();
 
-        clearDepth();
+        GuiDepth.clear();
         graphics.disableScissor();
     }
 
@@ -324,10 +322,6 @@ public final class ModelFigure {
             wide = new PlayerModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(ModelLayers.PLAYER), false);
         }
         return wide;
-    }
-
-    private static void clearDepth() {
-        RenderSystem.clear(GL11.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX);
     }
 }
 *///?}

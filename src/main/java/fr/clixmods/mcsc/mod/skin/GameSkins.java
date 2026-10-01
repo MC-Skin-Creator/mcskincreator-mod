@@ -32,7 +32,8 @@ import com.mojang.authlib.minecraft.MinecraftProfileTexture;
  *
  * <p>Three spellings across the supported versions. From 1.21.9 a {@code PlayerSkin} is
  * made of client assets and its model is a {@code PlayerModelType}. From 1.20.2 to 1.21.8
- * it is made of texture locations and its model is a nested {@code PlayerSkin.Model}.
+ * it is made of texture locations and its model is a nested {@code PlayerSkin.Model};
+ * the figure's state carries one from 1.21.2, and the mod's own look before.
  * 1.20.1 has no skin object at all: a player answers its texture and its model name
  * separately, and the local profile's skin arrives through a callback. Everything else
  * in the mod speaks in {@link SkinLook} and {@link SkinModel}, and none of it is
@@ -129,7 +130,32 @@ public final class GameSkins {
             return this.id;
         }
     }
-    //?} elif >=1.20.2 {
+    //?} elif >=1.21.2 {
+    /*// The skin the figure's render state carries: from 1.21.2 to 1.21.8 that state is a
+    // PlayerRenderState, and its skin is the game's.
+    public static PlayerSkin figureSkin(SkinLook look) {
+        return new PlayerSkin(look.texture(), null, look.cape(), null, model(look.model()), false);
+    }
+
+    // The skin a player wears once the mod has dressed them: the look's body and model,
+    // and the cape and elytra the game had already resolved for them.
+    public static PlayerSkin wear(PlayerSkin resolved, SkinLook look) {
+        return new PlayerSkin(look.texture(), null,
+                resolved == null ? null : resolved.capeTexture(),
+                resolved == null ? null : resolved.elytraTexture(),
+                model(look.model()),
+                false);
+    }
+
+    private static SkinLook look(PlayerSkin skin) {
+        return new SkinLook(skin.texture(), skin.capeTexture(),
+                skin.model() == PlayerSkin.Model.SLIM ? SkinModel.SLIM : SkinModel.WIDE);
+    }
+
+    private static PlayerSkin.Model model(SkinModel model) {
+        return model == SkinModel.SLIM ? PlayerSkin.Model.SLIM : PlayerSkin.Model.WIDE;
+    }
+    *///?} elif >=1.20.2 {
     /*// Before render states the figure state carries the look itself.
     public static SkinLook figureSkin(SkinLook look) {
         return look;
@@ -141,13 +167,17 @@ public final class GameSkins {
         return new PlayerSkin(look.texture(), null,
                 resolved == null ? null : resolved.capeTexture(),
                 resolved == null ? null : resolved.elytraTexture(),
-                look.model() == SkinModel.SLIM ? PlayerSkin.Model.SLIM : PlayerSkin.Model.WIDE,
+                model(look.model()),
                 false);
     }
 
     private static SkinLook look(PlayerSkin skin) {
         return new SkinLook(skin.texture(), skin.capeTexture(),
                 skin.model() == PlayerSkin.Model.SLIM ? SkinModel.SLIM : SkinModel.WIDE);
+    }
+
+    private static PlayerSkin.Model model(SkinModel model) {
+        return model == SkinModel.SLIM ? PlayerSkin.Model.SLIM : PlayerSkin.Model.WIDE;
     }
     *///?} else {
     /*// Before render states the figure state carries the look itself.

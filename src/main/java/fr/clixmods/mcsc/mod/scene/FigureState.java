@@ -13,7 +13,7 @@ import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.Pose;
 
 /**
- * The figure's render state on the targets that have none: 1.20.1 and 1.21.1.
+ * The figure's render state on the targets that have none: 1.20.1 to 1.21.1.
  *
  * <p>Render states arrived in 1.21.2. Before them the game draws a player straight from
  * the entity, and the editor's figure has no entity - it opens from the title screen,

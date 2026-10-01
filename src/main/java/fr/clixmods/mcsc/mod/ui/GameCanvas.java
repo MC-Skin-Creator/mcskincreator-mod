@@ -25,7 +25,11 @@ import net.minecraft.resources.Identifier;
 //? if >=1.21.6 {
 import net.minecraft.client.renderer.RenderPipelines;
 import org.joml.Matrix3x2fStack;
-//?} else {
+//?} elif >=1.21.2 {
+/*import com.mojang.blaze3d.vertex.PoseStack;
+import fr.clixmods.mcsc.mod.scene.StateFigure;
+import net.minecraft.client.renderer.RenderType;
+*///?} else {
 /*import com.mojang.blaze3d.vertex.PoseStack;
 import fr.clixmods.mcsc.mod.scene.ModelFigure;
 *///?}
@@ -42,12 +46,11 @@ import fr.clixmods.mcsc.mod.scene.ModelFigure;
  * Minecraft version.
  *
  * <p>The same goes the other way, for the targets older than 1.21.6, where the GUI was
- * still drawn immediately: a {@code PoseStack} rather than a 2D matrix stack, blits
- * without a pipeline, tints through the shader colour, tooltips drawn on the spot - and,
- * before render states existed at all, the figure drawn by {@code ModelFigure} rather
- * than by the game's picture-in-picture path. Those branches are written for 1.20.1 and
- * 1.21.1, the older targets this mod is built for, and are not meant for the versions in
- * between.
+ * still drawn immediately: a {@code PoseStack} rather than a 2D matrix stack, tooltips
+ * drawn on the spot, and the figure drawn by hand rather than by the game's
+ * picture-in-picture path - from its render state by {@code StateFigure} from 1.21.2,
+ * by {@code ModelFigure} before render states existed. Blits took a render type from
+ * 1.21.2 to 1.21.5, and before that nothing at all: the tint was the shader colour.
  */
 public final class GameCanvas implements Canvas {
     //? if >=26.1 {
@@ -244,7 +247,10 @@ public final class GameCanvas implements Canvas {
         //? if >=1.21.6 {
         this.graphics.blit(RenderPipelines.GUI_TEXTURED, texture, x, y, u, v,
                 width, height, sourceWidth, sourceHeight, textureWidth, textureHeight);
-        //?} else {
+        //?} elif >=1.21.2 {
+        /*this.graphics.blit(RenderType::guiTextured, texture, x, y, u, v,
+                width, height, sourceWidth, sourceHeight, textureWidth, textureHeight);
+        *///?} else {
         /*this.graphics.blit(texture, x, y, width, height, u, v,
                 sourceWidth, sourceHeight, textureWidth, textureHeight);
         *///?}
@@ -262,7 +268,9 @@ public final class GameCanvas implements Canvas {
         if (width > 0 && height > 0) {
             //? if >=1.21.6 {
             this.graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, width, height);
-            //?} elif >=1.20.2 {
+            //?} elif >=1.21.2 {
+            /*this.graphics.blitSprite(RenderType::guiTextured, sprite, x, y, width, height);
+            *///?} elif >=1.20.2 {
             /*this.graphics.blitSprite(sprite, x, y, width, height);
             *///?} else {
             /*// 1.20.1 has no sprite atlas: the sprite is its own texture, drawn whole.
@@ -278,7 +286,9 @@ public final class GameCanvas implements Canvas {
         if (width > 0 && height > 0) {
             //? if >=1.21.6 {
             this.graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, width, height, tint);
-            //?} else {
+            //?} elif >=1.21.2 {
+            /*this.graphics.blitSprite(RenderType::guiTextured, sprite, x, y, width, height, tint);
+            *///?} else {
             /*tint(tint);
             sprite(sprite, x, y, width, height);
             untint();
@@ -294,15 +304,18 @@ public final class GameCanvas implements Canvas {
         //? if >=1.21.6 {
         this.graphics.blit(RenderPipelines.GUI_TEXTURED, texture, x, y, u, v,
                 width, height, sourceWidth, sourceHeight, textureWidth, textureHeight, tint);
-        //?} else {
+        //?} elif >=1.21.2 {
+        /*this.graphics.blit(RenderType::guiTextured, texture, x, y, u, v,
+                width, height, sourceWidth, sourceHeight, textureWidth, textureHeight, tint);
+        *///?} else {
         /*tint(tint);
         blit(texture, x, y, width, height, u, v, sourceWidth, sourceHeight, textureWidth, textureHeight);
         untint();
         *///?}
     }
 
-    //? if <1.21.6 {
-    /*// Before 1.21.6 a blit takes no colour: the tint is the shader's, set around it.
+    //? if <1.21.2 {
+    /*// Before 1.21.2 a blit takes no colour: the tint is the shader's, set around it.
     private void tint(int argb) {
         this.graphics.setColor((argb >> 16 & 0xFF) / 255.0F, (argb >> 8 & 0xFF) / 255.0F,
                 (argb & 0xFF) / 255.0F, (argb >>> 24) / 255.0F);
@@ -369,7 +382,9 @@ public final class GameCanvas implements Canvas {
         *///?} elif >=1.21.6 {
         this.graphics.submitEntityRenderState(state, scale, translation, rotation,
                 overrideCameraAngle, x, y, x + width, y + height);
-        //?} else {
+        //?} elif >=1.21.2 {
+        /*StateFigure.draw(this.graphics, state, scale, translation, rotation, x, y, width, height);
+        *///?} else {
         /*ModelFigure.draw(this.graphics, state, scale, translation, rotation, x, y, width, height);
         *///?}
     }
