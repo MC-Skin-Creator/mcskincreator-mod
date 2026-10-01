@@ -655,6 +655,16 @@ reads, the translations — live in the skill `.claude/skills/changelog/`, which
 corrected every time the author remarks on an entry. A pull request with nothing
 visible adds no entry.
 
+**The release dates the changelog and announces it, nobody does it by hand.** On a stable
+release, `release.yml` runs `.github/scripts/changelog-release.js`, which renames
+`## Unreleased` to `## X.Y.Z — <date>` in the three files inside the `chore: release` commit,
+so the tag carries the dated changelog. Its last step, `announce-discord.js`, posts that
+version on Discord — one embed per language that has a webhook secret (`DISCORD_WEBHOOK_EN`,
+`_FR`, `_ES`, or `DISCORD_WEBHOOK` alone for English; none is an error). It never blocks the
+release (`continue-on-error`), a version with no section in the changelog announces nothing,
+and `-dev` builds are never announced. The website's changelog page reads these files from
+`main` (the "Mod" tab).
+
 ## Versioning and releases
 
 Semantic versioning, with one rule on top: **the Minecraft version never touches

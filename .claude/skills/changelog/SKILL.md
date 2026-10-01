@@ -60,10 +60,12 @@ no entry, and says so.
 
 ## The version number
 
-It is **not decided here.** `.github/scripts/next-version.sh` derives it from the
-commit types, and a stable release stamps it. Write under `Unreleased`; whoever
-merges `develop` into `main` renames that section to the released version and date,
-in the same change. Never invent a number.
+It is **not decided here, and not dated here either.** `.github/scripts/next-version.sh`
+derives it from the commit types. Write under `## Unreleased` and stop: on a stable release,
+`release.yml` renames that section to `## X.Y.Z — <date>` in the three files
+(`changelog-release.js`) and announces it on Discord (`announce-discord.js`). Never invent a
+number and never date a section by hand — a pull request that did would be announced under
+the wrong version.
 
 ## Before opening the pull request
 
