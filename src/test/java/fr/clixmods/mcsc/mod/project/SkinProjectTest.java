@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
-import net.minecraft.world.entity.player.PlayerModelType;
+import fr.clixmods.mcsc.mod.skin.SkinModel;
 
 /** The rules the layer stack follows, none of which need a game to check. */
 class SkinProjectTest {
@@ -285,7 +285,7 @@ class SkinProjectTest {
             assertBumps(() -> add(hats, "crown"), "add another region-mate");
             assertBumps(() -> project.move(cap, 1), "move");
             assertBumps(() -> project.remove(cap), "remove");
-            assertBumps(() -> project.setModel(PlayerModelType.SLIM), "setModel");
+            assertBumps(() -> project.setModel(SkinModel.SLIM), "setModel");
             assertBumps(project::touch, "touch");
             assertBumps(() -> project.restore(project.snapshot()), "restore");
             assertBumps(project::clear, "clear");
@@ -315,12 +315,12 @@ class SkinProjectTest {
     class Model {
         @Test
         void theModelIsWideUntilItIsChanged() {
-            assertEquals(PlayerModelType.WIDE, project.model());
+            assertEquals(SkinModel.WIDE, project.model());
             assertFalse(project.isSlim());
 
-            project.setModel(PlayerModelType.SLIM);
+            project.setModel(SkinModel.SLIM);
 
-            assertEquals(PlayerModelType.SLIM, project.model());
+            assertEquals(SkinModel.SLIM, project.model());
             assertTrue(project.isSlim());
         }
     }
@@ -368,11 +368,11 @@ class SkinProjectTest {
         @Test
         void theModelTravelsWithTheSnapshot() {
             SkinProject.Snapshot wide = project.snapshot();
-            project.setModel(PlayerModelType.SLIM);
+            project.setModel(SkinModel.SLIM);
 
             project.restore(wide);
 
-            assertEquals(PlayerModelType.WIDE, project.model());
+            assertEquals(SkinModel.WIDE, project.model());
         }
     }
 
@@ -383,12 +383,12 @@ class SkinProjectTest {
             CatalogCategory skins = single("skin", "base", "skin-rose", SkinProject.DEFAULT_SKIN);
             CatalogCategory hats = category("hats", "head", "cap");
             add(hats, "cap");
-            project.setModel(PlayerModelType.SLIM);
+            project.setModel(SkinModel.SLIM);
 
             project.startFresh(fr.clixmods.mcsc.mod.Fixtures.catalog(hats, skins), "en_us");
 
             assertEquals(List.of(SkinProject.DEFAULT_SKIN), stack());
-            assertEquals(PlayerModelType.WIDE, project.model());
+            assertEquals(SkinModel.WIDE, project.model());
             assertNull(project.selected());
         }
 

@@ -28,9 +28,9 @@ import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
 import fr.clixmods.mcsc.mod.ui.Figure;
 import fr.clixmods.mcsc.mod.ui.Paint;
+import fr.clixmods.mcsc.mod.ui.ScreenCompat;
 import fr.clixmods.mcsc.mod.ui.widget.Dropdown;
 import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
 /**
@@ -462,8 +462,7 @@ public class ScenePanel extends Element {
      * panel out without one — and a drag it never sends cannot want shift.
      */
     private boolean shiftHeld() {
-        Minecraft client = Minecraft.getInstance();
-        return client != null && client.hasShiftDown();
+        return ScreenCompat.hasShiftDown();
     }
 
     /** How far into the animation we are: time spent playing, and none spent stopped. */

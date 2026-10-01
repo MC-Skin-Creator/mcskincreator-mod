@@ -5,6 +5,7 @@
  * Proprietary, source-available. See the LICENSE file at the root of this
  * repository.
  */
+//? if >=1.21.9 {
 package fr.clixmods.mcsc.mod.mixin;
 
 import fr.clixmods.mcsc.mod.scene.WorldPose;
@@ -61,3 +62,31 @@ public abstract class AvatarRendererMixin {
         }
     }
 }
+//?} elif >=1.21.2 {
+/*package fr.clixmods.mcsc.mod.mixin;
+
+import fr.clixmods.mcsc.mod.scene.WorldPose;
+import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.client.renderer.entity.state.PlayerRenderState;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+// The same hold as from 1.21.9, on the renderer that came before AvatarRenderer:
+// from 1.21.2 to 1.21.8 PlayerRenderer fills a PlayerRenderState from the player, and
+// the pose is put on it once it has. It has three overloads of the method as well,
+// hence the descriptor.
+@Mixin(net.minecraft.client.renderer.entity.player.PlayerRenderer.class)
+public abstract class AvatarRendererMixin {
+    @Inject(method = "extractRenderState(Lnet/minecraft/client/player/AbstractClientPlayer;"
+            + "Lnet/minecraft/client/renderer/entity/state/PlayerRenderState;F)V",
+            at = @At("RETURN"))
+    private void mcskincreator$poseForTheEditor(AbstractClientPlayer player, PlayerRenderState state,
+                                                float partialTick, CallbackInfo info) {
+        if (WorldPose.applies(player.getUUID())) {
+            WorldPose.apply(state);
+        }
+    }
+}
+*///?}

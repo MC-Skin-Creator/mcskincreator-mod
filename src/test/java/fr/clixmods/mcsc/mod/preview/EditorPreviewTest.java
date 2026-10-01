@@ -135,7 +135,12 @@ class EditorPreviewTest {
         assertTrue(font.width("Export") > 0);
     }
 
-    /** The game's sprites are there too — a preview without them shows nothing at all. */
+    //? if >=1.20.2 {
+    /**
+     * The game's sprites are there too — a preview without them shows nothing at all.
+     *
+     * <p>From 1.20.2: 1.20.1 has no sprite atlas, and keeps its widgets in sheets.
+     */
     @Test
     void theSpritesAreTheGames() {
         assertNotNull(GameAssets.image("assets/minecraft/textures/gui/sprites/widget/button.png"),
@@ -144,4 +149,5 @@ class EditorPreviewTest {
                 "assets/minecraft/textures/gui/sprites/popup/background.png.mcmeta"),
                 "and its nine-slice metadata with it");
     }
+    //?}
 }

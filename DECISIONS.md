@@ -93,7 +93,7 @@ profile from the server; a client-side mod cannot make them refresh. Doing it pr
 needs something server-side, which is level 3 above and another repository. Until then
 the honest thing is to say so in the interface, which is what the confirmation does.
 
-`PlayerModelType` goes up with the sheet as Mojang's `classic` or `slim`, so the arms
+The project's `SkinModel` goes up with the sheet as Mojang's `classic` or `slim`, so the arms
 are the width the skin was drawn for. The upload needs a PNG, and the composer answers
 either a PNG or a raw RGBA buffer; `NativeImage` on both target versions can read a PNG
 and write one to a *file*, but has no call that hands back the bytes — so `skin/Png.java`
@@ -146,7 +146,7 @@ it Mixin only logs a warning. And its Jar-in-Jar is a separate plugin whose task
 replaces the plain jar, which steps aside as `-slim`: `buildAndCollect` copies the
 Jar-in-Jar one, the only one carrying the engine. The CI matrix goes to twenty jobs.
 
-## 3. Game versions: 1.21.10 to 26.3, through Stonecutter
+## 3. Game versions: 1.20.1 to 26.3, through Stonecutter
 
 The mod is **not** pinned to a single version any more. [Stonecutter](https://stonecutter.kikugie.dev/)
 compiles one shared source tree against several Minecraft versions, so Git branches
@@ -155,14 +155,14 @@ compatibility. Adding a version is a table in a TOML file, not a branch.
 
 | Piece | Version | Why |
 |---|---|---|
-| Minecraft | `1.21.10`, `1.21.11`, `26.1.2`, `26.2`, `26.3` | Active target is 1.21.11, the version being tested in-game |
+| Minecraft | every release from `1.20` to `26.3`, from 14 targets | Active target is 1.21.11, the version being tested in-game |
 | Mappings | Official Mojang | See below |
 | Fabric Loader | `0.19.3` | Lowest version the mod is built and declared against |
-| Fabric API | `0.138.4+1.21.10`, `0.141.6+1.21.11`, `0.155.3+26.1.2`, `0.160.0+26.2`, `0.161.0+26.3` | Latest per target when added |
+| Fabric API | one per target, in `stonecutter.properties.toml`; `0.138.4+1.21.10`, `0.141.6+1.21.11`, `0.155.3+26.1.2`, `0.160.0+26.2`, `0.161.0+26.3` | Latest per target when added |
 | Stonecutter | `0.9.8` | Current release |
 | Loom | `1.17-SNAPSHOT` via `loom-back-compat` | See below |
 | Gradle | `9.7.1` | Required by the Loom plugin line |
-| Java | `21` on 1.21.x, `25` on 26.x | Mojang's requirement per version |
+| Java | `17` up to 1.20.4, `21` from 1.20.5, `25` on 26.x | Mojang's requirement per version |
 
 **Yarn was dropped for official Mojang mappings.** Yarn has no build past
 1.21.11 — nothing for 26.1 and later — so a shared source tree spanning both
@@ -172,10 +172,21 @@ official Stonecutter Fabric template does.
 
 **1.21.10, 26.1 and 26.3 were added together**, as the cheapest way to cover the
 whole recent line: every one of them already has `AvatarRenderer` and the render
-states the scene and the mixins are built on. Older versions popular with modpacks
-(1.21.1, 1.20.1) predate both, and would mean a second implementation of the scene
-rather than a few versioned lines. 26.1 is one target for its three releases, built
-against 26.1.2.
+states the scene and the mixins are built on. 26.1 is one target for its three
+releases, built against 26.1.2.
+
+**Everything back to 1.20 came after, for the audience.** 1.21.1 and 1.20.1 are where
+the mods are: on Modrinth, more mods and modpacks target each of them than any other
+version, and 1.21.1 is NeoForge's long-lived line as 1.20.1 is Forge's. The releases in
+between followed, so that no player between 1.20 and 26.3 is left without a jar. They
+predate `AvatarRenderer`, and the oldest predate render states altogether, which is what
+had kept them out: before 1.21.2 `scene/ModelFigure` bends the player model from the
+mod's own `FigureState`, ported from 1.21.11's model code so the poses match; from 1.21.2
+to 1.21.5 `scene/StateFigure` draws the game's own render state by hand, since the
+picture-in-picture path only arrived in 1.21.6. The poses themselves stay one piece of
+code, through a type swap scoped to the files that pose the figure; `CLAUDE.md` has the
+table of everything else that differs. Hotfix siblings share a target where the API the
+mod uses did not move between them, which keeps it at 14 targets for 31 releases.
 
 **Loom is selected per version by `dev.kikugie.loom-back-compat`.** Minecraft
 below 26 is obfuscated and needs `fabric-loom-remap`; 26 and later ship

@@ -13,8 +13,21 @@ base.archivesName = property("mod.id") as String
 // Mojang's requirement per game version, not a preference of ours.
 val requiredJava: JavaVersion = when {
     sc.current.parsed >= "26.1" -> JavaVersion.VERSION_25
-    else -> JavaVersion.VERSION_21
+    sc.current.parsed >= "1.20.5" -> JavaVersion.VERSION_21
+    else -> JavaVersion.VERSION_17
 }
+
+// The mixins that pose the character for the in-world view, written into the mixin
+// config. From 1.21.2 one on the render state the renderer fills in - AvatarRenderer's
+// from 1.21.9, PlayerRenderer's before - and up to 1.21.5 an accessor for the player
+// renderers, which the editor's figure is drawn with there. Before 1.21.2 there are no
+// render states, and two take their place: the renderer turns and lays the body down,
+// the model bends the limbs.
+val poseMixins: String = when {
+    sc.current.parsed >= "1.21.6" -> listOf("AvatarRendererMixin")
+    sc.current.parsed >= "1.21.2" -> listOf("AvatarRendererMixin", "EntityRenderDispatcherAccessor")
+    else -> listOf("PlayerRendererMixin", "PlayerModelMixin")
+}.joinToString(", ") { "\"$it\"" }
 
 repositories {
     // The texture engine lives on GitHub Packages, which asks for a token even for a
@@ -115,13 +128,18 @@ tasks {
             register("loader", "deps.fabric_loader")
             // Declared per target so neither jar claims a Java it cannot run on.
             put("java", requiredJava.majorVersion)
+            put("poseMixins", poseMixins)
+            // Only the Forge targets that run under obfuscated names need a refmap.
+            put("refmap", "")
         }
 
         inputs.property("java", requiredJava.majorVersion)
-        // The mixin config is expanded too, for its compatibility level alone: Mixin
-        // checks it against the class file version of the mixin classes, and those are
-        // Java 21 on one target and Java 25 on the other. One hardcoded level would be
-        // wrong on one of them.
+        inputs.property("poseMixins", poseMixins)
+        // The mixin config is expanded too, for two things. Its compatibility level:
+        // Mixin checks it against the class file version of the mixin classes, and those
+        // are Java 17, 21 or 25 depending on the target, so one hardcoded level would be
+        // wrong on most of them. And the mixins that pose the in-world view, which are
+        // not the same classes before and after render states.
         filesMatching(listOf("fabric.mod.json", "mcskincreator.mixins.json")) { expand(props) }
         // The other loaders' metadata has nothing to say to Fabric. Quilt's mixin config
         // goes with it: it applies the one mixin that stands in for the screen event the

@@ -52,7 +52,7 @@ public final class SkinPixels {
             byte[] rgba = new byte[BYTES];
             for (int y = 0; y < FrontSprite.SKIN_SIZE; y++) {
                 for (int x = 0; x < FrontSprite.SKIN_SIZE; x++) {
-                    int argb = image.getPixel(x, y);
+                    int argb = ImagePixels.get(image, x, y);
                     int offset = (y * FrontSprite.SKIN_SIZE + x) * 4;
                     rgba[offset] = (byte) (argb >>> 16);
                     rgba[offset + 1] = (byte) (argb >>> 8);

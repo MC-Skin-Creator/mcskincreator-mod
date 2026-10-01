@@ -101,7 +101,7 @@ public final class CategorySprites implements AutoCloseable {
             NativeImage image = new NativeImage(width, height, false);
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
-                    image.setPixel(x, y, this.pixels[y * width + x]);
+                    ImagePixels.set(image, x, y, this.pixels[y * width + x]);
                 }
             }
 

@@ -45,7 +45,7 @@ public final class ManagedTexture implements AutoCloseable {
     /** @param purpose a word naming what the texture is for, for logs and crash reports */
     public ManagedTexture(String purpose) {
         this.name = sanitize(purpose) + "_" + NAMES.incrementAndGet();
-        this.id = Identifier.fromNamespaceAndPath(MCSkinCreatorClient.MOD_ID, "runtime/" + this.name);
+        this.id = MCSkinCreatorClient.id("runtime/" + this.name);
     }
 
     /**
@@ -63,7 +63,7 @@ public final class ManagedTexture implements AutoCloseable {
         // Releasing first closes the previous image instead of leaking it; registering
         // over a live name would drop it on the floor.
         client.getTextureManager().release(this.id);
-        this.texture = new DynamicTexture(() -> this.name, image);
+        this.texture = dynamic(this.name, image);
         client.getTextureManager().register(this.id, this.texture);
         this.uploaded = true;
     }
@@ -93,6 +93,18 @@ public final class ManagedTexture implements AutoCloseable {
         }
         write(pixels, rgba, width, height);
         this.texture.upload();
+    }
+
+    /**
+     * A texture over {@code image}, named {@code label} where the game asks for a name:
+     * from 1.21.5, which took a label for its debug views. Before it the image is all.
+     */
+    public static DynamicTexture dynamic(String label, NativeImage image) {
+        //? if >=1.21.5 {
+        return new DynamicTexture(() -> label, image);
+        //?} else {
+        /*return new DynamicTexture(image);
+        *///?}
     }
 
     /** Whether anything has been uploaded yet, and so whether {@link #id()} can be drawn. */
@@ -134,7 +146,7 @@ public final class ManagedTexture implements AutoCloseable {
                         | (rgba[offset] & 0xFF) << 16
                         | (rgba[offset + 1] & 0xFF) << 8
                         | rgba[offset + 2] & 0xFF;
-                image.setPixel(x, y, argb);
+                ImagePixels.set(image, x, y, argb);
             }
         }
     }

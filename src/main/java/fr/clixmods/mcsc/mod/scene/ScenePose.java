@@ -5,6 +5,7 @@
  * Proprietary, source-available. See the LICENSE file at the root of this
  * repository.
  */
+//~ figure
 package fr.clixmods.mcsc.mod.scene;
 
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;

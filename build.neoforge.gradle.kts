@@ -17,8 +17,21 @@ base.archivesName = property("mod.id") as String
 // Mojang's requirement per game version, not a preference of ours.
 val requiredJava: JavaVersion = when {
     sc.current.parsed >= "26.1" -> JavaVersion.VERSION_25
-    else -> JavaVersion.VERSION_21
+    sc.current.parsed >= "1.20.5" -> JavaVersion.VERSION_21
+    else -> JavaVersion.VERSION_17
 }
+
+// The mixins that pose the character for the in-world view, written into the mixin
+// config. From 1.21.2 one on the render state the renderer fills in - AvatarRenderer's
+// from 1.21.9, PlayerRenderer's before - and up to 1.21.5 an accessor for the player
+// renderers, which the editor's figure is drawn with there. Before 1.21.2 there are no
+// render states, and two take their place: the renderer turns and lays the body down,
+// the model bends the limbs.
+val poseMixins: String = when {
+    sc.current.parsed >= "1.21.6" -> listOf("AvatarRendererMixin")
+    sc.current.parsed >= "1.21.2" -> listOf("AvatarRendererMixin", "EntityRenderDispatcherAccessor")
+    else -> listOf("PlayerRendererMixin", "PlayerModelMixin")
+}.joinToString(", ") { "\"$it\"" }
 
 repositories {
     // See build.gradle.kts: the texture engine lives on GitHub Packages.
@@ -103,9 +116,13 @@ tasks {
             register("minecraft", "mod.mc_compat")
             register("neoforge", "deps.neoforge_compat")
             put("java", requiredJava.majorVersion)
+            put("poseMixins", poseMixins)
+            // Only the Forge targets that run under obfuscated names need a refmap.
+            put("refmap", "")
         }
 
         inputs.property("java", requiredJava.majorVersion)
+        inputs.property("poseMixins", poseMixins)
         filesMatching(listOf("META-INF/neoforge.mods.toml", "mcskincreator.mixins.json")) { expand(props) }
         // The other loaders' metadata has nothing to say to NeoForge, and Quilt's mixin
         // config stands in for an event NeoForge already has.

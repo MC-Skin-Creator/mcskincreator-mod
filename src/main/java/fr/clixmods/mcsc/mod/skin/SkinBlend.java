@@ -51,10 +51,10 @@ public final class SkinBlend {
                 return;
             }
             if (alpha == 0xFF) {
-                image.setPixel(x, y, argb);
+                ImagePixels.set(image, x, y, argb);
                 return;
             }
-            image.setPixel(x, y, blend(image.getPixel(x, y), argb, alpha));
+            ImagePixels.set(image, x, y, blend(ImagePixels.get(image, x, y), argb, alpha));
         });
         return result;
     }
@@ -66,10 +66,9 @@ public final class SkinBlend {
     /**
      * Walks a raw RGBA buffer against an image of the same size.
      *
-     * <p>{@code getPixel} and {@code setPixel} speak packed ARGB — there is a separate
-     * {@code setPixelABGR} for the other order, checked with {@code javap} on both
-     * targets — and the buffers the API sends are RGBA in byte order, so the channels
-     * are rearranged here once rather than at each of the two call sites.
+     * <p>{@link ImagePixels} speaks packed ARGB on every target, and the buffers the API
+     * sends are RGBA in byte order, so the channels are rearranged here once rather than
+     * at each of the two call sites.
      */
     private static void forEachPixel(byte[] rgba, NativeImage image, Pixel action) {
         int size = FrontSprite.SKIN_SIZE;

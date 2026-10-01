@@ -14,8 +14,8 @@ import java.util.concurrent.TimeUnit;
 import fr.clixmods.mcsc.mod.MCSkinCreatorClient;
 import fr.clixmods.mcsc.mod.skin.FrontSprite;
 import fr.clixmods.mcsc.mod.skin.Png;
+import fr.clixmods.mcsc.mod.skin.SkinModel;
 import net.minecraft.client.Minecraft;
-import net.minecraft.world.entity.player.PlayerModelType;
 
 /**
  * Applying the composed skin to the player's Minecraft account: the whole of what the
@@ -81,10 +81,10 @@ public final class AccountSkin {
      *
      * @throws RuntimeException when {@code sheet} is not an image, before anything is queued
      */
-    public static void apply(Minecraft client, byte[] sheet, PlayerModelType model) {
+    public static void apply(Minecraft client, byte[] sheet, SkinModel model) {
         byte[] png = toPng(sheet);
         synchronized (LOCK) {
-            pending = new Pending(png, model == PlayerModelType.SLIM);
+            pending = new Pending(png, model == SkinModel.SLIM);
             if (armed) {
                 return;
             }

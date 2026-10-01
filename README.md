@@ -63,7 +63,16 @@ On Fabric, it requires [Fabric Loader](https://fabricmc.net/use/) and the Fabric
 
 | Minecraft | Java | Fabric Loader | Fabric API |
 |---|---|---|---|
-| 1.21.10 | 21 | 0.19.3 or newer | 0.138.4+1.21.10 |
+| 1.20, 1.20.1 | 17 | 0.19.3 or newer | 0.92.12+1.20.1 |
+| 1.20.2 | 17 | 0.19.3 or newer | 0.91.6+1.20.2 |
+| 1.20.3, 1.20.4 | 17 | 0.19.3 or newer | 0.97.3+1.20.4 |
+| 1.20.5, 1.20.6 | 21 | 0.19.3 or newer | 0.100.8+1.20.6 |
+| 1.21, 1.21.1 | 21 | 0.19.3 or newer | 0.116.17+1.21.1 |
+| 1.21.2, 1.21.3 | 21 | 0.19.3 or newer | 0.114.1+1.21.3 |
+| 1.21.4 | 21 | 0.19.3 or newer | 0.119.4+1.21.4 |
+| 1.21.5 | 21 | 0.19.3 or newer | 0.128.2+1.21.5 |
+| 1.21.6, 1.21.7, 1.21.8 | 21 | 0.19.3 or newer | 0.136.1+1.21.8 |
+| 1.21.9, 1.21.10 | 21 | 0.19.3 or newer | 0.138.4+1.21.10 |
 | 1.21.11 | 21 | 0.19.3 or newer | 0.141.6+1.21.11 |
 | 26.1, 26.1.1, 26.1.2 | 25 | 0.19.3 or newer | 0.155.3+26.1.2 |
 | 26.2 | 25 | 0.19.3 or newer | 0.160.0+26.2 |
@@ -74,17 +83,32 @@ The Quilt jars end in `-quilt.jar`.
 
 | Minecraft | Java | Quilt Loader |
 |---|---|---|
-| 1.21.10 | 21 | 0.30.1 or newer |
+| 1.20, 1.20.1 | 17 | 0.30.1 or newer |
+| 1.20.2 | 17 | 0.30.1 or newer |
+| 1.20.3, 1.20.4 | 17 | 0.30.1 or newer |
+| 1.20.5, 1.20.6 | 21 | 0.30.1 or newer |
+| 1.21, 1.21.1 | 21 | 0.30.1 or newer |
+| 1.21.2, 1.21.3 | 21 | 0.30.1 or newer |
+| 1.21.4 | 21 | 0.30.1 or newer |
+| 1.21.5 | 21 | 0.30.1 or newer |
+| 1.21.6, 1.21.7, 1.21.8 | 21 | 0.30.1 or newer |
+| 1.21.9, 1.21.10 | 21 | 0.30.1 or newer |
 | 1.21.11 | 21 | 0.30.1 or newer |
 | 26.1, 26.1.1, 26.1.2 | 25 | 0.30.1 or newer |
 | 26.2 | 25 | 0.30.1 or newer |
 | 26.3 | 25 | 0.30.1 or newer |
 
 On [NeoForge](https://neoforged.net/), nothing else is needed. The NeoForge jars end in
-`-neoforge.jar`.
+`-neoforge.jar`. It starts at 1.20.6: before that, use the Forge, Fabric or Quilt jar.
 
 | Minecraft | Java | NeoForge |
 |---|---|---|
+| 1.20.6 | 21 | 20.6.141 or newer |
+| 1.21.1 | 21 | 21.1.203 or newer |
+| 1.21.3 | 21 | 21.3.97 or newer |
+| 1.21.4 | 21 | 21.4.158 or newer |
+| 1.21.5 | 21 | 21.5.98 or newer |
+| 1.21.8 | 21 | 21.8.54 or newer |
 | 1.21.10 | 21 | 21.10.64 or newer |
 | 1.21.11 | 21 | 21.11.45 or newer |
 | 26.1, 26.1.1, 26.1.2 | 25 | 26.1.2.112 or newer |
@@ -96,6 +120,15 @@ jars end in `-forge.jar`.
 
 | Minecraft | Java | Forge |
 |---|---|---|
+| 1.20.1 | 17 | 47.4.10 or newer |
+| 1.20.2 | 17 | 48.1.0 or newer |
+| 1.20.4 | 17 | 49.2.0 or newer |
+| 1.20.6 | 21 | 50.2.0 or newer |
+| 1.21.1 | 21 | 52.1.0 or newer |
+| 1.21.3 | 21 | 53.1.0 or newer |
+| 1.21.4 | 21 | 54.1.14 or newer |
+| 1.21.5 | 21 | 55.1.0 or newer |
+| 1.21.8 | 21 | 58.1.0 or newer |
 | 1.21.10 | 21 | 60.1.15 or newer |
 | 1.21.11 | 21 | 61.2.1 or newer |
 | 26.1.2 | 25 | 64.1.3 or newer |

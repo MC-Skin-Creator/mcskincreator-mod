@@ -22,8 +22,11 @@ import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 //?} elif neoforge {
 /*import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.common.NeoForge;
+*///?} elif forge && >=1.21.6 {
+/*import net.minecraftforge.client.event.ScreenEvent;
 *///?} elif forge {
 /*import net.minecraftforge.client.event.ScreenEvent;
+import net.minecraftforge.common.MinecraftForge;
 *///?}
 
 /**
@@ -57,9 +60,18 @@ public final class MenuButtons {
                         screen.width, screen.height);
             }
         });
-        *///?} else {
+        *///?} elif >=1.21.6 {
         /*// Forge's EventBus 7 gives each event its own bus rather than one bus for all.
         ScreenEvent.Init.Post.BUS.addListener(event -> {
+            Screen screen = event.getScreen();
+            if (isMenu(screen)) {
+                SkinPanel.addTo(Minecraft.getInstance(), screen, widgets(event.getListenersList(), event::addListener),
+                        screen.width, screen.height);
+            }
+        });
+        *///?} else {
+        /*// Forge before EventBus 7: one bus for every event, as on NeoForge.
+        MinecraftForge.EVENT_BUS.addListener((ScreenEvent.Init.Post event) -> {
             Screen screen = event.getScreen();
             if (isMenu(screen)) {
                 SkinPanel.addTo(Minecraft.getInstance(), screen, widgets(event.getListenersList(), event::addListener),

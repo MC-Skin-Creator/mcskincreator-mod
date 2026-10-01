@@ -21,6 +21,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
 
 import com.google.gson.JsonParser;
@@ -85,14 +86,16 @@ import net.minecraft.client.gui.GuiGraphics;
 //?}
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+//? if >=1.21.9 {
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+//?}
 import com.mojang.blaze3d.platform.NativeImage;
 import fr.clixmods.mcsc.mod.skin.SkinBlend;
+import fr.clixmods.mcsc.mod.skin.SkinModel;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.world.entity.player.PlayerModelType;
 
 /**
  * The editor.
@@ -1001,7 +1004,7 @@ public class SkinCreatorScreen extends Screen {
         if (catalog.isEmpty() || this.current == null) {
             this.history.record();
             this.project.clear();
-            this.project.setModel(PlayerModelType.WIDE);
+            this.project.setModel(SkinModel.WIDE);
             relayout();
             return;
         }
@@ -1624,7 +1627,7 @@ public class SkinCreatorScreen extends Screen {
      * when it fires, since a modifier is not part of a mouse event.
      */
     private void askDeleteSavedSkin(SavedSkin skin) {
-        if (Minecraft.getInstance().hasShiftDown()) {
+        if (ScreenCompat.hasShiftDown()) {
             deleteSavedSkin(skin);
             return;
         }
@@ -1818,7 +1821,7 @@ public class SkinCreatorScreen extends Screen {
             return;
         }
         byte[] sheet = this.composed;
-        PlayerModelType model = this.project.model();
+        SkinModel model = this.project.model();
         try {
             AccountSkin.apply(this.minecraft, sheet, model);
         } catch (RuntimeException cause) {
@@ -1840,7 +1843,7 @@ public class SkinCreatorScreen extends Screen {
      * <p>A failure here costs the immediacy and nothing else: the account still gets the
      * skin, and the game will draw it on its own when it next starts.
      */
-    private void wearLocally(byte[] sheet, PlayerModelType model) {
+    private void wearLocally(byte[] sheet, SkinModel model) {
         User user = Minecraft.getInstance().getUser();
         if (user == null) {
             return;
@@ -1952,14 +1955,21 @@ public class SkinCreatorScreen extends Screen {
             super.extractBackground(graphics, mouseX, mouseY, delta);
         }
     }
-    *///?} else {
+    *///?} elif >=1.20.2 {
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
         if (this.chrome == null || !this.chrome.scene().showsWorld()) {
             super.renderBackground(graphics, mouseX, mouseY, delta);
         }
     }
-    //?}
+    //?} else {
+    /*@Override
+    public void renderBackground(GuiGraphics graphics) {
+        if (this.chrome == null || !this.chrome.scene().showsWorld()) {
+            super.renderBackground(graphics);
+        }
+    }
+    *///?}
 
     //? if >=26.1 {
     /*@Override
@@ -1967,13 +1977,22 @@ public class SkinCreatorScreen extends Screen {
         super.extractRenderState(graphics, mouseX, mouseY, delta);
         paint(new GameCanvas(graphics, this.font), mouseX, mouseY, delta);
     }
-    *///?} else {
+    *///?} elif >=1.20.2 {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
         super.render(graphics, mouseX, mouseY, delta);
         paint(new GameCanvas(graphics, this.font), mouseX, mouseY, delta);
     }
-    //?}
+    //?} else {
+    /*// 1.20.1 leaves the backdrop to the screen: render draws the widgets and nothing
+    // under them.
+    @Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
+        renderBackground(graphics);
+        super.render(graphics, mouseX, mouseY, delta);
+        paint(new GameCanvas(graphics, this.font), mouseX, mouseY, delta);
+    }
+    *///?}
 
     private void paint(Canvas canvas, int mouseX, int mouseY, float delta) {
         List<Element> targets = targets();
@@ -2038,10 +2057,75 @@ public class SkinCreatorScreen extends Screen {
         return targets;
     }
 
+    // The game's input events, under the two signatures they have had: one event object
+    // from 1.21.9, the coordinates and the button as separate arguments before it. Each
+    // pair answers the same handler below, which is where the editor's input lives.
+
+    //? if >=1.21.9 {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
-        double mouseX = event.x();
-        double mouseY = event.y();
+        return press(event.x(), event.y(), event.button());
+    }
+
+    @Override
+    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        return drag(event.x(), event.y(), event.button(), dragX, dragY);
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        return release(event.x(), event.y(), event.button());
+    }
+
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        return keyDown(event.key(), event.modifiers(), () -> super.keyPressed(event));
+    }
+
+    @Override
+    public boolean charTyped(CharacterEvent event) {
+        return typed(event.codepoint(), () -> super.charTyped(event));
+    }
+    //?} else {
+    /*@Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        return press(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        return drag(mouseX, mouseY, button, dragX, dragY);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        return release(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean keyPressed(int key, int scancode, int modifiers) {
+        return keyDown(key, modifiers, () -> super.keyPressed(key, scancode, modifiers));
+    }
+
+    @Override
+    public boolean charTyped(char character, int modifiers) {
+        return typed(character, () -> super.charTyped(character, modifiers));
+    }
+    *///?}
+
+    //? if >=1.20.2 {
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        return scroll(mouseX, mouseY, scrollY);
+    }
+    //?} else {
+    /*@Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollY) {
+        return scroll(mouseX, mouseY, scrollY);
+    }
+    *///?}
+
+    private boolean press(double mouseX, double mouseY, int button) {
         List<Element> targets = targets();
 
         for (Element element : targets) {
@@ -2063,7 +2147,7 @@ public class SkinCreatorScreen extends Screen {
         }
 
         for (Element element : targets) {
-            if (element.mouseDown(mouseX, mouseY, event.button())) {
+            if (element.mouseDown(mouseX, mouseY, button)) {
                 if (element.clickSound()) {
                     playClick();
                 }
@@ -2103,10 +2187,9 @@ public class SkinCreatorScreen extends Screen {
         }
     }
 
-    @Override
-    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+    private boolean drag(double mouseX, double mouseY, int button, double dragX, double dragY) {
         if (this.window != null && this.window.draggingBar()) {
-            if (this.window.barMouseDrag(event.y())) {
+            if (this.window.barMouseDrag(mouseY)) {
                 // The body's controls are placed at the offset they were laid out at,
                 // so moving the rail is what moves them.
                 relayout();
@@ -2114,16 +2197,16 @@ public class SkinCreatorScreen extends Screen {
             return true;
         }
         if (this.pressed != null) {
-            this.pressed.mouseDrag(event.x(), event.y(), dragX, dragY, event.button());
+            this.pressed.mouseDrag(mouseX, mouseY, dragX, dragY, button);
             for (Panel band : bands()) {
                 if (band != this.pressed) {
-                    band.mouseDrag(event.x(), event.y(), dragX, dragY, event.button());
+                    band.mouseDrag(mouseX, mouseY, dragX, dragY, button);
                 }
             }
             return true;
         }
         for (Element element : targets()) {
-            element.mouseDrag(event.x(), event.y(), dragX, dragY, event.button());
+            element.mouseDrag(mouseX, mouseY, dragX, dragY, button);
         }
         return true;
     }
@@ -2147,9 +2230,8 @@ public class SkinCreatorScreen extends Screen {
         return bands;
     }
 
-    @Override
-    public boolean mouseReleased(MouseButtonEvent event) {
-        if (this.window != null && this.window.releaseClosesWindow(event.x(), event.y())) {
+    private boolean release(double mouseX, double mouseY, int button) {
+        if (this.window != null && this.window.releaseClosesWindow(mouseX, mouseY)) {
             // Only when the gesture started on the backdrop: otherwise selecting text
             // in a field and letting go outside would close the window and lose it.
             closeWindow();
@@ -2159,23 +2241,22 @@ public class SkinCreatorScreen extends Screen {
             this.window.barMouseUp();
         }
         if (this.pressed != null) {
-            this.pressed.mouseUp(event.x(), event.y(), event.button());
+            this.pressed.mouseUp(mouseX, mouseY, button);
             for (Panel band : bands()) {
                 if (band != this.pressed) {
-                    band.mouseUp(event.x(), event.y(), event.button());
+                    band.mouseUp(mouseX, mouseY, button);
                 }
             }
             this.pressed = null;
             return true;
         }
         for (Element element : targets()) {
-            element.mouseUp(event.x(), event.y(), event.button());
+            element.mouseUp(mouseX, mouseY, button);
         }
         return true;
     }
 
-    @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+    private boolean scroll(double mouseX, double mouseY, double scrollY) {
         if (this.window != null) {
             if (!this.window.scroll(scrollY)) {
                 return false;
@@ -2201,16 +2282,21 @@ public class SkinCreatorScreen extends Screen {
         return this.scene.scroll(mouseX, mouseY, scrollY);
     }
 
-    @Override
-    public boolean keyPressed(KeyEvent event) {
-        int key = event.key();
-        boolean control = (event.modifiers() & InputConstants.MOD_CONTROL) != 0;
-        boolean shift = (event.modifiers() & InputConstants.MOD_SHIFT) != 0;
+    /** {@code unhandled} is the game's own answer, for a key the editor has no use for. */
+    private boolean keyDown(int key, int modifiers, BooleanSupplier unhandled) {
+        boolean control = (modifiers & InputConstants.MOD_CONTROL) != 0;
+        //? if >=1.21.9 {
+        boolean shift = (modifiers & InputConstants.MOD_SHIFT) != 0;
+        //?} else {
+        /*// InputConstants names the shift bit from 1.21.9 on; before it, the bit is GLFW's
+        // own, and GLFW is what those versions run on.
+        boolean shift = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT) != 0;
+        *///?}
 
-        if (typingTarget() != null && typingTarget().keyDown(key, event.modifiers())) {
+        if (typingTarget() != null && typingTarget().keyDown(key, modifiers)) {
             return true;
         }
-        if (this.focused != null && this.focused.keyDown(key, event.modifiers())) {
+        if (this.focused != null && this.focused.keyDown(key, modifiers)) {
             return true;
         }
 
@@ -2275,17 +2361,16 @@ public class SkinCreatorScreen extends Screen {
             openExport();
             return true;
         }
-        return super.keyPressed(event);
+        return unhandled.getAsBoolean();
     }
 
-    @Override
-    public boolean charTyped(CharacterEvent event) {
+    private boolean typed(int codepoint, BooleanSupplier unhandled) {
         Element typing = typingTarget();
-        if (typing != null && typing.charTyped(event.codepoint())) {
+        if (typing != null && typing.charTyped(codepoint)) {
             relayout();
             return true;
         }
-        return super.charTyped(event);
+        return unhandled.getAsBoolean();
     }
 
     /**

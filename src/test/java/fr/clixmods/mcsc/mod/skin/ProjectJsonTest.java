@@ -26,7 +26,7 @@ import fr.clixmods.mcsc.mod.catalog.Catalog;
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
 import fr.clixmods.mcsc.mod.project.Layer;
 import fr.clixmods.mcsc.mod.project.SkinProject;
-import net.minecraft.world.entity.player.PlayerModelType;
+import fr.clixmods.mcsc.mod.skin.SkinModel;
 
 /**
  * The one document the server accepts, written and read back.
@@ -98,7 +98,7 @@ class ProjectJsonTest {
 
     @Test
     void theModelIsABooleanCalledSlim() {
-        this.project.setModel(PlayerModelType.SLIM);
+        this.project.setModel(SkinModel.SLIM);
 
         JsonObject document = parse(ProjectJson.project(this.project));
 
@@ -209,7 +209,7 @@ class ProjectJsonTest {
 
     @Test
     void aProjectComesBackAsItWentOut() {
-        this.project.setModel(PlayerModelType.SLIM);
+        this.project.setModel(SkinModel.SLIM);
         add("cap").setOpacity(40);
         Layer crown = add("crown");
         crown.setVisible(false);

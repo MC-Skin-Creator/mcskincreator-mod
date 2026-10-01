@@ -12,9 +12,6 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 import com.mojang.blaze3d.platform.NativeImage;
-import net.minecraft.resources.Identifier;
-import net.minecraft.world.entity.player.PlayerModelType;
-import net.minecraft.world.entity.player.PlayerSkin;
 
 /**
  * The skin this client wears for the player who just applied one, until the game is
@@ -48,7 +45,7 @@ public final class AppliedSkin {
 
     /** Whose skin this is. Null until something is applied, and the switch for the lot. */
     private static volatile UUID profileId;
-    private static volatile PlayerModelType model = PlayerModelType.WIDE;
+    private static volatile SkinModel model = SkinModel.WIDE;
 
     /**
      * The other override: what is being edited right now, on the person editing it.
@@ -68,7 +65,7 @@ public final class AppliedSkin {
     private static final ManagedTexture PREVIEW = new ManagedTexture("editing");
 
     private static volatile UUID previewId;
-    private static volatile PlayerModelType previewModel = PlayerModelType.WIDE;
+    private static volatile SkinModel previewModel = SkinModel.WIDE;
 
     private AppliedSkin() {
     }
@@ -79,7 +76,7 @@ public final class AppliedSkin {
      * <p>{@code sheet} is what went to Mojang, in either of the two shapes the composer
      * answers with. Must run on the client thread: it uploads a texture.
      */
-    public static void wear(UUID profileId, byte[] sheet, PlayerModelType model)
+    public static void wear(UUID profileId, byte[] sheet, SkinModel model)
             throws IOException {
         NativeImage image = PreviewSkin.decode(sheet);
         try {
@@ -108,11 +105,12 @@ public final class AppliedSkin {
      * targets, so a panel built before the upload shows the new skin the moment it
      * lands, without being rebuilt.
      */
-    public static Supplier<PlayerSkin> over(UUID id, Supplier<PlayerSkin> lookup) {
+    public static Supplier<SkinLook> over(UUID id, Supplier<SkinLook> lookup) {
         return () -> {
-            PlayerSkin resolved = lookup.get();
-            PlayerSkin applied = worn(id, resolved);
-            return applied == null ? resolved : applied;
+            SkinLook resolved = lookup.get();
+            SkinLook applied = worn(id);
+            return applied == null ? resolved : new SkinLook(applied.texture(),
+                    resolved == null ? null : resolved.cape(), applied.model());
         };
     }
 
@@ -124,7 +122,7 @@ public final class AppliedSkin {
      *
      * <p>Must run on the client thread: it uploads a texture.
      */
-    public static void preview(UUID profileId, byte[] sheet, PlayerModelType model)
+    public static void preview(UUID profileId, byte[] sheet, SkinModel model)
             throws IOException {
         NativeImage image = PreviewSkin.decode(sheet);
         try {
@@ -152,31 +150,20 @@ public final class AppliedSkin {
      * <p>Called for every player on every frame, so the miss — which is every player on
      * nearly every frame — is a volatile read and a comparison.
      *
-     * <p>Only the body is replaced. The cape and the elytra are the ones the game
-     * resolved, because they belong to the account and this mod has not touched them;
-     * an override that dropped them would take a player's cape off to show them a skin.
+     * <p>Only the body and the model are answered. The cape and the elytra stay the ones
+     * the game resolved, because they belong to the account and this mod has not touched
+     * them; an override that dropped them would take a player's cape off to show them a
+     * skin. The skin mixin is where the two are put together.
      */
-    public static PlayerSkin worn(UUID id, PlayerSkin resolved) {
+    public static SkinLook worn(UUID id) {
         UUID editor = previewId;
         if (editor != null && editor.equals(id) && PREVIEW.isUploaded()) {
-            return bodyOver(resolved, PREVIEW.id(), previewModel);
+            return new SkinLook(PREVIEW.id(), null, previewModel);
         }
         UUID wearer = profileId;
         if (wearer == null || !wearer.equals(id) || !TEXTURE.isUploaded()) {
             return null;
         }
-        return bodyOver(resolved, TEXTURE.id(), model);
-    }
-
-    /** The game's answer with its body swapped, and its cape and elytra kept. */
-    private static PlayerSkin bodyOver(PlayerSkin resolved, Identifier body,
-                                       PlayerModelType model) {
-        return new PlayerSkin(new RuntimeTexture(body),
-                resolved == null ? null : resolved.cape(),
-                resolved == null ? null : resolved.elytra(),
-                model,
-                // Not signed by Mojang: this is the mod's own texture standing in for
-                // one, and saying otherwise to the game would be a lie with no upside.
-                false);
+        return new SkinLook(TEXTURE.id(), null, model);
     }
 }
