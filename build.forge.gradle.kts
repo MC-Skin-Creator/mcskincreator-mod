@@ -90,23 +90,6 @@ val refmap = "mcskincreator.refmap.json"
 // The task whose jar is the one that ships: jarJar's, renamed where Forge needs it.
 val shippedJar: String = if (obfuscatedRuntime) "renameJarJar" else "jarJar"
 
-if (obfuscatedRuntime) {
-    renamer.mappings(minecraft.dependency.toSrg)
-    val mixin = renamer.enableMixinRefmaps {
-        refMap.set(refmap)
-        config("mcskincreator.mixins.json")
-    }
-    // jarJar copies the plain jar, which Renamer has given the refmap; the copy is then
-    // renamed, the mixins' own extra names included.
-    renamer.classes(tasks.named<Jar>("jarJar")) {
-        mappings(mixin.generatedMappings)
-        output.set(layout.buildDirectory.file("libs/srg/${base.archivesName.get()}-$version.jar"))
-    }
-    dependencies {
-        annotationProcessor("org.spongepowered:mixin:0.8.7:processor")
-    }
-}
-
 dependencies {
     // The game and Forge together. implementation also puts them on the test
     // classpath, where the tests read Component and PlayerModelType, like on the other
@@ -123,6 +106,25 @@ dependencies {
     testImplementation(platform("org.junit:junit-bom:${property("deps.junit")}"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+// After the dependencies: the SRG mappings are the Minecraft dependency's, and asking
+// for them before it is declared fails the whole configuration.
+if (obfuscatedRuntime) {
+    renamer.mappings(minecraft.dependency.toSrg)
+    val mixin = renamer.enableMixinRefmaps {
+        refMap.set(refmap)
+        config("mcskincreator.mixins.json")
+    }
+    // jarJar copies the plain jar, which Renamer has given the refmap; the copy is then
+    // renamed, the mixins' own extra names included.
+    renamer.classes(tasks.named<Jar>("jarJar")) {
+        mappings(mixin.generatedMappings)
+        output.set(layout.buildDirectory.file("libs/srg/${base.archivesName.get()}-$version.jar"))
+    }
+    dependencies {
+        annotationProcessor("org.spongepowered:mixin:0.8.7:processor")
+    }
 }
 
 java {
