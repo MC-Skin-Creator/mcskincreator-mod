@@ -4,6 +4,7 @@
   "package": "fr.clixmods.mcsc.mod.mixin",
   "compatibilityLevel": "JAVA_${java}",
   "client": [
+    "ResourceManagerMixin",
     "ScreenMixin"
   ],
   "injectors": {
