@@ -200,10 +200,7 @@ jobs:
           name: MC Skin Creator ${{ steps.version.outputs.version }} (1.21.11)
           version: ${{ steps.version.outputs.version }}+mc1.21.11
           version-type: beta
-          # Quilt Loader runs the Fabric jar as it is: the same file serves both.
-          loaders: |
-            fabric
-            quilt
+          loaders: fabric
           game-versions: 1.21.11
           dependencies: fabric-api(required){modrinth:P7dR8mSH}{curseforge:306612}
           changelog: |
@@ -222,10 +219,7 @@ jobs:
           name: MC Skin Creator ${{ steps.version.outputs.version }} (26.2)
           version: ${{ steps.version.outputs.version }}+mc26.2
           version-type: alpha
-          # Quilt Loader runs the Fabric jar as it is: the same file serves both.
-          loaders: |
-            fabric
-            quilt
+          loaders: fabric
           game-versions: 26.2
           dependencies: fabric-api(required){modrinth:P7dR8mSH}{curseforge:306612}
           changelog: |

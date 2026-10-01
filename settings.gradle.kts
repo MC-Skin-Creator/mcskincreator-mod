@@ -6,6 +6,7 @@ pluginManagement {
         maven("https://maven.kikugie.dev/releases") { name = "KikuGie Releases" }
         maven("https://maven.kikugie.dev/snapshots") { name = "KikuGie Snapshots" }
         maven("https://maven.neoforged.net/releases") { name = "NeoForged" }
+        maven("https://maven.quiltmc.org/repository/release/") { name = "Quilt" }
     }
 
     // The NeoForge targets' build plugin, pinned here because their buildscript is
@@ -46,6 +47,18 @@ stonecutter {
             "26.3.x" to "26.3",
         )) {
             version("$name-neoforge", minecraft).buildscript("build.neoforge.gradle.kts")
+        }
+
+        // Quilt targets: the same game versions again, built by Quilt Loom. The
+        // -quilt suffix is read the same way as -neoforge.
+        for ((name, minecraft) in listOf(
+            "1.21.10" to "1.21.10",
+            "1.21.11" to "1.21.11",
+            "26.1.x" to "26.1.2",
+            "26.2.x" to "26.2",
+            "26.3.x" to "26.3",
+        )) {
+            version("$name-quilt", minecraft).buildscript("build.quilt.gradle.kts")
         }
 
         vcsVersion = "1.21.11"

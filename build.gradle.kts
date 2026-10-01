@@ -123,8 +123,10 @@ tasks {
         // Java 21 on one target and Java 25 on the other. One hardcoded level would be
         // wrong on one of them.
         filesMatching(listOf("fabric.mod.json", "mcskincreator.mixins.json")) { expand(props) }
-        // NeoForge's metadata has nothing to say to Fabric.
-        exclude("META-INF/neoforge.mods.toml")
+        // NeoForge's and Quilt's metadata have nothing to say to Fabric. Quilt's mixin
+        // config goes with it: it applies the one mixin that stands in for the screen
+        // event the Fabric API already gives this jar.
+        exclude("META-INF/neoforge.mods.toml", "quilt.mod.json", "mcskincreator.quilt.mixins.json")
     }
 
     withType<Jar> {

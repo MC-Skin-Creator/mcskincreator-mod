@@ -100,7 +100,7 @@ and write one to a *file*, but has no call that hands back the bytes — so `ski
 encodes the raw shape. Sixty lines of well-specified format beat a temporary file
 between two buffers already in memory.
 
-## 2. Loaders: Fabric, then NeoForge, and Quilt through Fabric
+## 2. Loaders: Fabric, then NeoForge
 
 Fabric first: light, follows game versions within days, and fits a client-side mod
 that is mostly GUI plus network calls.
@@ -111,18 +111,6 @@ that adds the menu entry - so a second loader is a second build script and three
 small `//? if fabric` branches, not a common module and a platform module per
 loader. Every game version is built for both, from the one source tree. What it
 costs is the CI matrix, which doubles.
-
-Quilt came third, and costs no build at all: Quilt Loader runs Fabric mods as they
-are, so the Fabric jar *is* the Quilt jar. A Quilt target would be a third copy of the
-same jar under another name, and a `quilt.mod.json` would buy nothing the mod uses -
-it calls no Quilt API, and QSL stopped following game versions long before 26.x, so
-Quilt players run the Fabric API anyway. What decides the floor is the Fabric Loader
-version Quilt claims to be: Quilt Loader 0.30.1 provides `fabricloader` 0.19.3, the
-version `fabric.mod.json` already requires, so an older Quilt is refused by the
-existing dependency line with a readable message, and nothing new had to be written
-to say so. 0.30.0 is also the release that treats every game version after 25 as
-unobfuscated, which the 26.x jars need. Both read out of the Quilt Loader jars'
-`quilt.mod.json` and changelogs, not assumed.
 
 ## 3. Game versions: 1.21.10 to 26.3, through Stonecutter
 

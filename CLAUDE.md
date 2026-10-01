@@ -35,7 +35,7 @@ Minecraft. There is no server side and no server entry point.
 
 | | |
 |---|---|
-| Loaders | Fabric, NeoForge — both on every supported version; Quilt runs the Fabric jar, see **Loaders** |
+| Loaders | Fabric, NeoForge — both on every supported version, see **Loaders** |
 | Supported Minecraft versions | `1.21.10`, `1.21.11`, `26.1` (built on 26.1.2), `26.2`, `26.3` |
 | Active / default version | `1.21.11` |
 | Mappings | Official Mojang mappings on every target |
@@ -216,13 +216,6 @@ Each build excludes the other loader's metadata file from its jar. A NeoForge ja
 named `mcskincreator-0.1.0+mc1.21.11-neoforge.jar`: the loader goes after the game
 version so the release workflow's `*+mc1.21.11.jar` globs keep matching the Fabric jar
 alone.
-
-**Quilt has no target of its own, and must not get one.** Quilt Loader runs Fabric mods
-as they are, so the Fabric jar is the Quilt jar: the release workflow lists it under both
-`fabric` and `quilt`. The floor is Quilt Loader 0.30.1, the first that provides
-`fabricloader` 0.19.3 — which `fabric.mod.json` already requires, so an older Quilt is
-refused without any Quilt-specific code. Never call a Quilt API or add a
-`quilt.mod.json`: that would make the one jar two, for nothing the mod uses.
 
 ## Compatibility rules
 
@@ -582,7 +575,7 @@ a development build `mcskincreator-0.2.0-dev.7+mc1.21.11.jar`.
 Stable releases are also uploaded to Modrinth (project `pYSOnbJQ`) and CurseForge
 (project `1718964`) by the `mc-publish` steps at the end of `release.yml`, one per jar,
 each step sending its jar to both, using the `MODRINTH_TOKEN` and `CURSEFORGE_TOKEN`
-repository secrets: Fabric (also listed as Quilt) for 1.21.11 and 26.2, NeoForge for every supported version.
+repository secrets: Fabric for 1.21.11 and 26.2, NeoForge for every supported version.
 A NeoForge step picks its jar by the `-neoforge` suffix, and is `alpha` until that
 version has run in a real game on NeoForge. Without either secret the steps are
 skipped. `-dev` builds are never uploaded.
