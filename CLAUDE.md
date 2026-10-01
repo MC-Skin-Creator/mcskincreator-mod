@@ -606,7 +606,8 @@ nothing else is ever looked up there.
    with Maven ranges.
 3. Extend `requiredJava` in all four build scripts if that version needs a different
    Java level, and `poseMixins` if it is on the other side of a render-state boundary.
-4. Add the four nodes to the CI matrix in `.github/workflows/build.yml`.
+4. Add the four nodes to the CI matrix in `.github/workflows/build.yml`. The release
+   workflow reads its targets from the TOML and needs nothing.
 5. Open the pull request and fix what CI's compiler reports for the new target,
    keeping shared code shared.
 6. Every target's CI job must be green, not just the new one.
@@ -697,6 +698,14 @@ While the mod is below `1.0.0` a `main` release is published as a GitHub
 serialised (`concurrency: release`), so two merges in a row cannot compute the same
 number.
 
+It runs as four jobs, so that nothing waits on one runner building 53 targets in turn,
+which took over an hour: `version` works out the number and lists the targets,
+`build` builds each target on its own runner as a pull request does, `release` tags
+and attaches the jars once every one exists, and `publish` uploads them. The target
+list is read from the tables of `stonecutter.properties.toml` by
+`.github/scripts/release-targets.py`, so a new target is released and published
+without the workflow changing.
+
 A merge into `main` whose commits earn nothing produces no release and no noise.
 A merge into `develop` always produces a build, so there is always a permanent link
 to the latest state — `-dev.` builds are previews and are not tested.
@@ -730,10 +739,10 @@ e.g. `mcskincreator-0.1.0+mc1.21.11.jar`, `mcskincreator-0.1.0+mc26.2.jar`
 a development build `mcskincreator-0.2.0-dev.7+mc1.21.11.jar`.
 
 Stable releases are also uploaded to Modrinth (project `pYSOnbJQ`) and CurseForge
-(project `1718964`) by the `mc-publish` steps at the end of `release.yml`, one per jar,
-each step sending its jar to both, using the `MODRINTH_TOKEN` and `CURSEFORGE_TOKEN`
-repository secrets: Fabric for 1.21.11 and 26.2, NeoForge, Quilt and Forge for every
-supported version. A NeoForge, Quilt or Forge step picks its jar by the `-neoforge`,
-`-quilt` or `-forge` suffix, and is `alpha` until that version has run in a real game
-on that loader. Without either secret the steps are
-skipped. `-dev` builds are never uploaded.
+(project `1718964`) by the `publish` job of `release.yml`, one `mc-publish` run per
+jar - every target on every loader - each sending its jar to both, using the
+`MODRINTH_TOKEN` and `CURSEFORGE_TOKEN` repository secrets. Each is marked compatible
+with its table's `mod.mc_releases`, and published as `mod.release_type`: `alpha` by
+default, `beta` on the tables that say so, once that version has run in a real game on
+that loader. Without either secret the steps are skipped. `-dev` builds are never
+uploaded.
