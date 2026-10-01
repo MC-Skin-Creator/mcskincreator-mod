@@ -56,8 +56,8 @@ catalogue, search, textures and the saved-skin library.
 
 ## Install
 
-Runs on **Fabric** or on **NeoForge**: each release has one jar per Minecraft version
-and per loader.
+Runs on **Fabric**, **Quilt** or **NeoForge**: each release has one jar per Minecraft
+version and per loader. Quilt takes the Fabric jar.
 
 On Fabric, it requires [Fabric Loader](https://fabricmc.net/use/) and the Fabric API.
 
@@ -68,6 +68,11 @@ On Fabric, it requires [Fabric Loader](https://fabricmc.net/use/) and the Fabric
 | 26.1, 26.1.1, 26.1.2 | 25 | 0.19.3 or newer | 0.155.3+26.1.2 |
 | 26.2 | 25 | 0.19.3 or newer | 0.160.0+26.2 |
 | 26.3 | 25 | 0.19.3 or newer | 0.161.0+26.3 |
+
+On [Quilt](https://quiltmc.org/), use the Fabric jar of your Minecraft version, with
+**Quilt Loader 0.30.1 or newer** and the Fabric API from the table above. Older Quilt
+Loaders refuse the mod at startup: they stand in for a Fabric Loader older than 0.19.3,
+and the 26.x versions need the unobfuscated support Quilt added in 0.30.0.
 
 On [NeoForge](https://neoforged.net/), nothing else is needed. The NeoForge jars end in
 `-neoforge.jar`.
