@@ -21,9 +21,10 @@ deps.junit = "5.14.4"
 
 # The texture engine, shared with the site: fr.clixmods.mcsc:mcsc-engine turns a
 # layer stack into the 64x64 sheet, and is the same Java the server runs, so the two
-# cannot drift. One line for every target, like JUnit: it is plain Java 21 with an
-# empty dependency tree, which is what lets it ride inside the mod jar.
-deps.mcsc_engine = "0.1.0"
+# cannot drift. One line for every target, like JUnit: it is plain Java 17 - from
+# 0.1.1, for the targets up to 1.20.4 - with an empty dependency tree, which is what
+# lets it ride inside the mod jar.
+deps.mcsc_engine = "0.1.1"
 
 # Loom variant version used by loom-back-compat. The 1.17 line serves both the
 # obfuscated (pre-26) and unobfuscated (26+) variants; the 1.18 line refuses to run
