@@ -100,7 +100,7 @@ and write one to a *file*, but has no call that hands back the bytes — so `ski
 encodes the raw shape. Sixty lines of well-specified format beat a temporary file
 between two buffers already in memory.
 
-## 2. Loaders: Fabric, then NeoForge
+## 2. Loaders: Fabric, then NeoForge, then Forge
 
 Fabric first: light, follows game versions within days, and fits a client-side mod
 that is mostly GUI plus network calls.
@@ -111,6 +111,17 @@ that adds the menu entry - so a second loader is a second build script and three
 small `//? if fabric` branches, not a common module and a platform module per
 loader. Every game version is built for both, from the one source tree. What it
 costs is the CI matrix, which doubles.
+
+Forge came third, the same way: a third build script, on ForgeGradle 7, and a third
+branch in the same three places. Forge runs the game under Mojang's names from 1.20.6
+on, so the jar needs no remapping and the mixins no refmap, as on NeoForge. Three
+things differ enough to know about. Forge declares a mixin config in the jar's
+manifest (`MixinConfigs`), not in `mods.toml`. Its Mixin is Sponge's, whose
+compatibility levels stop at `JAVA_21`, so the Forge build caps the level it writes
+into `mcskincreator.mixins.json` there; above it Mixin only logs a warning. And its
+Jar-in-Jar is a separate plugin whose task replaces the plain jar, which steps aside
+as `-slim`: `buildAndCollect` copies the Jar-in-Jar one, the only one carrying the
+engine.
 
 ## 3. Game versions: 1.21.10 to 26.3, through Stonecutter
 

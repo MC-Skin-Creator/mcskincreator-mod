@@ -107,8 +107,8 @@ tasks {
 
         inputs.property("java", requiredJava.majorVersion)
         filesMatching(listOf("META-INF/neoforge.mods.toml", "mcskincreator.mixins.json")) { expand(props) }
-        // Fabric's metadata has nothing to say to NeoForge.
-        exclude("fabric.mod.json")
+        // The other loaders' metadata has nothing to say to NeoForge.
+        exclude("fabric.mod.json", "META-INF/mods.toml")
     }
 
     withType<Jar> {

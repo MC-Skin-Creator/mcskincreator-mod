@@ -96,3 +96,45 @@ mod.mc_releases = ["26.3"]
 
 deps.neoforge = "26.3.0.36-beta"
 deps.neoforge_compat = "[26.3.0.36-beta,)"
+
+# Forge targets: the same game versions, built by ForgeGradle. Maven ranges again, the
+# syntax mods.toml reads. deps.forge is the Forge version without its game prefix;
+# the build script puts the two together.
+
+["1.21.10-forge"]
+mod.mc_compat = "[1.21.10]"
+mod.mc_releases = ["1.21.10"]
+
+deps.forge = "60.1.15"
+deps.forge_compat = "[60.1.15,)"
+
+["1.21.11-forge"]
+mod.mc_compat = "[1.21.11]"
+mod.mc_releases = ["1.21.11"]
+
+deps.forge = "61.2.1"
+deps.forge_compat = "[61.2.1,)"
+
+["26.1.x-forge"]
+# Forge numbers each 26.1 hotfix as its own line (62, 63, 64), so this build, on
+# 26.1.2, claims 26.1.2 alone.
+mod.mc_compat = "[26.1.2]"
+mod.mc_releases = ["26.1.2"]
+
+deps.forge = "64.1.3"
+deps.forge_compat = "[64.1.3,)"
+
+["26.2.x-forge"]
+mod.mc_compat = "[26.2,26.3)"
+mod.mc_releases = ["26.2"]
+
+deps.forge = "65.1.3"
+deps.forge_compat = "[65.1.3,)"
+
+["26.3.x-forge"]
+# Forge has no recommended 26.3 build yet; this is its latest.
+mod.mc_compat = "[26.3,26.4)"
+mod.mc_releases = ["26.3"]
+
+deps.forge = "66.0.9"
+deps.forge_compat = "[66.0.9,)"

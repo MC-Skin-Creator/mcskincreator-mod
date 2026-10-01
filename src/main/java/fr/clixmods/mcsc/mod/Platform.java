@@ -11,15 +11,18 @@ import java.nio.file.Path;
 
 //? if fabric {
 import net.fabricmc.loader.api.FabricLoader;
-//?} else {
+//?} elif neoforge {
 /*import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.FMLPaths;
+*///?} else {
+/*import net.minecraftforge.fml.ModList;
+import net.minecraftforge.fml.loading.FMLPaths;
 *///?}
 
 /**
  * What the mod asks of the loader it runs on, outside of hooking into the game.
  *
- * <p>Fabric and NeoForge answer the same three questions under different names, so
+ * <p>Fabric, NeoForge and Forge answer the same three questions under different names, so
  * the answers are read here and nowhere else: the rest of the mod never names a
  * loader. The menu entry and the entry point are the only other loader-facing code,
  * because they are where each loader hands the mod control.
@@ -53,13 +56,18 @@ public final class Platform {
                 .getModContainer(MCSkinCreatorClient.MOD_ID)
                 .map(container -> container.getMetadata().getVersion().getFriendlyString())
                 .orElse("unknown");
-        //?} else {
+        //?} elif neoforge || <26.1 {
         /*// Null outside a running game - in the tests - where Fabric still answers.
         ModList mods = ModList.get();
         if (mods == null) {
             return "unknown";
         }
         return mods.getModContainerById(MCSkinCreatorClient.MOD_ID)
+                .map(container -> container.getModInfo().getVersion().toString())
+                .orElse("unknown");
+        *///?} else {
+        /*// Forge from 26.1: the same question, asked of a ModList made static.
+        return ModList.getModContainerById(MCSkinCreatorClient.MOD_ID)
                 .map(container -> container.getModInfo().getVersion().toString())
                 .orElse("unknown");
         *///?}

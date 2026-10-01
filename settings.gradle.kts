@@ -6,12 +6,18 @@ pluginManagement {
         maven("https://maven.kikugie.dev/releases") { name = "KikuGie Releases" }
         maven("https://maven.kikugie.dev/snapshots") { name = "KikuGie Snapshots" }
         maven("https://maven.neoforged.net/releases") { name = "NeoForged" }
+        maven("https://maven.minecraftforge.net/") { name = "MinecraftForge" }
     }
 
     // The NeoForge targets' build plugin, pinned here because their buildscript is
     // applied per node and cannot carry a version of its own.
     plugins {
         id("net.neoforged.moddev") version "2.0.148"
+
+        // The Forge targets' build plugins, pinned for the same reason: ForgeGradle 7,
+        // and Forge's own Jar-in-Jar, which ForgeGradle leaves to a separate plugin.
+        id("net.minecraftforge.gradle") version "7.0.40"
+        id("net.minecraftforge.jarjar") version "0.2.3"
     }
 }
 
@@ -38,14 +44,22 @@ stonecutter {
         // NeoForge targets: the same game versions, the same sources, another build
         // script. The -neoforge suffix is what stonecutter.gradle.kts reads the loader
         // from.
-        for ((name, minecraft) in listOf(
+        val loaderNodes = listOf(
             "1.21.10" to "1.21.10",
             "1.21.11" to "1.21.11",
             "26.1.x" to "26.1.2",
             "26.2.x" to "26.2",
             "26.3.x" to "26.3",
-        )) {
+        )
+        for ((name, minecraft) in loaderNodes) {
             version("$name-neoforge", minecraft).buildscript("build.neoforge.gradle.kts")
+        }
+
+        // Forge targets: the same again, built by ForgeGradle. The -forge suffix is
+        // read the same way; "-neoforge" does not end in "-forge", so the two never
+        // answer to each other's name.
+        for ((name, minecraft) in loaderNodes) {
+            version("$name-forge", minecraft).buildscript("build.forge.gradle.kts")
         }
 
         vcsVersion = "1.21.11"

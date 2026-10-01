@@ -30,12 +30,12 @@ restating the diff line by line — a couple of sentences on the why is enough.
 
 ## What this is
 
-A Fabric and NeoForge **client-side** mod that brings the MC Skin Creator skin editor into
+A Fabric, NeoForge and Forge **client-side** mod that brings the MC Skin Creator skin editor into
 Minecraft. There is no server side and no server entry point.
 
 | | |
 |---|---|
-| Loaders | Fabric, NeoForge — both on every supported version, see **Loaders** |
+| Loaders | Fabric, NeoForge, Forge — all three on every supported version, see **Loaders** |
 | Supported Minecraft versions | `1.21.10`, `1.21.11`, `26.1` (built on 26.1.2), `26.2`, `26.3` |
 | Active / default version | `1.21.11` |
 | Mappings | Official Mojang mappings on every target |
@@ -126,6 +126,7 @@ version.
 | `stonecutter.properties.toml` | Every mod and per-version value: mod identity, Fabric Loader, Loom variant version, and one table per target |
 | `build.gradle.kts` | Applied to each Fabric target: Java level per version, Mojang mappings, dependencies, resource processing, `buildAndCollect` |
 | `build.neoforge.gradle.kts` | The same, for each NeoForge target, through ModDevGradle instead of Loom |
+| `build.forge.gradle.kts` | The same, for each Forge target, through ForgeGradle 7 and Forge's Jar-in-Jar plugin |
 | `versions/` | Generated per-target build output. Git-ignored, never committed |
 
 `dev.kikugie.loom-back-compat` picks the Loom variant per target: Minecraft below
@@ -156,6 +157,7 @@ All of these were run and verified in this repository.
 ./gradlew :1.21.11:build               # builds and tests one target
 ./gradlew :26.2.x:build
 ./gradlew :1.21.11-neoforge:build      # the same game version on NeoForge
+./gradlew :1.21.11-forge:build         # and on Forge
 ./gradlew test                         # every target's tests, nothing else
 ./gradlew :26.2.x:test                 # one target's tests
 ./gradlew buildAndCollect              # all targets, jars collected in build/libs/0.1.0/
@@ -190,32 +192,46 @@ It has never been run in this environment (no GPU); treat it as unverified.
 
 ## Loaders
 
-Every game version is built twice, once per loader, from the same sources. The Fabric
-nodes keep their plain names (`1.21.11`, `26.2.x`); the NeoForge nodes carry a
+Every game version is built three times, once per loader, from the same sources. The
+Fabric nodes keep their plain names (`1.21.11`, `26.2.x`); the NeoForge nodes carry a
 `-neoforge` suffix (`1.21.11-neoforge`) and use `build.neoforge.gradle.kts`, which
-builds with ModDevGradle. `stonecutter.gradle.kts` turns that suffix into two
-constants, so sources branch with `//? if fabric {` … `//?} else {` the same way they
-branch on a version.
+builds with ModDevGradle; the Forge nodes carry a `-forge` suffix (`1.21.11-forge`)
+and use `build.forge.gradle.kts`, which builds with ForgeGradle 7.
+`stonecutter.gradle.kts` turns that suffix into three constants, so sources branch
+with `//? if fabric {` … `//?} elif neoforge {` … `//?} else {` the same way they
+branch on a version. `//? if !fabric {` covers NeoForge and Forge together where they
+agree, which is often: Forge and NeoForge share most names, in different packages.
 
 The loader is named in exactly three places, because they are the three places a
 loader hands the mod control or answers it:
 
-| Concern | Fabric | NeoForge | Where |
-|---|---|---|---|
-| Entry point | `ClientModInitializer`, listed in `fabric.mod.json` | `@Mod(dist = Dist.CLIENT)` constructor | `MCSkinCreatorClient` |
-| Folders and mod version | `FabricLoader` | `FMLPaths`, `ModList` | `Platform` |
-| Add the menu entry | `ScreenEvents.AFTER_INIT`, a live widget list | `ScreenEvent.Init.Post`, a read-only list plus `addListener` | `ui/MenuButtons` |
+| Concern | Fabric | NeoForge | Forge | Where |
+|---|---|---|---|---|
+| Entry point | `ClientModInitializer`, listed in `fabric.mod.json` | `@Mod(dist = Dist.CLIENT)` constructor | `@Mod` constructor, `clientSideOnly` in `mods.toml` | `MCSkinCreatorClient` |
+| Folders and mod version | `FabricLoader` | `FMLPaths`, `ModList` | the same names, `net.minecraftforge`; `ModList` static from 26.1 | `Platform` |
+| Add the menu entry | `ScreenEvents.AFTER_INIT`, a live widget list | `ScreenEvent.Init.Post` on `NeoForge.EVENT_BUS`, a read-only list plus `addListener` | the same event, on its own `ScreenEvent.Init.Post.BUS` (EventBus 7) | `ui/MenuButtons` |
 
 Anything else that reaches for a loader API goes through `Platform` rather than
-growing a fourth place. The mixins are the same on both: NeoForge runs the game under
-Mojang's names, which are the names the sources are written in, and loads the mixin
-config from `META-INF/neoforge.mods.toml`. The three targets were checked with `javap`
-on the NeoForge-patched 1.21.11 jar and have the same descriptors there.
+growing a fourth place. The mixins are the same on all three: NeoForge and Forge run
+the game under Mojang's names, which are the names the sources are written in.
+NeoForge loads the mixin config from `META-INF/neoforge.mods.toml`; Forge reads it from
+the jar manifest's `MixinConfigs`, which `build.forge.gradle.kts` writes. The three
+targets were checked with `javap` on the NeoForge-patched 1.21.11 jar and have the
+same descriptors there; on Forge they have not been checked in a running game yet.
 
-Each build excludes the other loader's metadata file from its jar. A NeoForge jar is
-named `mcskincreator-0.1.0+mc1.21.11-neoforge.jar`: the loader goes after the game
-version so the release workflow's `*+mc1.21.11.jar` globs keep matching the Fabric jar
-alone.
+Forge's Mixin is Sponge's own, whose compatibility levels stop at `JAVA_21`: the Forge
+build writes `JAVA_21` into the mixin config on every target, Java 25 ones included,
+where Mixin logs a warning and goes on. It has no `JAVA_25` level to read.
+
+Forge's Jar-in-Jar is a separate plugin (`net.minecraftforge.jarjar`) whose `jarJar`
+task produces the jar that ships; the plain jar is renamed `-slim` and must never be
+the one collected — it is the one without the engine.
+
+Each build excludes the other loaders' metadata files from its jar. A NeoForge jar is
+named `mcskincreator-0.1.0+mc1.21.11-neoforge.jar`, a Forge jar
+`mcskincreator-0.1.0+mc1.21.11-forge.jar`: the loader goes after the game version so
+the release workflow's `*+mc1.21.11.jar` globs keep matching the Fabric jar alone, and
+`*-neoforge.jar` never matches a Forge one.
 
 ## Compatibility rules
 
@@ -445,14 +461,15 @@ nothing else is ever looked up there.
 ## Adding a Minecraft version
 
 1. Add the node in `settings.gradle.kts` (`versions(…)` or `version(alias, value)`),
-   and its `-neoforge` twin in the loop below it.
+   and its `-neoforge` and `-forge` twins through the `loaderNodes` list below it.
 2. Add its tables to `stonecutter.properties.toml`: `mod.mc_compat`,
    `mod.mc_releases`, `deps.fabric_api` for Fabric; `mod.mc_compat`,
    `mod.mc_releases`, `deps.neoforge`, `deps.neoforge_compat` for NeoForge, with
-   Maven ranges rather than Fabric's syntax.
-3. Extend `requiredJava` in both build scripts if that version needs a different
+   Maven ranges rather than Fabric's syntax; the same four with `deps.forge` and
+   `deps.forge_compat` for Forge.
+3. Extend `requiredJava` in the three build scripts if that version needs a different
    Java level.
-4. Add both nodes to the CI matrix in `.github/workflows/build.yml`.
+4. Add all three nodes to the CI matrix in `.github/workflows/build.yml`.
 5. Open the pull request and fix what CI's compiler reports for the new target,
    keeping shared code shared.
 6. Every target's CI job must be green, not just the new one.
@@ -575,7 +592,7 @@ a development build `mcskincreator-0.2.0-dev.7+mc1.21.11.jar`.
 Stable releases are also uploaded to Modrinth (project `pYSOnbJQ`) and CurseForge
 (project `1718964`) by the `mc-publish` steps at the end of `release.yml`, one per jar,
 each step sending its jar to both, using the `MODRINTH_TOKEN` and `CURSEFORGE_TOKEN`
-repository secrets: Fabric for 1.21.11 and 26.2, NeoForge for every supported version.
-A NeoForge step picks its jar by the `-neoforge` suffix, and is `alpha` until that
-version has run in a real game on NeoForge. Without either secret the steps are
+repository secrets: Fabric for 1.21.11 and 26.2, NeoForge and Forge for every supported
+version. A NeoForge step picks its jar by the `-neoforge` suffix, a Forge step by
+`-forge`, and each is `alpha` until that version has run in a real game on that loader. Without either secret the steps are
 skipped. `-dev` builds are never uploaded.

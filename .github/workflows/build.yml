@@ -43,6 +43,12 @@ jobs:
           - '26.1.x-neoforge'
           - '26.2.x-neoforge'
           - '26.3.x-neoforge'
+          # And on Forge, through ForgeGradle.
+          - '1.21.10-forge'
+          - '1.21.11-forge'
+          - '26.1.x-forge'
+          - '26.2.x-forge'
+          - '26.3.x-forge'
 
     name: build ${{ matrix.minecraft }}
     runs-on: ubuntu-latest

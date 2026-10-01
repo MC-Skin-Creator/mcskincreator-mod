@@ -21,10 +21,10 @@ import net.minecraft.server.packs.resources.Resource;
  * The mod's mark: the icon the mod already ships.
  *
  * <p>There is exactly one MC Skin Creator logo and it is in this repository, at
- * {@code assets/mcskincreator/icon.png}, where {@code fabric.mod.json} and
- * {@code neoforge.mods.toml} point the loader's mod list at it. Drawing a second one
- * for the editor would mean two marks for one product, drifting apart the first time
- * either is touched.
+ * {@code assets/mcskincreator/icon.png}, where {@code fabric.mod.json},
+ * {@code neoforge.mods.toml} and {@code mods.toml} point the loader's mod list at it.
+ * Drawing a second one for the editor would mean two marks for one product, drifting
+ * apart the first time either is touched.
  *
  * <p>It is loaded through the resource manager rather than copied to a second path,
  * so the file stays in one place. The load happens once per session and falls back to
