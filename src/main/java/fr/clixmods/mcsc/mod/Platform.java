@@ -66,10 +66,17 @@ public final class Platform {
                 .map(container -> container.getModInfo().getVersion().toString())
                 .orElse("unknown");
         *///?} else {
-        /*// Forge from 26.1: the same question, asked of a ModList made static.
-        return ModList.getModContainerById(MCSkinCreatorClient.MOD_ID)
-                .map(container -> container.getModInfo().getVersion().toString())
-                .orElse("unknown");
+        /*// Forge from 26.1: the same question, asked of a ModList made static. Outside a
+        // running game - in the tests - its static initialiser fails instead of
+        // answering null, and every later call fails to load the class: both are
+        // LinkageErrors, and neither can happen once the game has loaded the mod.
+        try {
+            return ModList.getModContainerById(MCSkinCreatorClient.MOD_ID)
+                    .map(container -> container.getModInfo().getVersion().toString())
+                    .orElse("unknown");
+        } catch (LinkageError notLoaded) {
+            return "unknown";
+        }
         *///?}
     }
 }
