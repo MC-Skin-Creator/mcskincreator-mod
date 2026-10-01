@@ -12,6 +12,18 @@ import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 // It is applied by hand rather than through loom-back-compat's project plugin, which
 // only knows Fabric Loom's plugin ids, so this file has no generated accessors: the
 // configurations are named as strings and the extension is asked for by type.
+//
+// Without a plugins block, nothing points this script's classpath at
+// pluginManagement's repositories, so it names its own: Quilt's for Quilt Loom, and
+// the ones Quilt Loom's own dependencies come from.
+buildscript {
+    repositories {
+        maven("https://maven.quiltmc.org/repository/release/") { name = "Quilt" }
+        maven("https://maven.fabricmc.net/") { name = "Fabric" }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
 
 // Like Fabric Loom, Quilt Loom comes in two variants in one jar: one remaps the
 // obfuscated game (below 26), the other builds against the unobfuscated one (26+).
