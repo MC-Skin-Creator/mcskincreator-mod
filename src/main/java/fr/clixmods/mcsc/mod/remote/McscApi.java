@@ -396,7 +396,12 @@ public final class McscApi implements AutoCloseable {
 
     @Override
     public void close() {
+        //? if >=1.20.5 {
         this.http.close();
+        //?} else {
+        /*// The targets before 1.20.5 run on Java 17, whose HttpClient cannot be closed:
+        // it is let go, and its threads end with it.
+        *///?}
     }
 
     private interface IoSupplier<T> {

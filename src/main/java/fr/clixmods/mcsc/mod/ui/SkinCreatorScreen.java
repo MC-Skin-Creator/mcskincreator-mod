@@ -2285,7 +2285,13 @@ public class SkinCreatorScreen extends Screen {
     /** {@code unhandled} is the game's own answer, for a key the editor has no use for. */
     private boolean keyDown(int key, int modifiers, BooleanSupplier unhandled) {
         boolean control = (modifiers & InputConstants.MOD_CONTROL) != 0;
+        //? if >=1.21.9 {
         boolean shift = (modifiers & InputConstants.MOD_SHIFT) != 0;
+        //?} else {
+        /*// InputConstants names the shift bit from 1.21.9 on; before it, the bit is GLFW's
+        // own, and GLFW is what those versions run on.
+        boolean shift = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT) != 0;
+        *///?}
 
         if (typingTarget() != null && typingTarget().keyDown(key, modifiers)) {
             return true;
