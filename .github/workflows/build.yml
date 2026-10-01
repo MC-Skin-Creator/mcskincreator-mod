@@ -49,6 +49,12 @@ jobs:
           - '26.1.x-quilt'
           - '26.2.x-quilt'
           - '26.3.x-quilt'
+          # And on Forge, through ForgeGradle.
+          - '1.21.10-forge'
+          - '1.21.11-forge'
+          - '26.1.x-forge'
+          - '26.2.x-forge'
+          - '26.3.x-forge'
 
     name: build ${{ matrix.minecraft }}
     runs-on: ubuntu-latest

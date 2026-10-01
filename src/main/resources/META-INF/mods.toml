@@ -1,0 +1,29 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "LicenseRef-Proprietary-SourceAvailable"
+issueTrackerURL = "https://github.com/MC-Skin-Creator/mcskincreator-mod/issues"
+# Nothing of the mod runs on a server, and a server does not need it to let a player in.
+clientSideOnly = true
+
+[[mods]]
+modId = "${id}"
+version = "${version}"
+displayName = "${name}"
+description = "Build and edit your Minecraft skin from inside the game."
+authors = "clixmods"
+displayURL = "https://github.com/MC-Skin-Creator"
+logoFile = "assets/mcskincreator/icon.png"
+
+[[dependencies.${id}]]
+modId = "forge"
+mandatory = true
+versionRange = "${forge}"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.${id}]]
+modId = "minecraft"
+mandatory = true
+versionRange = "${minecraft}"
+ordering = "NONE"
+side = "CLIENT"

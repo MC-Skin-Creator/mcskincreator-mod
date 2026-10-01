@@ -13,15 +13,18 @@ import java.nio.file.Path;
 import net.fabricmc.loader.api.FabricLoader;
 //?} elif quilt {
 /*import org.quiltmc.loader.api.QuiltLoader;
-*///?} else {
+*///?} elif neoforge {
 /*import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.FMLPaths;
+*///?} else {
+/*import net.minecraftforge.fml.ModList;
+import net.minecraftforge.fml.loading.FMLPaths;
 *///?}
 
 /**
  * What the mod asks of the loader it runs on, outside of hooking into the game.
  *
- * <p>Fabric, Quilt and NeoForge answer the same three questions under different names, so
+ * <p>Fabric, Quilt, NeoForge and Forge answer the same three questions under different names, so
  * the answers are read here and nowhere else: the rest of the mod never names a
  * loader. The menu entry and the entry point are the only other loader-facing code,
  * because they are where each loader hands the mod control.
@@ -68,7 +71,7 @@ public final class Platform {
         } catch (RuntimeException notLoaded) {
             return "unknown";
         }
-        *///?} else {
+        *///?} elif neoforge || <26.1 {
         /*// Null outside a running game - in the tests - where Fabric still answers.
         ModList mods = ModList.get();
         if (mods == null) {
@@ -77,6 +80,18 @@ public final class Platform {
         return mods.getModContainerById(MCSkinCreatorClient.MOD_ID)
                 .map(container -> container.getModInfo().getVersion().toString())
                 .orElse("unknown");
+        *///?} else {
+        /*// Forge from 26.1: the same question, asked of a ModList made static. Outside a
+        // running game - in the tests - its static initialiser fails instead of
+        // answering null, and every later call fails to load the class: both are
+        // LinkageErrors, and neither can happen once the game has loaded the mod.
+        try {
+            return ModList.getModContainerById(MCSkinCreatorClient.MOD_ID)
+                    .map(container -> container.getModInfo().getVersion().toString())
+                    .orElse("unknown");
+        } catch (LinkageError notLoaded) {
+            return "unknown";
+        }
         *///?}
     }
 }

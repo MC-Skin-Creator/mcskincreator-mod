@@ -22,6 +22,8 @@ import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 //?} elif neoforge {
 /*import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.common.NeoForge;
+*///?} elif forge {
+/*import net.minecraftforge.client.event.ScreenEvent;
 *///?}
 
 /**
@@ -32,7 +34,7 @@ import net.neoforged.neoforge.common.NeoForge;
  * its own way of adding one to it. Quilt has none - QSL, which had one, stopped
  * following game versions at 1.21.1 - so on Quilt the event is
  * {@link fr.clixmods.mcsc.mod.mixin.ScreenMixin}, which calls {@link #afterInit}.
- * Past that, {@link SkinPanel} does the same thing on all three.
+ * Past that, {@link SkinPanel} does the same thing on all four.
  */
 public final class MenuButtons {
     private MenuButtons() {
@@ -47,8 +49,17 @@ public final class MenuButtons {
         });
         //?} elif quilt {
         /*// Nothing to register: the mixin calls afterInit on every screen.
-        *///?} else {
+        *///?} elif neoforge {
         /*NeoForge.EVENT_BUS.addListener((ScreenEvent.Init.Post event) -> {
+            Screen screen = event.getScreen();
+            if (isMenu(screen)) {
+                SkinPanel.addTo(Minecraft.getInstance(), screen, widgets(event.getListenersList(), event::addListener),
+                        screen.width, screen.height);
+            }
+        });
+        *///?} else {
+        /*// Forge's EventBus 7 gives each event its own bus rather than one bus for all.
+        ScreenEvent.Init.Post.BUS.addListener(event -> {
             Screen screen = event.getScreen();
             if (isMenu(screen)) {
                 SkinPanel.addTo(Minecraft.getInstance(), screen, widgets(event.getListenersList(), event::addListener),
@@ -60,7 +71,7 @@ public final class MenuButtons {
 
     /**
      * Called by {@link fr.clixmods.mcsc.mod.mixin.ScreenMixin} once {@code screen} has
-     * laid out its widgets, where Fabric and NeoForge fire their event. {@code add}
+     * laid out its widgets, where Fabric, NeoForge and Forge fire their event. {@code add}
      * puts a widget on the screen. Compiled everywhere because the mixin is, and only
      * ever called on Quilt, the one loader that applies it.
      */
@@ -79,7 +90,7 @@ public final class MenuButtons {
      * The screen's widgets as the list {@link SkinPanel} reads and adds to.
      *
      * <p>Fabric hands over a live list whose {@code add} puts a widget on the screen.
-     * NeoForge hands over a read-only view and a separate {@code addListener}, and on
+     * NeoForge and Forge hand over a read-only view and a separate {@code addListener}, and on
      * Quilt the mixin has the screen's own lists, so this copies the widgets already
      * there and routes {@code add} to {@code put}: the copy's constructor does not go
      * through {@code add}, which is what keeps those widgets from being added twice.

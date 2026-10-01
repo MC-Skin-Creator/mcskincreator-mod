@@ -129,8 +129,8 @@ tasks {
         filesMatching(listOf("quilt.mod.json", "mcskincreator.mixins.json", "mcskincreator.quilt.mixins.json")) {
             expand(props)
         }
-        // Fabric's and NeoForge's metadata have nothing to say to Quilt.
-        exclude("fabric.mod.json", "META-INF/neoforge.mods.toml")
+        // The other loaders' metadata has nothing to say to Quilt.
+        exclude("fabric.mod.json", "META-INF/neoforge.mods.toml", "META-INF/mods.toml")
     }
 
     withType<Jar> {
