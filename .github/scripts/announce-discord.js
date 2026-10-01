@@ -36,6 +36,9 @@ const HEADINGS = {
   es: { new: 'Novedades', improved: 'Mejoras', fixed: 'Correcciones' }
 };
 const LINK = { en: 'Full changelog', fr: 'Journal complet', es: 'Registro completo' };
+const IMAGE = /^\s+!\[[^\]]*\]\((images\/[a-z0-9][a-z0-9._-]*\.(?:png|webp|jpe?g|gif))\)\s*$/;
+// Discord loads the picture from a public address: the file on main, where the release commit just landed
+const IMAGE_BASE = process.env.MOD_IMAGE_BASE || 'https://raw.githubusercontent.com/MC-Skin-Creator/mcskincreator-mod/main/changelog/images/';
 const UNRELEASED = /^(unreleased|prochaine version|próxima versión)$/i;
 const RELEASE = /^(\d+\.\d+\.\d+[^\s]*)\s*[—–-]\s*(\d{4}-\d{2}-\d{2})$/;
 
@@ -61,6 +64,9 @@ function parse(markdown) {
       if (section) release.sections.push(section);
     } else if (/^-\s+/.test(line) && section) {
       close(); open = [line.replace(/^-\s+/, '')];
+    } else if (open && IMAGE.test(line)) {
+      // a screenshot is not text: the first one of the version illustrates the embed
+      if (release && !release.image) release.image = IMAGE.exec(line)[1];
     } else if (open && /^\s+\S/.test(line)) {
       open.push(line.trim());
     } else if (!line.trim()) {
@@ -83,18 +89,16 @@ function payload(release, lang) {
     text = text.slice(0, room);
     text = text.slice(0, text.lastIndexOf('\n')) + '\n…';
   }
-  return {
-    username: 'MC Skin Creator',
-    allowed_mentions: { parse: [] },
-    embeds: [{
-      title: 'MC Skin Creator ' + PROJECT + ' ' + release.version,
-      url: SITE_URL,
-      description: text + link,
-      color: 0x3a8f2a,
-      timestamp: release.date + 'T12:00:00.000Z',
-      footer: { text: 'mcskincreator.app' }
-    }]
+  const embed = {
+    title: 'MC Skin Creator ' + PROJECT + ' ' + release.version,
+    url: SITE_URL,
+    description: text + link,
+    color: 0x3a8f2a,
+    timestamp: release.date + 'T12:00:00.000Z',
+    footer: { text: 'mcskincreator.app' }
   };
+  if (release.image) embed.image = { url: IMAGE_BASE + release.image.replace(/^images\//, '') };
+  return { username: 'MC Skin Creator', allowed_mentions: { parse: [] }, embeds: [embed] };
 }
 
 const webhook = lang => process.env['DISCORD_WEBHOOK_' + lang.toUpperCase()]

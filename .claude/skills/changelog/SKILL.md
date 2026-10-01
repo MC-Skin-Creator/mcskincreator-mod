@@ -55,8 +55,32 @@ no entry, and says so.
 - One bullet is one change, understandable without context. Bold short title, an
   em dash, plain sentences. No class names, no file names, no pull-request numbers.
 - No emoji. Use the game's own words for its screens and buttons.
-- Screenshots live in `changelog/images/<version>/`, shared by the three languages,
+- A screenshot goes under its bullet: see "Screenshots".
   and are referenced by relative path.
+
+## Screenshots
+
+A bullet can carry **one** screenshot, on an indented line right below it:
+
+```
+- **Skin library** — keep every skin you make in one place.
+  ![The My skins screen with three saved skins](images/my-skins.webp)
+```
+
+- The file lives in `changelog/images/`, **flat**, shared by the three languages: no version in
+  the path (the `Unreleased` section is renamed at release, the images are not). The alt text
+  **is translated**, and every screenshot has one. The three files cite the same images in the
+  same order.
+- Name: lowercase letters, digits, `.`, `_`, `-`, and a `png`, `webp`, `jpg` or `gif`
+  extension — the website refuses any other name. **WebP**, about 900 px wide, under 300 KB
+  (the website caps images at 2 MB).
+- It shows the screen the bullet is about, taken in the game in **English** (it is shared). No
+  identifiable player skin, no account name, no token, nothing personal: this repository is
+  public and so are the pictures. Only visible new features deserve one; a fix almost never does.
+- The website serves these pictures on its changelog page, and the first screenshot of a
+  version illustrates the Discord message (loaded from `main` on GitHub).
+- No local build is possible here: screenshots are taken by the author in the game and handed
+  over, never faked.
 
 ## The version number
 
@@ -72,8 +96,9 @@ the wrong version.
 1. The three files have the same structure:
    `for f in en fr es; do echo $f $(grep -c '^## ' changelog/$f.md) $(grep -c '^### ' changelog/$f.md) $(grep -c '^- ' changelog/$f.md); done`
    — the three lines must print the same numbers.
-2. Nothing internal slipped in: read each bullet and ask the question above.
-3. Changelog files are `.md`, so they never trigger a release by themselves
+2. Every cited image exists in `changelog/images/` and the three files cite the same ones.
+3. Nothing internal slipped in: read each bullet and ask the question above.
+4. Changelog files are `.md`, so they never trigger a release by themselves
    (`paths-ignore` in `release.yml`) — that is intended.
 
 ## What this skill learns
