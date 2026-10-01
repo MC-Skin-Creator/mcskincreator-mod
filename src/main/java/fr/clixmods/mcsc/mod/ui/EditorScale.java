@@ -100,11 +100,13 @@ public final class EditorScale {
         }
         Window window = client.getWindow();
         int wanted = scaleFor(window.getHeight(), window.calculateScale(0, false));
-        if (window.getGuiScale() == wanted) {
+        // The scale is a double before 1.21.9 and an int from it; it only ever holds a
+        // whole number, so the cast reads the same value on every target.
+        if ((int) window.getGuiScale() == wanted) {
             return false;
         }
         if (this.playersOwn == 0) {
-            this.playersOwn = window.getGuiScale();
+            this.playersOwn = (int) window.getGuiScale();
         }
         window.setGuiScale(wanted);
         return true;
@@ -116,7 +118,7 @@ public final class EditorScale {
             return;
         }
         Window window = client.getWindow();
-        if (window.getGuiScale() != this.playersOwn) {
+        if ((int) window.getGuiScale() != this.playersOwn) {
             window.setGuiScale(this.playersOwn);
         }
         this.playersOwn = 0;

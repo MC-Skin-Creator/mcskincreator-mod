@@ -40,8 +40,15 @@ the<BasePluginExtension>().archivesName = property("mod.id") as String
 // Mojang's requirement per game version, not a preference of ours.
 val requiredJava: JavaVersion = when {
     sc.current.parsed >= "26.1" -> JavaVersion.VERSION_25
-    else -> JavaVersion.VERSION_21
+    sc.current.parsed >= "1.20.5" -> JavaVersion.VERSION_21
+    else -> JavaVersion.VERSION_17
 }
+
+// The mixins that pose the character for the in-world view, written into the mixin
+// config: one on AvatarRenderer from 1.21.9, two before render states existed - the
+// renderer turns and lays the body down, the model bends the limbs.
+val poseMixins: String = (if (sc.current.parsed >= "1.21.9") listOf("AvatarRendererMixin")
+        else listOf("PlayerRendererMixin", "PlayerModelMixin")).joinToString(", ") { "\"$it\"" }
 
 repositories {
     maven("https://maven.quiltmc.org/repository/release/") { name = "Quilt" }
@@ -118,6 +125,9 @@ tasks {
             register("minecraft", "mod.mc_compat")
             register("loader", "deps.quilt_loader")
             put("java", requiredJava.majorVersion)
+            put("poseMixins", poseMixins)
+            // Only the Forge targets that run under obfuscated names need a refmap.
+            put("refmap", "")
             // A remapped jar says which names it was remapped to; an unobfuscated one
             // has none to name, and Quilt reads every game after 25 that way already.
             put("intermediate_mappings",
@@ -125,6 +135,7 @@ tasks {
         }
 
         inputs.property("java", requiredJava.majorVersion)
+        inputs.property("poseMixins", poseMixins)
         inputs.property("intermediate_mappings", props.getValue("intermediate_mappings"))
         filesMatching(listOf("quilt.mod.json", "mcskincreator.mixins.json", "mcskincreator.quilt.mixins.json")) {
             expand(props)

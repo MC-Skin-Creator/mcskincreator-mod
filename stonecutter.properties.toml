@@ -30,6 +30,18 @@ deps.mcsc_engine = "0.1.0"
 # below a Java 25 JVM, which would force Java 25 on every target including 1.21.11.
 loomx.loom_version = "1.17-SNAPSHOT"
 
+["1.20.1"]
+mod.mc_compat = "1.20.1"
+mod.mc_releases = ["1.20.1"]
+
+deps.fabric_api = "0.92.12+1.20.1"
+
+["1.21.1"]
+mod.mc_compat = "1.21.1"
+mod.mc_releases = ["1.21.1"]
+
+deps.fabric_api = "0.116.17+1.21.1"
+
 ["1.21.10"]
 mod.mc_compat = "1.21.10"
 mod.mc_releases = ["1.21.10"]
@@ -65,6 +77,13 @@ deps.fabric_api = "0.161.0+26.3"
 # NeoForge targets: the same game versions, built by ModDevGradle. mod.mc_compat and
 # deps.neoforge_compat are Maven version ranges here, the syntax neoforge.mods.toml
 # reads, where Fabric's tables above use Fabric's own.
+
+["1.21.1-neoforge"]
+mod.mc_compat = "[1.21.1]"
+mod.mc_releases = ["1.21.1"]
+
+deps.neoforge = "21.1.203"
+deps.neoforge_compat = "[21.1.203,)"
 
 ["1.21.10-neoforge"]
 mod.mc_compat = "[1.21.10]"
@@ -112,6 +131,22 @@ deps.neoforge_compat = "[26.3.0.36-beta,)"
 # build.quilt.gradle.kts then picks the remapping or the unobfuscated variant from
 # the same jar.
 
+["1.20.1-quilt"]
+mod.mc_compat = "=1.20.1"
+mod.mc_releases = ["1.20.1"]
+
+loomx.loom_version = "1.15.1"
+loomx.loom_remap_plugin = "org.quiltmc.loom"
+loomx.loom_unobf_plugin = "org.quiltmc.loom"
+
+["1.21.1-quilt"]
+mod.mc_compat = "=1.21.1"
+mod.mc_releases = ["1.21.1"]
+
+loomx.loom_version = "1.15.1"
+loomx.loom_remap_plugin = "org.quiltmc.loom"
+loomx.loom_unobf_plugin = "org.quiltmc.loom"
+
 ["1.21.10-quilt"]
 mod.mc_compat = "=1.21.10"
 mod.mc_releases = ["1.21.10"]
@@ -155,6 +190,21 @@ loomx.loom_unobf_plugin = "org.quiltmc.loom"
 # Forge targets: the same game versions, built by ForgeGradle. Maven ranges again, the
 # syntax mods.toml reads. deps.forge is the Forge version without its game prefix;
 # the build script puts the two together.
+
+["1.20.1-forge"]
+# The recommended build of the line, the one most 1.20.1 modpacks are pinned to.
+mod.mc_compat = "[1.20.1]"
+mod.mc_releases = ["1.20.1"]
+
+deps.forge = "47.4.10"
+deps.forge_compat = "[47.4.10,)"
+
+["1.21.1-forge"]
+mod.mc_compat = "[1.21.1]"
+mod.mc_releases = ["1.21.1"]
+
+deps.forge = "52.1.0"
+deps.forge_compat = "[52.1.0,)"
 
 ["1.21.10-forge"]
 mod.mc_compat = "[1.21.10]"

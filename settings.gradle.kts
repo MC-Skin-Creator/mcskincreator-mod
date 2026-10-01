@@ -16,9 +16,12 @@ pluginManagement {
         id("net.neoforged.moddev") version "2.0.148"
 
         // The Forge targets' build plugins, pinned for the same reason: ForgeGradle 7,
-        // and Forge's own Jar-in-Jar, which ForgeGradle leaves to a separate plugin.
+        // Forge's own Jar-in-Jar, which ForgeGradle leaves to a separate plugin, and
+        // Renamer, which turns the 1.20.1 jar back to the obfuscated names that Forge
+        // runs that version under.
         id("net.minecraftforge.gradle") version "7.0.40"
         id("net.minecraftforge.jarjar") version "0.2.3"
+        id("net.minecraftforge.renamer") version "1.1.7"
     }
 }
 
@@ -37,7 +40,7 @@ plugins {
 stonecutter {
     create(rootProject) {
         // Fabric targets: named after the game version alone, as they always were.
-        versions("1.21.10", "1.21.11")
+        versions("1.20.1", "1.21.1", "1.21.10", "1.21.11")
         version("26.1.x", "26.1.2")
         version("26.2.x", "26.2")
         version("26.3.x", "26.3")
@@ -46,13 +49,17 @@ stonecutter {
         // script. The -neoforge suffix is what stonecutter.gradle.kts reads the loader
         // from.
         val loaderNodes = listOf(
+            "1.20.1" to "1.20.1",
+            "1.21.1" to "1.21.1",
             "1.21.10" to "1.21.10",
             "1.21.11" to "1.21.11",
             "26.1.x" to "26.1.2",
             "26.2.x" to "26.2",
             "26.3.x" to "26.3",
         )
-        for ((name, minecraft) in loaderNodes) {
+        // Not 1.20.1: NeoForge forked from Forge at 1.20.1, and that fork is Forge 47
+        // under another name. The Forge node below is what 1.20.1 players run.
+        for ((name, minecraft) in loaderNodes.filter { it.first != "1.20.1" }) {
             version("$name-neoforge", minecraft).buildscript("build.neoforge.gradle.kts")
         }
 

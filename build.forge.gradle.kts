@@ -8,6 +8,8 @@ plugins {
     id("net.minecraftforge.gradle")
     // ForgeGradle 7 leaves Jar-in-Jar to Forge's separate plugin.
     id("net.minecraftforge.jarjar")
+    // And reobfuscation to another: see `obfuscatedRuntime` below.
+    id("net.minecraftforge.renamer")
 }
 
 // The loader is in the file name and not in the version, like on NeoForge: the Fabric
@@ -19,8 +21,15 @@ base.archivesName = property("mod.id") as String
 // Mojang's requirement per game version, not a preference of ours.
 val requiredJava: JavaVersion = when {
     sc.current.parsed >= "26.1" -> JavaVersion.VERSION_25
-    else -> JavaVersion.VERSION_21
+    sc.current.parsed >= "1.20.5" -> JavaVersion.VERSION_21
+    else -> JavaVersion.VERSION_17
 }
+
+// The mixins that pose the character for the in-world view, written into the mixin
+// config: one on AvatarRenderer from 1.21.9, two before render states existed - the
+// renderer turns and lays the body down, the model bends the limbs.
+val poseMixins: String = (if (sc.current.parsed >= "1.21.9") listOf("AvatarRendererMixin")
+        else listOf("PlayerRendererMixin", "PlayerModelMixin")).joinToString(", ") { "\"$it\"" }
 
 // Forge ships Sponge's Mixin 0.8.7, whose compatibility levels stop at JAVA_21: it has
 // no JAVA_25 to read. Java 25 mixin classes only make it log a warning - the game's own
@@ -67,6 +76,35 @@ repositories {
 // name, and the plain jar steps aside as "-slim".
 jarJar.register {
     archiveClassifier = null
+}
+
+// Forge runs the game under Mojang's names from 1.20.6 on, and under its own obfuscated
+// SRG names before. The sources are written in Mojang's names on every target, so on an
+// older Forge the jar is renamed to SRG before it ships, and the mixins carry a refmap
+// that tells Mixin the SRG name of every method they name - which nothing else needs,
+// since Loom rewrites those annotations itself and NeoForge and the newer Forge run
+// under the names the annotations already use.
+val obfuscatedRuntime = sc.current.parsed < "1.20.5"
+// Written into the mixin config on those targets only, for the same reason.
+val refmap = "mcskincreator.refmap.json"
+// The task whose jar is the one that ships: jarJar's, renamed where Forge needs it.
+val shippedJar: String = if (obfuscatedRuntime) "renameJarJar" else "jarJar"
+
+if (obfuscatedRuntime) {
+    renamer.mappings(minecraft.dependency.toSrg)
+    val mixin = renamer.enableMixinRefmaps {
+        refMap.set(refmap)
+        config("mcskincreator.mixins.json")
+    }
+    // jarJar copies the plain jar, which Renamer has given the refmap; the copy is then
+    // renamed, the mixins' own extra names included.
+    renamer.classes(tasks.named<Jar>("jarJar")) {
+        mappings(mixin.generatedMappings)
+        output.set(layout.buildDirectory.file("libs/srg/${base.archivesName.get()}-$version.jar"))
+    }
+    dependencies {
+        annotationProcessor("org.spongepowered:mixin:0.8.7:processor")
+    }
 }
 
 dependencies {
@@ -125,9 +163,13 @@ tasks {
             register("minecraft", "mod.mc_compat")
             register("forge", "deps.forge_compat")
             put("java", mixinJava)
+            put("poseMixins", poseMixins)
+            put("refmap", if (obfuscatedRuntime) "\"refmap\": \"$refmap\"," else "")
         }
 
         inputs.property("java", mixinJava)
+        inputs.property("poseMixins", poseMixins)
+        inputs.property("obfuscatedRuntime", obfuscatedRuntime)
         filesMatching(listOf("META-INF/mods.toml", "mcskincreator.mixins.json")) { expand(props) }
         // The other loaders' metadata has nothing to say to Forge, and Quilt's mixin
         // config stands in for an event Forge already has.
@@ -154,15 +196,16 @@ tasks {
         from(rootProject.file("LICENSE")) { rename { "${it}_$id" } }
     }
 
-    named("assemble") { dependsOn("jarJar") }
+    named("assemble") { dependsOn(shippedJar) }
 
     register<Copy>("buildAndCollect") {
         group = "build"
         description = "Builds the mod jar and copies it to build/libs/{mod version}/"
 
         inputs.property("version", project.property("mod.version"))
-        // The jarJar task's output, engine included - never the -slim jar.
-        from(named("jarJar"))
+        // The jarJar task's output, engine included - never the -slim jar - and renamed
+        // to SRG where Forge runs under those names.
+        from(named(shippedJar))
         into(rootProject.layout.buildDirectory.file("libs/${project.property("mod.version")}"))
     }
 }

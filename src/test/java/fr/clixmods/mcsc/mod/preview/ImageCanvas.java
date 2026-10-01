@@ -5,6 +5,7 @@
  * Proprietary, source-available. See the LICENSE file at the root of this
  * repository.
  */
+//~ figure
 package fr.clixmods.mcsc.mod.preview;
 
 import java.awt.image.BufferedImage;
@@ -17,7 +18,7 @@ import com.google.gson.JsonObject;
 
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import net.minecraft.client.gui.components.Renderable;
-import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import org.joml.Quaternionf;
@@ -322,7 +323,7 @@ public final class ImageCanvas implements Canvas {
     }
 
     private static Identifier withPrefix(Identifier sprite, String prefix) {
-        return Identifier.fromNamespaceAndPath(sprite.getNamespace(), prefix + sprite.getPath() + ".png");
+        return sprite.withPath(prefix + sprite.getPath() + ".png");
     }
 
     private BufferedImage texture(Identifier texture) {
@@ -345,7 +346,7 @@ public final class ImageCanvas implements Canvas {
      * at.
      */
     @Override
-    public void entity(EntityRenderState state, float scale, Vector3f translation,
+    public void entity(AvatarRenderState state, float scale, Vector3f translation,
                        Quaternionf rotation, Quaternionf overrideCameraAngle,
                        int x, int y, int width, int height) {
     }

@@ -63,6 +63,8 @@ On Fabric, it requires [Fabric Loader](https://fabricmc.net/use/) and the Fabric
 
 | Minecraft | Java | Fabric Loader | Fabric API |
 |---|---|---|---|
+| 1.20.1 | 17 | 0.19.3 or newer | 0.92.12+1.20.1 |
+| 1.21.1 | 21 | 0.19.3 or newer | 0.116.17+1.21.1 |
 | 1.21.10 | 21 | 0.19.3 or newer | 0.138.4+1.21.10 |
 | 1.21.11 | 21 | 0.19.3 or newer | 0.141.6+1.21.11 |
 | 26.1, 26.1.1, 26.1.2 | 25 | 0.19.3 or newer | 0.155.3+26.1.2 |
@@ -74,6 +76,8 @@ The Quilt jars end in `-quilt.jar`.
 
 | Minecraft | Java | Quilt Loader |
 |---|---|---|
+| 1.20.1 | 17 | 0.30.1 or newer |
+| 1.21.1 | 21 | 0.30.1 or newer |
 | 1.21.10 | 21 | 0.30.1 or newer |
 | 1.21.11 | 21 | 0.30.1 or newer |
 | 26.1, 26.1.1, 26.1.2 | 25 | 0.30.1 or newer |
@@ -81,10 +85,12 @@ The Quilt jars end in `-quilt.jar`.
 | 26.3 | 25 | 0.30.1 or newer |
 
 On [NeoForge](https://neoforged.net/), nothing else is needed. The NeoForge jars end in
-`-neoforge.jar`.
+`-neoforge.jar`. There is none for 1.20.1, where NeoForge is a copy of Forge 47: use the
+Forge jar.
 
 | Minecraft | Java | NeoForge |
 |---|---|---|
+| 1.21.1 | 21 | 21.1.203 or newer |
 | 1.21.10 | 21 | 21.10.64 or newer |
 | 1.21.11 | 21 | 21.11.45 or newer |
 | 26.1, 26.1.1, 26.1.2 | 25 | 26.1.2.112 or newer |
@@ -96,6 +102,8 @@ jars end in `-forge.jar`.
 
 | Minecraft | Java | Forge |
 |---|---|---|
+| 1.20.1 | 17 | 47.4.10 or newer |
+| 1.21.1 | 21 | 52.1.0 or newer |
 | 1.21.10 | 21 | 60.1.15 or newer |
 | 1.21.11 | 21 | 61.2.1 or newer |
 | 26.1.2 | 25 | 64.1.3 or newer |

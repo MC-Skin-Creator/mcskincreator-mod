@@ -32,24 +32,31 @@ jobs:
       fail-fast: false
       matrix:
         minecraft:
+          - '1.20.1'
+          - '1.21.1'
           - '1.21.10'
           - '1.21.11'
           - '26.1.x'
           - '26.2.x'
           - '26.3.x'
           # The same game versions on NeoForge: the same sources, another build script.
+          - '1.21.1-neoforge'
           - '1.21.10-neoforge'
           - '1.21.11-neoforge'
           - '26.1.x-neoforge'
           - '26.2.x-neoforge'
           - '26.3.x-neoforge'
           # And on Quilt, built by Quilt Loom against Quilt Loader alone.
+          - '1.20.1-quilt'
+          - '1.21.1-quilt'
           - '1.21.10-quilt'
           - '1.21.11-quilt'
           - '26.1.x-quilt'
           - '26.2.x-quilt'
           - '26.3.x-quilt'
           # And on Forge, through ForgeGradle.
+          - '1.20.1-forge'
+          - '1.21.1-forge'
           - '1.21.10-forge'
           - '1.21.11-forge'
           - '26.1.x-forge'
@@ -67,9 +74,11 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          # Both are needed: Minecraft 1.21.x runs on Java 21, 26.x on Java 25.
+          # All three are needed: Minecraft 1.20.1 runs on Java 17, 1.21.x on Java 21,
+          # 26.x on Java 25.
           # The last entry becomes JAVA_HOME and so runs Gradle itself.
           java-version: |
+            17
             25
             21
 
@@ -88,7 +97,7 @@ jobs:
         run: >-
           ./gradlew ":${{ matrix.minecraft }}:build" ":${{ matrix.minecraft }}:buildAndCollect"
           --stacktrace
-          -Porg.gradle.java.installations.fromEnv=JAVA_HOME_21_X64,JAVA_HOME_25_X64
+          -Porg.gradle.java.installations.fromEnv=JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
           -Pgpr.user=${{ github.actor }} -Pgpr.token=${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload test report

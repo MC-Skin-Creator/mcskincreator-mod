@@ -32,4 +32,15 @@ stonecutter parameters {
     replacements.regex(current.parsed >= "1.21.11") {
         replace("\\bResourceLocation\\b", "Identifier", "\\bIdentifier\\b", "ResourceLocation")
     }
+
+    // Render states arrived in 1.21.2. Before them the figure is posed on the mod's own
+    // FigureState, which carries the AvatarRenderState fields the poses write, under the
+    // same names - so the code that poses it is the same code, and only the type is
+    // swapped. Scoped to the files that ask for it with a `//~ figure` line: FigureState
+    // itself must not be renamed on the targets that have the real class.
+    replacements.string("figure", current.parsed >= "1.21.2") {
+        replace("fr.clixmods.mcsc.mod.scene.FigureState",
+                "net.minecraft.client.renderer.entity.state.AvatarRenderState")
+        replace("FigureState", "AvatarRenderState")
+    }
 }

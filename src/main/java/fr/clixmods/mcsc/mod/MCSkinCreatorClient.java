@@ -13,10 +13,13 @@ import net.fabricmc.api.ClientModInitializer;
 //?} elif neoforge {
 /*import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.common.Mod;
-*///?} else {
+*///?} elif >=1.21.6 {
 /*import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+*///?} else {
+/*import net.minecraftforge.fml.common.Mod;
 *///?}
+import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,9 +59,14 @@ public final class MCSkinCreatorClient {
     /*public MCSkinCreatorClient() {
         start();
     }
-    *///?} else {
+    *///?} elif >=1.21.6 {
     /*// The context is unused, but it is the constructor Forge documents and looks for.
     public MCSkinCreatorClient(FMLJavaModLoadingContext context) {
+        start();
+    }
+    *///?} else {
+    /*// Forge before EventBus 7 constructs the mod with no argument at all.
+    public MCSkinCreatorClient() {
         start();
     }
     *///?}
@@ -68,6 +76,20 @@ public final class MCSkinCreatorClient {
         // alone, whether the mod is actually loaded and which build they run.
         LOGGER.info("MC Skin Creator {} loaded", version());
         MenuButtons.register();
+    }
+
+    /**
+     * One of the mod's own resource locations.
+     *
+     * <p>The factory has had two spellings: {@code fromNamespaceAndPath} from 1.21, the
+     * public constructor before it.
+     */
+    public static Identifier id(String path) {
+        //? if >=1.21 {
+        return Identifier.fromNamespaceAndPath(MOD_ID, path);
+        //?} else {
+        /*return new Identifier(MOD_ID, path);
+        *///?}
     }
 
     /** The mod version as declared in the loader's metadata file. */

@@ -64,7 +64,7 @@ public final class PlayerFigure implements Figure {
         if (shot.drawnByTheGame() || this.width <= 0 || this.height <= 0) {
             return;
         }
-        PosedPlayer.draw(canvas, this.preview.playerSkin(), shot.pose(), shot.playing(),
+        PosedPlayer.draw(canvas, this.preview.look(), shot.pose(), shot.playing(),
                 shot.seconds(), shot.eye(), this.x, this.y, this.width, this.height,
                 this.stageX, this.stageY, this.stageWidth, this.stageHeight);
     }

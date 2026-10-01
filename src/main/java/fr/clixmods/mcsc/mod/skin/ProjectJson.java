@@ -22,7 +22,6 @@ import fr.clixmods.mcsc.mod.catalog.CatalogParser;
 import fr.clixmods.mcsc.mod.catalog.Rgb;
 import fr.clixmods.mcsc.mod.project.Layer;
 import fr.clixmods.mcsc.mod.project.SkinProject;
-import net.minecraft.world.entity.player.PlayerModelType;
 
 /**
  * A project, in the one shape the server accepts.
@@ -162,7 +161,7 @@ public final class ProjectJson {
      */
     public static int read(JsonObject document, SkinProject into, Catalog catalog, String languageCode) {
         into.clear();
-        into.setModel(bool(document, "slim") ? PlayerModelType.SLIM : PlayerModelType.WIDE);
+        into.setModel(bool(document, "slim") ? SkinModel.SLIM : SkinModel.WIDE);
 
         JsonElement layers = document.get("layers");
         if (layers == null || !layers.isJsonArray()) {

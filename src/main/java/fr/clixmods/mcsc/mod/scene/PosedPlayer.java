@@ -5,14 +5,14 @@
  * Proprietary, source-available. See the LICENSE file at the root of this
  * repository.
  */
+//~ figure
 package fr.clixmods.mcsc.mod.scene;
 
+import fr.clixmods.mcsc.mod.skin.GameSkins;
+import fr.clixmods.mcsc.mod.skin.SkinLook;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
-import net.minecraft.client.renderer.entity.state.EntityRenderState;
-import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 import net.minecraft.world.entity.Pose;
-import net.minecraft.world.entity.player.PlayerSkin;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -27,7 +27,7 @@ import org.joml.Vector3f;
  * <p>That this works at all rests on one fact, read out of
  * {@code EntityRenderDispatcher.getRenderer}: an {@code AvatarRenderState} is dispatched
  * <strong>on its skin</strong>, not on an entity type, and the skin's model type is what
- * picks the classic or the slim renderer. So a state carrying {@link PlayerSkin} is drawn
+ * picks the classic or the slim renderer. So a state carrying a {@code PlayerSkin} is drawn
  * by the game's own player renderer, with its overlay layer, its animation and its
  * proportions, and the mod supplies nothing but a skin and a situation.
  *
@@ -48,6 +48,11 @@ import org.joml.Vector3f;
  * <p>The figure on the vanilla menus also watches the pointer, through {@link Gaze}. The
  * editor's does not: there the player is turning the figure to look at a skin, and a
  * head that chased the mouse would move whatever they were trying to look at.
+ *
+ * <p>1.20.1 and 1.21.1 have no render states. There the state is a {@link FigureState},
+ * swapped in by the figure marker at the top of this file, and the canvas bends and draws
+ * the player model from it itself - so everything here, the camera numbers included, is
+ * the same code on every target.
  */
 public final class PosedPlayer {
     /** A player is 1.8 blocks tall and 0.6 wide; the box is what centres the figure. */
@@ -69,7 +74,7 @@ public final class PosedPlayer {
      * @param seconds how long the animation has been running
      * @param playing false leaves it standing rather than frozen mid-stride
      */
-    public static void draw(Canvas canvas, PlayerSkin skin, ScenePose pose, boolean playing,
+    public static void draw(Canvas canvas, SkinLook skin, ScenePose pose, boolean playing,
                             float seconds, SceneCamera camera,
                             int x, int y, int width, int height,
                             int stageX, int stageY, int stageWidth, int stageHeight) {
@@ -80,16 +85,16 @@ public final class PosedPlayer {
     /**
      * Draws a standing figure that looks at the pointer, whichever way it has been turned.
      */
-    public static void drawWatching(Canvas canvas, PlayerSkin skin, SceneCamera camera,
+    public static void drawWatching(Canvas canvas, SkinLook skin, SceneCamera camera,
                                     int mouseX, int mouseY, int x, int y, int width, int height) {
         submit(canvas, state(skin, ScenePose.IDLE, 0, false), ScenePose.IDLE.spread(), camera,
                 true, mouseX, mouseY, x, y, width, height, x, y, width, height);
     }
 
-    private static AvatarRenderState state(PlayerSkin skin, ScenePose pose, float seconds,
+    private static AvatarRenderState state(SkinLook skin, ScenePose pose, float seconds,
                                            boolean playing) {
         AvatarRenderState state = new AvatarRenderState();
-        state.skin = skin;
+        state.skin = GameSkins.figureSkin(skin);
         state.boundingBoxHeight = BOX_HEIGHT;
         state.boundingBoxWidth = BOX_WIDTH;
         pose.apply(state, seconds, playing);
@@ -102,7 +107,7 @@ public final class PosedPlayer {
      *
      * @param spread how wide the figure gets, in blocks, so it can be fitted whole
      */
-    private static void submit(Canvas canvas, EntityRenderState state, float spread,
+    private static void submit(Canvas canvas, AvatarRenderState state, float spread,
                                SceneCamera camera, boolean watch, int mouseX, int mouseY,
                                int x, int y, int width, int height,
                                int stageX, int stageY, int stageWidth, int stageHeight) {
@@ -112,32 +117,30 @@ public final class PosedPlayer {
         float scale = Math.max(1.0F, Math.min(width / spread, height / FIT_HEIGHT)
                 * camera.zoom());
 
-        if (state instanceof LivingEntityRenderState living) {
-            // A body at 180 degrees faces you; the game rotates by bodyRot - 180.
-            float bodyTurn = camera.yaw() * DEGREES;
-            living.bodyRot = 180 + bodyTurn;
-            // The head, in degrees and relative to the body. It keeps facing you as the
-            // view tilts, which is what vanilla's portrait does and what makes the tilt
-            // read as moving around the figure rather than tipping it over.
-            living.yRot = 0;
-            float nod = 0;
+        // A body at 180 degrees faces you; the game rotates by bodyRot - 180.
+        float bodyTurn = camera.yaw() * DEGREES;
+        state.bodyRot = 180 + bodyTurn;
+        // The head, in degrees and relative to the body. It keeps facing you as the
+        // view tilts, which is what vanilla's portrait does and what makes the tilt
+        // read as moving around the figure rather than tipping it over.
+        state.yRot = 0;
+        float nod = 0;
 
-            if (watch) {
-                // Where the eyes have ended up, which is what the pointer is measured
-                // against: the figure stands in the middle of its box with its feet half
-                // a box below the centre, both moved by the pan, and the scale is pixels
-                // per block — so the eyes stay on the face at every zoom.
-                float centreX = x + width / 2.0F + camera.panX();
-                float feetY = y + height / 2.0F + camera.panY() + state.boundingBoxHeight / 2 * scale;
-                Gaze gaze = Gaze.towards(mouseX, mouseY, centreX, feetY, scale);
-                living.yRot = gaze.headTurn(bodyTurn);
-                nod = gaze.headNod();
-            }
-
-            // Vanilla leaves a gliding figure's head alone, because the glide already
-            // owns its pitch; tilting it as well folds the neck.
-            living.xRot = living.hasPose(Pose.FALL_FLYING) ? 0 : nod - camera.pitch() * DEGREES;
+        if (watch) {
+            // Where the eyes have ended up, which is what the pointer is measured
+            // against: the figure stands in the middle of its box with its feet half
+            // a box below the centre, both moved by the pan, and the scale is pixels
+            // per block — so the eyes stay on the face at every zoom.
+            float centreX = x + width / 2.0F + camera.panX();
+            float feetY = y + height / 2.0F + camera.panY() + state.boundingBoxHeight / 2 * scale;
+            Gaze gaze = Gaze.towards(mouseX, mouseY, centreX, feetY, scale);
+            state.yRot = gaze.headTurn(bodyTurn);
+            nod = gaze.headNod();
         }
+
+        // Vanilla leaves a gliding figure's head alone, because the glide already
+        // owns its pitch; tilting it as well folds the neck.
+        state.xRot = state.hasPose(Pose.FALL_FLYING) ? 0 : nod - camera.pitch() * DEGREES;
 
         // Vanilla's base orientation: the picture-in-picture space has y running down, so
         // a model built y-up is turned over to stand on its feet. The tilt is multiplied

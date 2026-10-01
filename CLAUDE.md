@@ -41,11 +41,11 @@ Minecraft. There is no server side and no server entry point.
 
 | | |
 |---|---|
-| Loaders | Fabric, Quilt, NeoForge, Forge — all four on every supported version, see **Loaders** |
-| Supported Minecraft versions | `1.21.10`, `1.21.11`, `26.1` (built on 26.1.2), `26.2`, `26.3` |
+| Loaders | Fabric, Quilt, NeoForge, Forge — all four on every supported version but 1.20.1, which has no NeoForge, see **Loaders** |
+| Supported Minecraft versions | `1.20.1`, `1.21.1`, `1.21.10`, `1.21.11`, `26.1` (built on 26.1.2), `26.2`, `26.3` |
 | Active / default version | `1.21.11` |
 | Mappings | Official Mojang mappings on every target |
-| Java | 21 on 1.21.x, **25** on 26.x (Mojang's requirement, not a choice) |
+| Java | **17** on 1.20.1, 21 on 1.21.x, **25** on 26.x (Mojang's requirement, not a choice) |
 | Mod id / package | `mcskincreator` / `fr.clixmods.mcsc.mod` |
 
 Yarn mappings are **not** usable here: they have no build past 1.21.11, which is
@@ -99,8 +99,7 @@ and runs all of them. They cover the pure logic — the layer stack and its hist
 what that stack composes to, the project document, the catalogue reader and its
 fallbacks — and
 need no game, though they do resolve against the target's Minecraft jar for
-`Component` and `PlayerModelType`. Nothing that draws is tested: that is what
-running the game is for.
+`Component`. Nothing that draws is tested: that is what running the game is for.
 
 The interface has its own rules — the four materials, the palette, the scale it takes
 for itself, what is deliberately not built — in [`INTERFACE.md`](INTERFACE.md). **Read
@@ -143,8 +142,8 @@ version.
 `1.17-SNAPSHOT`; the 1.18 line refuses to run below a Java 25 JVM, which would
 force Java 25 on every target.
 
-Gradle itself runs on Java 21 and downloads the Java 25 toolchain for the 26.x
-targets on its own.
+Gradle itself runs on Java 21 and downloads the Java 17 toolchain for the 1.20.1
+targets and the Java 25 one for the 26.x targets on its own.
 
 ## No local builds
 
@@ -316,11 +315,11 @@ differ from their neighbours in a few more places:
 
 | Concern | Versions | Where |
 |---|---|---|
-| `ResourceLocation` renamed `Identifier` | 1.21.10 says `ResourceLocation` | regex replacement in `stonecutter.gradle.kts` — the sources say `Identifier` |
+| `ResourceLocation` renamed `Identifier` | 1.21.10 and older say `ResourceLocation` | regex replacement in `stonecutter.gradle.kts` — the sources say `Identifier` |
 | Hide the game HUD | `Options.hideGui` up to 26.1, `Gui.hud` from 26.2 | `scene/GameCamera` |
 | Draw the HUD | `Gui#render` on 1.21.x, `Gui#extractRenderState(GuiGraphicsExtractor, DeltaTracker)` on 26.1, `(DeltaTracker, boolean, boolean)` from 26.2 | `mixin/GuiMixin` |
 | Keyboard and mouse | GLFW up to 26.2, SDL on 26.3 with other key codes and other mouse buttons (left is 1, right is 3) | `InputConstants` everywhere, never `org.lwjgl.glfw` and never a bare button number |
-| Open a link or a folder | `Util.getPlatform().openUri`/`openPath` up to 26.2 (`net.minecraft.Util` on 1.21.10, `net.minecraft.util.Util` after), `Blaze3D.openUri`/`openPath` on 26.3 | `ScreenCompat` |
+| Open a link or a folder | `Util.getPlatform().openUri`/`openPath` up to 26.2 (`net.minecraft.Util` up to 1.21.10, `net.minecraft.util.Util` after; 1.20.1 has no `openPath`, only `openFile`), `Blaze3D.openUri`/`openPath` on 26.3 | `ScreenCompat` |
 | Swing the arm | `swing(hand)` and `attackArm`/`attackTime` up to 26.2, `swing(hand, SwingAnimation, boolean)` and `currentSwing`/`swingAnimation` on 26.3 | `scene/GameCamera`, `scene/ScenePose` |
 
 Key codes are the one trap here that compiles: 26.3 moved from GLFW to SDL, so a
@@ -332,6 +331,59 @@ platform on every target.
 
 26.x replaced immediate-mode GUI drawing with a render-state extraction pass, so
 any new drawing code will need the same treatment.
+
+### The targets before 1.21.9: 1.21.1 and 1.20.1
+
+These two are a generation older than the rest, and more than names differ. The rule
+that keeps them manageable: **the older code lives in the branch, never in a copy of
+the file**, and the shared code speaks in the mod's own types wherever the game's
+changed shape.
+
+| Concern | 1.21.10+ | 1.21.1 | 1.20.1 | Where |
+|---|---|---|---|---|
+| A player's skin | `world.entity.player.PlayerSkin` of client assets | `client.resources.PlayerSkin` of texture locations | none: a texture and a model name | `skin/GameSkins` — the rest of the mod speaks `SkinLook` and `SkinModel` |
+| The local skin, for the menu | `SkinManager#createLookup` | `SkinManager#lookupInsecure` | `SkinManager#registerSkins` and its callback | `skin/GameSkins` |
+| Input events | `MouseButtonEvent`, `KeyEvent`, `CharacterEvent` | coordinates, button and modifiers as arguments | the same, and a three-argument `mouseScrolled` | `SkinCreatorScreen`, `MenuFigure` |
+| Shift held | `Minecraft#hasShiftDown` | static `Screen.hasShiftDown()` | the same | `ScreenCompat` |
+| GUI drawing | `Matrix3x2fStack`, blits through `RenderPipelines`, tooltip for the next frame | `PoseStack`, blits without a pipeline, tints through `setColor`, tooltip drawn on the spot | the same, and no sprite atlas | `GameCanvas` |
+| The figure | a render state, through the picture-in-picture path | no render states: `FigureState`, drawn by `scene/ModelFigure` | the same | `GameCanvas`, `scene/ModelFigure` |
+| Posing the in-game view | `AvatarRendererMixin` on the render state | `PlayerModelMixin` and `PlayerRendererMixin` on the model and the renderer | the same, with one argument fewer to `setupRotations` | `mixin/` |
+| Image pixels | `getPixel`/`setPixel`, ARGB | `getPixelRGBA`/`setPixelRGBA`, ABGR | the same | `skin/ImagePixels` |
+| A dynamic texture | takes a label | takes the image alone | the same | `ManagedTexture#dynamic` |
+| GUI scale | `int` | `double` | `double` | `EditorScale`, which casts |
+| Screen backdrop | `Screen#render` draws it | the same | the screen draws it itself, `renderBackground(GuiGraphics)` | `SkinCreatorScreen` |
+| Menu button | `SpriteIconButton` | the same | none, and no sprite atlas: a `Button` that blits the icon | `SkinPanel` |
+| A resource location | `fromNamespaceAndPath` | the same | the constructor | `MCSkinCreatorClient#id` |
+| Forge's event bus and entry point | `ScreenEvent.Init.Post.BUS`, context constructor | `MinecraftForge.EVENT_BUS`, no-argument constructor | the same | `MenuButtons`, `MCSkinCreatorClient` |
+
+**The figure on these two is the one place a type is swapped rather than branched.**
+Render states arrived in 1.21.2; before them there is nothing to hand the game, so the
+mod poses its own `scene/FigureState`, whose fields carry the `AvatarRenderState` names.
+The files that pose the figure — `ScenePose`, `WorldPose`, `PosedPlayer`, `Canvas`,
+`GameCanvas`, and the preview's `ImageCanvas` — start with a `//~ figure` line, and the
+string replacement of that name in `stonecutter.gradle.kts` swaps the one type for the
+other in them alone. The poses are then the same code on every target. A field the
+poses come to need must be added to `FigureState` under the same name, or the older
+targets stop compiling. `ModelFigure` bends and draws the player model from it, ported
+from 1.21.11's own `HumanoidModel#setupAnim` and avatar renderer, so a pose looks the
+same everywhere.
+
+`ModelFigure`, `PlayerModelMixin` and `PlayerRendererMixin` exist only on these two
+targets: the whole file is a versioned block, inactive — and so a block comment — on
+the active version. Inside an inactive block use `//` comments only: a `/*` or a `*/`
+in there ends the block early.
+
+The branches are written for 1.20.1 and 1.21.1 and checked against those two jars. The
+versions in between are not targets, and a condition such as `>=1.21.6` says where the
+API changed, not that 1.21.2 to 1.21.8 would build.
+
+**1.20.1 needs the engine on Java 17.** `mcsc-engine` is the one dependency that runs
+on the game's JVM, and 1.20.1's is Java 17: an engine built for Java 21 does not even
+compile against those targets.
+
+**Forge runs 1.20.1 under SRG names, not Mojang's.** The jar is renamed to SRG by the
+Renamer plugin before it ships, and the mixins carry a refmap there and nowhere else —
+see `obfuscatedRuntime` in `build.forge.gradle.kts`.
 
 Not every 3D route across the two is a rename. The GUI's **skin** route changed the
 type of its first parameter (`PlayerModel` on 1.21.11, `Model.Simple` on 26.2), which
@@ -357,7 +409,9 @@ the entity route".
 There are **four**, and the bar for a fifth is the same one all four cleared: there
 is no public way in, and the alternative is worse. Three apply on every loader; the
 fourth, `ScreenMixin`, on Quilt alone. Everything else the mod does, it does
-through public API.
+through public API. On 1.20.1 and 1.21.1 the in-game view's posing takes two classes
+instead of `AvatarRendererMixin` — see below — and which of them a target lists is
+written into `mcskincreator.mixins.json` by the build scripts (`poseMixins`).
 
 **`mixin/AbstractClientPlayerMixin`** takes the return of `AbstractClientPlayer#getSkin`
 so the player wears the skin they just applied without restarting the game. Every other
@@ -375,6 +429,12 @@ and left behind by a crash. This changes a picture, on one client, while one win
 open. It also gives the view a head that stays still, which the camera could not: on the
 entity the camera's pitch and the head's pitch are one field (`Entity.xRot`), and on the
 render state they are two.
+
+**`mixin/PlayerModelMixin` and `mixin/PlayerRendererMixin`** do the same on 1.20.1 and
+1.21.1, which have no render state to pose: the first bends the model at the end of
+`PlayerModel#setupAnim`, the second replaces `PlayerRenderer#setupRotations` and the
+crouch offset of `getRenderOffset` for the one player `WorldPose` names. Both read the
+pose through `scene/ModelFigure`, the same code the editor's own figure is drawn with.
 
 That class has **three** overloads of `extractRenderState`, so the injection spells out
 the full descriptor — without it Mixin has nothing to choose by. What the mod wants drawn
@@ -399,8 +459,10 @@ else — and 26.2 onward forces to false the first of the two
 booleans, the one that gates the HUD. Not the second: that gates the screen, so
 cancelling there would take the editor with it.
 
-**The skin mixin covers what is drawn from a player entity, and only that.** A menu has
-no player entity: `SkinPanel` asks `SkinManager#createLookup` for a supplier, so it takes
+**The skin mixin covers what is drawn from a player entity, and only that.** On 1.20.1
+it takes `getSkinTextureLocation` and `getModelName`, the two methods a player answered
+before `getSkin` existed. A menu has
+no player entity: `SkinPanel` asks `GameSkins#localLookup` for a supplier, so it takes
 the same override through `AppliedSkin.over(…)`, which wraps that supplier. Anything else
 that comes to draw the local player's skin needs one door or the other — the mixin is
 not a catch-all, and forgetting this is how the title screen kept showing the old skin
@@ -432,11 +494,13 @@ Two things about the setup are worth knowing before touching it:
   rather than trusting it.
 - **`compatibilityLevel` is expanded, not written.** `mcskincreator.mixins.json` says
   `JAVA_${java}` and `processResources` fills it in per target, because the mixin
-  classes are Java 21 bytecode on one target and Java 25 on the other and Mixin checks
-  the class file version against that level. A hardcoded level is wrong on one of them.
+  classes are Java 17, 21 or 25 bytecode depending on the target and Mixin checks the
+  class file version against that level. A hardcoded level is wrong on most of them.
+  The same expansion writes the pose mixins' names, and on Forge 1.20.1 the refmap.
 
-Both targets expose `getSkin` and `AvatarRenderer#extractRenderState` with the same
-signature, so those two mixins carry no Stonecutter directive. `GuiMixin` does, and it
+From 1.21.10 on every target exposes `getSkin` and `AvatarRenderer#extractRenderState`
+with the same signature, so those two mixins carry no directive between them; the
+older targets add branches, as above. `GuiMixin` does, and it
 is worth being uneasy about one: it means a target can be broken by an injection that
 still compiles. It is accepted here only because the class targeted is the same on both
 and the whole difference is a method name.
@@ -511,7 +575,7 @@ nothing else is ever looked up there.
    `mod.mc_compat`, `mod.mc_releases`, `deps.forge` and `deps.forge_compat` for Forge,
    with Maven ranges.
 3. Extend `requiredJava` in all four build scripts if that version needs a different
-   Java level.
+   Java level, and `poseMixins` if it is on the other side of a render-state boundary.
 4. Add the four nodes to the CI matrix in `.github/workflows/build.yml`.
 5. Open the pull request and fix what CI's compiler reports for the new target,
    keeping shared code shared.

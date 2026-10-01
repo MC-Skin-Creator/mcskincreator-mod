@@ -102,6 +102,7 @@ jobs:
         with:
           distribution: temurin
           java-version: |
+            17
             25
             21
 
@@ -128,7 +129,7 @@ jobs:
         if: steps.version.outputs.release == 'true'
         run: >-
           ./gradlew buildAndCollect --stacktrace
-          -Porg.gradle.java.installations.fromEnv=JAVA_HOME_21_X64,JAVA_HOME_25_X64
+          -Porg.gradle.java.installations.fromEnv=JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
           -Pgpr.user=${{ github.actor }} -Pgpr.token=${{ secrets.GITHUB_TOKEN }}
 
       - name: Record the version on main

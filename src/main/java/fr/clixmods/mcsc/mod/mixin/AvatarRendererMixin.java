@@ -5,6 +5,7 @@
  * Proprietary, source-available. See the LICENSE file at the root of this
  * repository.
  */
+//? if >=1.21.9 {
 package fr.clixmods.mcsc.mod.mixin;
 
 import fr.clixmods.mcsc.mod.scene.WorldPose;
@@ -61,3 +62,4 @@ public abstract class AvatarRendererMixin {
         }
     }
 }
+//?}

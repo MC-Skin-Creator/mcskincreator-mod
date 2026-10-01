@@ -5,6 +5,7 @@
  * Proprietary, source-available. See the LICENSE file at the root of this
  * repository.
  */
+//~ figure
 package fr.clixmods.mcsc.mod.ui;
 
 import java.util.List;
@@ -16,13 +17,18 @@ import net.minecraft.client.gui.GuiGraphics;
 //?}
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.Renderable;
-import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.network.chat.Component;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import net.minecraft.resources.Identifier;
+//? if >=1.21.6 {
+import net.minecraft.client.renderer.RenderPipelines;
 import org.joml.Matrix3x2fStack;
+//?} else {
+/*import com.mojang.blaze3d.vertex.PoseStack;
+import fr.clixmods.mcsc.mod.scene.ModelFigure;
+*///?}
 
 /**
  * The {@link Canvas} the game paints on, and the one file in the interface that knows
@@ -34,6 +40,14 @@ import org.joml.Matrix3x2fStack;
  * on both targets. Wrapping the object once, here, is what keeps the rest of the
  * interface free of version conditionals: no panel, no widget and no window mentions a
  * Minecraft version.
+ *
+ * <p>The same goes the other way, for the targets older than 1.21.6, where the GUI was
+ * still drawn immediately: a {@code PoseStack} rather than a 2D matrix stack, blits
+ * without a pipeline, tints through the shader colour, tooltips drawn on the spot - and,
+ * before render states existed at all, the figure drawn by {@code ModelFigure} rather
+ * than by the game's picture-in-picture path. Those branches are written for 1.20.1 and
+ * 1.21.1, the older targets this mod is built for, and are not meant for the versions in
+ * between.
  */
 public final class GameCanvas implements Canvas {
     //? if >=26.1 {
@@ -108,15 +122,25 @@ public final class GameCanvas implements Canvas {
         // Halve the matrix and double the coordinates: the glyphs land where they were
         // asked for, at half the size. The scissor in force was set in screen pixels
         // and is unaffected, because it is state and not part of the matrix.
+        //? if >=1.21.6 {
         Matrix3x2fStack pose = this.graphics.pose();
         pose.pushMatrix();
         pose.scale(SMALL, SMALL);
+        //?} else {
+        /*PoseStack pose = this.graphics.pose();
+        pose.pushPose();
+        pose.scale(SMALL, SMALL, 1.0F);
+        *///?}
         //? if >=26.1 {
         /*this.graphics.text(this.font, text, x * 2, y * 2, argb, false);
         *///?} else {
         this.graphics.drawString(this.font, text, x * 2, y * 2, argb, false);
         //?}
+        //? if >=1.21.6 {
         pose.popMatrix();
+        //?} else {
+        /*pose.popPose();
+        *///?}
     }
 
     /** Fills a rectangle. Alpha is honoured, which is what draws the window backdrop. */
@@ -217,8 +241,13 @@ public final class GameCanvas implements Canvas {
     public void blit(Identifier texture, int x, int y, int width, int height,
                      float u, float v, int sourceWidth, int sourceHeight,
                      int textureWidth, int textureHeight) {
+        //? if >=1.21.6 {
         this.graphics.blit(RenderPipelines.GUI_TEXTURED, texture, x, y, u, v,
                 width, height, sourceWidth, sourceHeight, textureWidth, textureHeight);
+        //?} else {
+        /*this.graphics.blit(texture, x, y, width, height, u, v,
+                sourceWidth, sourceHeight, textureWidth, textureHeight);
+        *///?}
     }
 
     /**
@@ -231,7 +260,15 @@ public final class GameCanvas implements Canvas {
     @Override
     public void sprite(Identifier sprite, int x, int y, int width, int height) {
         if (width > 0 && height > 0) {
+            //? if >=1.21.6 {
             this.graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, width, height);
+            //?} elif >=1.20.2 {
+            /*this.graphics.blitSprite(sprite, x, y, width, height);
+            *///?} else {
+            /*// 1.20.1 has no sprite atlas: the sprite is its own texture, drawn whole.
+            this.graphics.blit(spriteTexture(sprite), x, y, width, height, 0, 0,
+                    width, height, width, height);
+            *///?}
         }
     }
 
@@ -239,7 +276,13 @@ public final class GameCanvas implements Canvas {
     @Override
     public void spriteTinted(Identifier sprite, int x, int y, int width, int height, int tint) {
         if (width > 0 && height > 0) {
+            //? if >=1.21.6 {
             this.graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, width, height, tint);
+            //?} else {
+            /*tint(tint);
+            sprite(sprite, x, y, width, height);
+            untint();
+            *///?}
         }
     }
 
@@ -248,9 +291,32 @@ public final class GameCanvas implements Canvas {
     public void blitTinted(Identifier texture, int x, int y, int width, int height,
                            float u, float v, int sourceWidth, int sourceHeight,
                            int textureWidth, int textureHeight, int tint) {
+        //? if >=1.21.6 {
         this.graphics.blit(RenderPipelines.GUI_TEXTURED, texture, x, y, u, v,
                 width, height, sourceWidth, sourceHeight, textureWidth, textureHeight, tint);
+        //?} else {
+        /*tint(tint);
+        blit(texture, x, y, width, height, u, v, sourceWidth, sourceHeight, textureWidth, textureHeight);
+        untint();
+        *///?}
     }
+
+    //? if <1.21.6 {
+    /*// Before 1.21.6 a blit takes no colour: the tint is the shader's, set around it.
+    private void tint(int argb) {
+        this.graphics.setColor((argb >> 16 & 0xFF) / 255.0F, (argb >> 8 & 0xFF) / 255.0F,
+                (argb & 0xFF) / 255.0F, (argb >>> 24) / 255.0F);
+    }
+
+    private void untint() {
+        this.graphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
+    }
+    *///?}
+    //? if <1.20.2 {
+    /*private static Identifier spriteTexture(Identifier sprite) {
+        return sprite.withPath("textures/gui/sprites/" + sprite.getPath() + ".png");
+    }
+    *///?}
 
     /** Text broken onto as many lines as it needs to stay within {@code lineWidth}. */
     @Override
@@ -291,7 +357,7 @@ public final class GameCanvas implements Canvas {
      * through. 26.x renamed it along with everything else that draws.
      */
     @Override
-    public void entity(EntityRenderState state, float scale, Vector3f translation,
+    public void entity(AvatarRenderState state, float scale, Vector3f translation,
                        Quaternionf rotation, Quaternionf overrideCameraAngle,
                        int x, int y, int width, int height) {
         if (width <= 0 || height <= 0) {
@@ -300,10 +366,12 @@ public final class GameCanvas implements Canvas {
         //? if >=26.1 {
         /*this.graphics.entity(state, scale, translation, rotation, overrideCameraAngle,
                 x, y, x + width, y + height);
-        *///?} else {
+        *///?} elif >=1.21.6 {
         this.graphics.submitEntityRenderState(state, scale, translation, rotation,
                 overrideCameraAngle, x, y, x + width, y + height);
-        //?}
+        //?} else {
+        /*ModelFigure.draw(this.graphics, state, scale, translation, rotation, x, y, width, height);
+        *///?}
     }
 
     /**
@@ -330,7 +398,12 @@ public final class GameCanvas implements Canvas {
     @Override
     public void tooltip(List<Component> lines, int mouseX, int mouseY) {
         if (!lines.isEmpty()) {
+            //? if >=1.21.6 {
             this.graphics.setComponentTooltipForNextFrame(this.font, lines, mouseX, mouseY);
+            //?} else {
+            /*// Drawn on the spot: the editor asks for it last, so nothing paints over it.
+            this.graphics.renderComponentTooltip(this.font, lines, mouseX, mouseY);
+            *///?}
         }
     }
 }

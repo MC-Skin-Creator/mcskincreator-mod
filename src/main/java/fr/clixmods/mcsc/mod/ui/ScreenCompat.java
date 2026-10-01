@@ -69,12 +69,31 @@ public final class ScreenCompat {
         //?}
     }
 
-    /** {@code Util.getPlatform().openPath} moved to {@code Blaze3D.openPath} in 26.3. */
+    /**
+     * {@code Util.getPlatform().openPath} moved to {@code Blaze3D.openPath} in 26.3, and
+     * did not exist yet in 1.20.1, which only opens a {@code File}.
+     */
     public static void openPath(Path path) {
         //? if >=26.3 {
         /*Blaze3D.openPath(path);
-        *///?} else {
+        *///?} elif >=1.21 {
         Util.getPlatform().openPath(path);
-        //?}
+        //?} else {
+        /*Util.getPlatform().openFile(path.toFile());
+        *///?}
+    }
+
+    /**
+     * Whether shift is held: asked of the client from 1.21.9, of {@code Screen} as a
+     * static before it.
+     */
+    public static boolean hasShiftDown() {
+        // Null outside a running game: the editor's preview, in the tests.
+        Minecraft client = Minecraft.getInstance();
+        //? if >=1.21.9 {
+        return client != null && client.hasShiftDown();
+        //?} else {
+        /*return client != null && Screen.hasShiftDown();
+        *///?}
     }
 }

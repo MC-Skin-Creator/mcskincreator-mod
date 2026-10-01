@@ -33,7 +33,7 @@ import net.minecraft.server.packs.resources.Resource;
 public final class Logo {
     /** Where the icon sits under {@code assets/mcskincreator/}. */
     private static final Identifier SOURCE =
-            Identifier.fromNamespaceAndPath(MCSkinCreatorClient.MOD_ID, "icon.png");
+            MCSkinCreatorClient.id("icon.png");
 
     private static ManagedTexture texture;
     private static boolean attempted;

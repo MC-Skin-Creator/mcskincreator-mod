@@ -11,6 +11,7 @@ import java.util.function.Supplier;
 
 import fr.clixmods.mcsc.mod.scene.PosedPlayer;
 import fr.clixmods.mcsc.mod.scene.SceneCamera;
+import fr.clixmods.mcsc.mod.skin.SkinLook;
 //? if >=26.1 {
 /*import net.minecraft.client.gui.GuiGraphicsExtractor;
 *///?} else {
@@ -21,10 +22,11 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.navigation.FocusNavigationEvent;
+//? if >=1.21.9 {
 import net.minecraft.client.input.MouseButtonEvent;
+//?}
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.network.chat.CommonComponents;
-import net.minecraft.world.entity.player.PlayerSkin;
 
 /**
  * The player on the title and pause screens: turned by dragging, like vanilla's
@@ -37,10 +39,10 @@ import net.minecraft.world.entity.player.PlayerSkin;
  */
 final class MenuFigure extends AbstractWidget {
     private final Font font;
-    private final Supplier<PlayerSkin> skin;
+    private final Supplier<SkinLook> skin;
     private final SceneCamera camera = new SceneCamera();
 
-    MenuFigure(int width, int height, Font font, Supplier<PlayerSkin> skin) {
+    MenuFigure(int width, int height, Font font, Supplier<SkinLook> skin) {
         super(0, 0, width, height, CommonComponents.EMPTY);
         this.font = font;
         this.skin = skin;
@@ -59,10 +61,17 @@ final class MenuFigure extends AbstractWidget {
                 mouseX, mouseY, this.getX(), this.getY(), this.getWidth(), this.getHeight());
     }
 
+    //? if >=1.21.9 {
     @Override
     protected void onDrag(MouseButtonEvent event, double dragX, double dragY) {
         this.camera.turn(dragX, dragY);
     }
+    //?} else {
+    /*@Override
+    protected void onDrag(double mouseX, double mouseY, double dragX, double dragY) {
+        this.camera.turn(dragX, dragY);
+    }
+    *///?}
 
     @Override
     public void playDownSound(SoundManager soundManager) {

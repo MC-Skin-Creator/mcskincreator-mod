@@ -18,8 +18,8 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
+import fr.clixmods.mcsc.mod.skin.SkinModel;
 import fr.clixmods.mcsc.mod.style.Metrics;
-import net.minecraft.world.entity.player.PlayerModelType;
 
 /**
  * The two rules that separate a working history from one that is a step behind: the
@@ -132,11 +132,11 @@ class HistoryTest {
     @Test
     void theModelIsPartOfWhatUndoGivesBack() {
         this.history.record();
-        this.project.setModel(PlayerModelType.SLIM);
+        this.project.setModel(SkinModel.SLIM);
 
         this.history.undo();
 
-        assertEquals(PlayerModelType.WIDE, this.project.model());
+        assertEquals(SkinModel.WIDE, this.project.model());
     }
 
     @Test

@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
 
 import fr.clixmods.mcsc.mod.catalog.Catalog;
 import fr.clixmods.mcsc.mod.catalog.CatalogModel;
-import net.minecraft.world.entity.player.PlayerModelType;
+import fr.clixmods.mcsc.mod.skin.SkinModel;
 
 /**
  * What choosing one of the catalogue's ready-made stacks does, which is not the same
@@ -64,10 +64,10 @@ class ReadyMadeTest {
         @Test
         void brings_the_player_model_it_was_drawn_for() {
             apply(readyMade("fine", CatalogModel.Kind.MODEL, true, "skin/pale"));
-            assertEquals(PlayerModelType.SLIM, project.model());
+            assertEquals(SkinModel.SLIM, project.model());
 
             apply(readyMade("wide", CatalogModel.Kind.MODEL, false, "skin/tan"));
-            assertEquals(PlayerModelType.WIDE, project.model());
+            assertEquals(SkinModel.WIDE, project.model());
         }
 
         @Test
@@ -95,7 +95,7 @@ class ReadyMadeTest {
             apply(readyMade("fine", CatalogModel.Kind.MODEL, true, "skin/pale"));
             apply(readyMade("clothes", CatalogModel.Kind.OUTFIT, false, "top/coat"));
 
-            assertEquals(PlayerModelType.SLIM, project.model(),
+            assertEquals(SkinModel.SLIM, project.model(),
                     "an outfit is worn by whichever body is already there");
         }
     }

@@ -8,7 +8,9 @@
 package fr.clixmods.mcsc.mod.mixin;
 
 import fr.clixmods.mcsc.mod.scene.HiddenHud;
+//? if >=1.21 {
 import net.minecraft.client.DeltaTracker;
+//?}
 import net.minecraft.client.gui.Gui;
 //? if >=26.2 {
 /*import org.spongepowered.asm.mixin.injection.ModifyVariable;
@@ -70,7 +72,7 @@ public abstract class GuiMixin {
             info.cancel();
         }
     }
-    *///?} else {
+    *///?} elif >=1.21 {
     @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/DeltaTracker;)V",
             at = @At("HEAD"), cancellable = true)
     private void mcskincreator$leaveTheHudOut(GuiGraphics graphics, DeltaTracker delta,
@@ -79,5 +81,13 @@ public abstract class GuiMixin {
             info.cancel();
         }
     }
-    //?}
+    //?} else {
+    /*// 1.20.1 hands the HUD a bare partial tick, before DeltaTracker existed.
+    @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphics;F)V", at = @At("HEAD"), cancellable = true)
+    private void mcskincreator$leaveTheHudOut(GuiGraphics graphics, float partialTick, CallbackInfo info) {
+        if (HiddenHud.hidden()) {
+            info.cancel();
+        }
+    }
+    *///?}
 }
