@@ -7,7 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Everything in this repository is in **English**: code, comments, documentation,
 commit messages, pull request descriptions. Do not write French into the
 repository. User-facing strings are the exception and are translated through
-`assets/mcskincreator/lang/` — never hardcode a display string in the code.
+`assets/mcskincreator/lang/` — never hardcode a display string in the code. The
+translated changelog files `changelog/fr.md` and `changelog/es.md` are the same
+kind of exception: they are read by players, in their language.
 
 Commit subjects follow **conventional commits**: `type(scope): summary`, still
 short, imperative and in English. The type is not decoration — it decides the next
@@ -642,6 +644,16 @@ small the change or how green the CI.
 
 After a stable release, merge `main` back into `develop` so it picks up the version
 bump commit.
+
+## Changelog
+
+Any pull request that changes what a player sees or feels — a feature, an
+improvement, a fix — adds its entry to the three files in `changelog/` (`en.md`,
+`fr.md`, `es.md`), in the same pull request, under `## Unreleased`. The rules — what
+goes in and what never does (CI, docs, refactors, tooling), the format the website
+reads, the translations — live in the skill `.claude/skills/changelog/`, which is
+corrected every time the author remarks on an entry. A pull request with nothing
+visible adds no entry.
 
 ## Versioning and releases
 
