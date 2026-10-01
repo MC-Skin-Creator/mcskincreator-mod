@@ -92,6 +92,8 @@ mod.mc_releases = ["1.21.9", "1.21.10"]
 deps.fabric_api = "0.138.4+1.21.10"
 
 ["1.21.11"]
+# Run in a real game: published as a beta rather than an alpha.
+mod.release_type = "beta"
 # Compatibility range written into fabric.mod.json
 mod.mc_compat = "1.21.11"
 # Releases to mark compatible when publishing
@@ -192,6 +194,8 @@ deps.neoforge = "26.2.0.88"
 deps.neoforge_compat = "[26.2.0.88,)"
 
 ["26.3.x-neoforge"]
+# Run in a real game: published as a beta rather than an alpha.
+mod.release_type = "beta"
 # NeoForge has no stable 26.3 build yet; this is its latest beta.
 mod.mc_compat = "[26.3,26.4)"
 mod.mc_releases = ["26.3"]
@@ -330,6 +334,8 @@ loomx.loom_unobf_plugin = "org.quiltmc.loom"
 # Forge builds are each line's recommended one, the one modpacks pin.
 
 ["1.20.1-forge"]
+# Run in a real game: published as a beta rather than an alpha.
+mod.release_type = "beta"
 mod.mc_compat = "[1.20.1]"
 mod.mc_releases = ["1.20.1"]
 
