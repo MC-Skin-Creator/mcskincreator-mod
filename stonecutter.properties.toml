@@ -9,6 +9,11 @@ mod.version = "0.1.0"
 
 deps.fabric_loader = "0.19.3"
 
+# The lowest Quilt Loader the Quilt jars are built and declared against: 0.30 is the
+# first that treats every game version after 25 as unobfuscated, which the 26.x
+# targets need.
+deps.quilt_loader = "0.30.1"
+
 # One JUnit line serves every target: the 5.14 line runs on Java 21 and on Java 25
 # alike, so neither table below has to carry its own. The version pins the engine,
 # the parameterised runner and the launcher together, through the JUnit BOM.
@@ -96,3 +101,53 @@ mod.mc_releases = ["26.3"]
 
 deps.neoforge = "26.3.0.36-beta"
 deps.neoforge_compat = "[26.3.0.36-beta,)"
+
+# Quilt targets: the same game versions, built by Quilt Loom. mod.mc_compat uses
+# quilt.mod.json's syntax, where "=" is exact and "~26.1" is the whole 26.1 line.
+#
+# loom-back-compat puts a Loom on every node's build classpath before its script
+# runs. These three lines make that Loom Quilt's on the Quilt nodes: Quilt Loom keeps
+# Fabric Loom's package names, so the two cannot sit on one classpath. Both plugin
+# lines name the plugin's marker, the only coordinate Quilt publishes;
+# build.quilt.gradle.kts then picks the remapping or the unobfuscated variant from
+# the same jar.
+
+["1.21.10-quilt"]
+mod.mc_compat = "=1.21.10"
+mod.mc_releases = ["1.21.10"]
+
+loomx.loom_version = "1.15.1"
+loomx.loom_remap_plugin = "org.quiltmc.loom"
+loomx.loom_unobf_plugin = "org.quiltmc.loom"
+
+["1.21.11-quilt"]
+mod.mc_compat = "=1.21.11"
+mod.mc_releases = ["1.21.11"]
+
+loomx.loom_version = "1.15.1"
+loomx.loom_remap_plugin = "org.quiltmc.loom"
+loomx.loom_unobf_plugin = "org.quiltmc.loom"
+
+["26.1.x-quilt"]
+mod.mc_compat = "~26.1"
+mod.mc_releases = ["26.1", "26.1.1", "26.1.2"]
+
+loomx.loom_version = "1.15.1"
+loomx.loom_remap_plugin = "org.quiltmc.loom"
+loomx.loom_unobf_plugin = "org.quiltmc.loom"
+
+["26.2.x-quilt"]
+mod.mc_compat = "~26.2"
+mod.mc_releases = ["26.2"]
+
+loomx.loom_version = "1.15.1"
+loomx.loom_remap_plugin = "org.quiltmc.loom"
+loomx.loom_unobf_plugin = "org.quiltmc.loom"
+
+["26.3.x-quilt"]
+mod.mc_compat = "~26.3"
+mod.mc_releases = ["26.3"]
+
+loomx.loom_version = "1.15.1"
+loomx.loom_remap_plugin = "org.quiltmc.loom"
+loomx.loom_unobf_plugin = "org.quiltmc.loom"

@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "quilt_loader": {
+    "group": "${group}",
+    "id": "${id}",
+    "version": "${version}",
+    "metadata": {
+      "name": "${name}",
+      "description": "Build and edit your Minecraft skin from inside the game.",
+      "contributors": {
+        "clixmods": "Owner"
+      },
+      "contact": {
+        "homepage": "https://github.com/MC-Skin-Creator",
+        "sources": "https://github.com/MC-Skin-Creator/mcskincreator-mod",
+        "issues": "https://github.com/MC-Skin-Creator/mcskincreator-mod/issues"
+      },
+      "license": "LicenseRef-Proprietary-SourceAvailable",
+      "icon": "assets/mcskincreator/icon.png"
+    },
+    ${intermediate_mappings}
+    "entrypoints": {
+      "client": "fr.clixmods.mcsc.mod.MCSkinCreatorClient"
+    },
+    "depends": [
+      {
+        "id": "quilt_loader",
+        "versions": ">=${loader}"
+      },
+      {
+        "id": "minecraft",
+        "versions": "${minecraft}"
+      },
+      {
+        "id": "java",
+        "versions": ">=${java}"
+      }
+    ]
+  },
+  "minecraft": {
+    "environment": "client"
+  },
+  "mixin": [
+    "mcskincreator.mixins.json",
+    "mcskincreator.quilt.mixins.json"
+  ]
+}

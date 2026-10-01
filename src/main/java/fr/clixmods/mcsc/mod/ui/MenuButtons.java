@@ -7,19 +7,20 @@
  */
 package fr.clixmods.mcsc.mod.ui;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
 //? if fabric {
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
-//?} else {
-/*import java.util.ArrayList;
-import java.util.List;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.events.GuiEventListener;
-import net.neoforged.neoforge.client.event.ScreenEvent;
+//?} elif neoforge {
+/*import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.common.NeoForge;
 *///?}
 
@@ -28,8 +29,10 @@ import net.neoforged.neoforge.common.NeoForge;
  *
  * <p>This and the entry point are the only places that know which loader runs the
  * mod: each loader has its own event for "a screen just laid out its widgets", and
- * its own way of adding one to it. Past that, {@link SkinPanel} does the same thing
- * on both.
+ * its own way of adding one to it. Quilt has none - QSL, which had one, stopped
+ * following game versions at 1.21.1 - so on Quilt the event is
+ * {@link fr.clixmods.mcsc.mod.mixin.ScreenMixin}, which calls {@link #afterInit}.
+ * Past that, {@link SkinPanel} does the same thing on all three.
  */
 public final class MenuButtons {
     private MenuButtons() {
@@ -42,33 +45,49 @@ public final class MenuButtons {
                 SkinPanel.addTo(client, screen, ScreenCompat.widgets(screen), scaledWidth, scaledHeight);
             }
         });
-        //?} else {
+        //?} elif quilt {
+        /*// Nothing to register: the mixin calls afterInit on every screen.
+        *///?} else {
         /*NeoForge.EVENT_BUS.addListener((ScreenEvent.Init.Post event) -> {
             Screen screen = event.getScreen();
             if (isMenu(screen)) {
-                SkinPanel.addTo(Minecraft.getInstance(), screen, widgets(event), screen.width, screen.height);
+                SkinPanel.addTo(Minecraft.getInstance(), screen, widgets(event.getListenersList(), event::addListener),
+                        screen.width, screen.height);
             }
         });
         *///?}
+    }
+
+    /**
+     * Called by {@link fr.clixmods.mcsc.mod.mixin.ScreenMixin} once {@code screen} has
+     * laid out its widgets, where Fabric and NeoForge fire their event. {@code add}
+     * puts a widget on the screen. Compiled everywhere because the mixin is, and only
+     * ever called on Quilt, the one loader that applies it.
+     */
+    public static void afterInit(Screen screen, Consumer<AbstractWidget> add) {
+        if (isMenu(screen)) {
+            SkinPanel.addTo(Minecraft.getInstance(), screen, widgets(screen.children(), add),
+                    screen.width, screen.height);
+        }
     }
 
     private static boolean isMenu(Screen screen) {
         return screen instanceof TitleScreen || screen instanceof PauseScreen;
     }
 
-    //? if neoforge {
-    /*/^*
+    /**
      * The screen's widgets as the list {@link SkinPanel} reads and adds to.
      *
      * <p>Fabric hands over a live list whose {@code add} puts a widget on the screen.
-     * NeoForge hands over a read-only view and a separate {@code addListener}, so this
-     * copies the view and routes {@code add} to the event: the copy's constructor
-     * does not go through {@code add}, which is what keeps the widgets already there
-     * from being added twice.
-     ^/
-    private static List<AbstractWidget> widgets(ScreenEvent.Init.Post event) {
+     * NeoForge hands over a read-only view and a separate {@code addListener}, and on
+     * Quilt the mixin has the screen's own lists, so this copies the widgets already
+     * there and routes {@code add} to {@code put}: the copy's constructor does not go
+     * through {@code add}, which is what keeps those widgets from being added twice.
+     */
+    private static List<AbstractWidget> widgets(Iterable<? extends GuiEventListener> listeners,
+                                                Consumer<AbstractWidget> put) {
         List<AbstractWidget> existing = new ArrayList<>();
-        for (GuiEventListener listener : event.getListenersList()) {
+        for (GuiEventListener listener : listeners) {
             if (listener instanceof AbstractWidget widget) {
                 existing.add(widget);
             }
@@ -76,10 +95,9 @@ public final class MenuButtons {
         return new ArrayList<>(existing) {
             @Override
             public boolean add(AbstractWidget widget) {
-                event.addListener(widget);
+                put.accept(widget);
                 return super.add(widget);
             }
         };
     }
-    *///?}
 }

@@ -100,7 +100,7 @@ and write one to a *file*, but has no call that hands back the bytes — so `ski
 encodes the raw shape. Sixty lines of well-specified format beat a temporary file
 between two buffers already in memory.
 
-## 2. Loaders: Fabric, then NeoForge
+## 2. Loaders: Fabric, then NeoForge, then Quilt
 
 Fabric first: light, follows game versions within days, and fits a client-side mod
 that is mostly GUI plus network calls.
@@ -111,6 +111,29 @@ that adds the menu entry - so a second loader is a second build script and three
 small `//? if fabric` branches, not a common module and a platform module per
 loader. Every game version is built for both, from the one source tree. What it
 costs is the CI matrix, which doubles.
+
+Quilt came third, the same way, as a native target rather than as "the Fabric jar
+also runs there". Quilt Loader does run Fabric mods, but a Quilt player would then
+need the Fabric API for one screen event, and the mod would only be on Quilt by way of
+Fabric. So each game version has a Quilt node, built by Quilt Loom against Quilt
+Loader alone, with its own `quilt.mod.json` and its own jar. Two things shaped it:
+
+- **QSL has no build past 1.21.1** (checked on maven.quiltmc.org), so there is no
+  Quilt screen event to use on any supported version. Quilt Loader itself has no
+  client entrypoint interface of its own either: it ships Fabric's
+  `ClientModInitializer` and calls the `client` entrypoint itself, which is why the
+  entry point is shared with Fabric. The screen event is a fourth mixin,
+  `ScreenMixin`, applied on Quilt alone - the bar for a mixin is "no public way in",
+  and on Quilt without QSL there is none.
+- **Quilt Loom keeps Fabric Loom's package names**, and loom-back-compat puts a Loom
+  on every node's classpath, so the Quilt tables tell it to put Quilt Loom there
+  instead (`loomx.*` in `stonecutter.properties.toml`) and `build.quilt.gradle.kts`
+  applies it by hand. Quilt Loom 1.15.1 has the same remapping and unobfuscated
+  variants as Fabric Loom.
+
+Quilt Loader `0.30.1` is the floor: 0.30.0 is the release that treats every game after
+25 as unobfuscated, read in its changelog. What it costs is the CI matrix, which goes
+from ten jobs to fifteen.
 
 ## 3. Game versions: 1.21.10 to 26.3, through Stonecutter
 
