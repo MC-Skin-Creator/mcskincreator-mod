@@ -95,6 +95,10 @@ val obfuscatedRuntime = sc.current.parsed < "1.20.5"
 val refmap = "mcskincreator.refmap.json"
 // The task whose jar is the one that ships: jarJar's, renamed where Forge needs it.
 val shippedJar: String = if (obfuscatedRuntime) "renameJarJar" else "jarJar"
+// Forge before 1.20.4 reads a mod's resources - its translations among them - only if
+// the jar carries a pack.mcmeta, and logs "Missing metadata in pack" otherwise; from
+// 1.20.4 Forge writes that metadata itself. Declared in the TOML where it is needed.
+val packFormat = findProperty("mod.pack_format")?.toString()
 
 dependencies {
     // The game and Forge together. implementation also puts them on the test
@@ -183,6 +187,16 @@ tasks {
         // config stands in for an event Forge already has.
         exclude("fabric.mod.json", "META-INF/neoforge.mods.toml", "quilt.mod.json",
                 "mcskincreator.quilt.mixins.json")
+
+        if (packFormat != null) {
+            val description: String = sc.properties["mod.name"]
+            inputs.property("packFormat", packFormat)
+            val output = destinationDir
+            doLast {
+                output.resolve("pack.mcmeta").writeText(
+                    "{\"pack\": {\"description\": \"$description\", \"pack_format\": $packFormat}}\n")
+            }
+        }
     }
 
     jar {
