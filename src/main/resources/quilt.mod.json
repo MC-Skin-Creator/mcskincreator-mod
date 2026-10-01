@@ -15,7 +15,11 @@
         "sources": "https://github.com/MC-Skin-Creator/mcskincreator-mod",
         "issues": "https://github.com/MC-Skin-Creator/mcskincreator-mod/issues"
       },
-      "license": "LicenseRef-Proprietary-SourceAvailable",
+      "license": {
+        "name": "MC Skin Creator - Proprietary, source-available license",
+        "id": "LicenseRef-Proprietary-SourceAvailable",
+        "url": "https://github.com/MC-Skin-Creator/mcskincreator-mod/blob/main/LICENSE"
+      },
       "icon": "assets/mcskincreator/icon.png"
     },
     ${intermediate_mappings}
