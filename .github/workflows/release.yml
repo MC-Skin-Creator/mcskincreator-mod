@@ -247,7 +247,7 @@ jobs:
   # Stable releases only: the -dev builds are untested previews and stay on GitHub.
   # One Modrinth and CurseForge version per jar, every target included, each marked
   # with the game releases its TOML table lists and with its release type there -
-  # alpha until it has run in a real game on its loader. Skipped, not failed, while
+  # beta unless its table says otherwise. Skipped, not failed, while
   # neither the MODRINTH_TOKEN nor the CURSEFORGE_TOKEN secret exists.
   publish:
     needs: [version, release]
