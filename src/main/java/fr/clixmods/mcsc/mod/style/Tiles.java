@@ -10,9 +10,10 @@ package fr.clixmods.mcsc.mod.style;
 import com.mojang.blaze3d.platform.NativeImage;
 
 import fr.clixmods.mcsc.mod.MCSkinCreatorClient;
+import fr.clixmods.mcsc.mod.skin.ImagePixels;
+import fr.clixmods.mcsc.mod.skin.ManagedTexture;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
 
 /**
@@ -32,7 +33,7 @@ public final class Tiles {
     public static final int SIZE = 64;
 
     private static final Identifier GRAIN =
-            Identifier.fromNamespaceAndPath(MCSkinCreatorClient.MOD_ID, "generated/grain");
+            MCSkinCreatorClient.id("generated/grain");
 
     private static boolean registered;
 
@@ -54,10 +55,10 @@ public final class Tiles {
         NativeImage image = new NativeImage(SIZE, SIZE, false);
         for (int y = 0; y < SIZE; y++) {
             for (int x = 0; x < SIZE; x++) {
-                image.setPixel(x, y, grey(shade(x, y)));
+                ImagePixels.set(image, x, y, grey(shade(x, y)));
             }
         }
-        client.getTextureManager().register(GRAIN, new DynamicTexture(() -> "mcsc grain", image));
+        client.getTextureManager().register(GRAIN, ManagedTexture.dynamic("mcsc grain", image));
     }
 
     /**

@@ -23,7 +23,7 @@ import fr.clixmods.mcsc.mod.catalog.CatalogItem;
 import fr.clixmods.mcsc.mod.catalog.CatalogText;
 import fr.clixmods.mcsc.mod.project.Layer;
 import fr.clixmods.mcsc.mod.project.SkinProject;
-import net.minecraft.world.entity.player.PlayerModelType;
+import fr.clixmods.mcsc.mod.skin.SkinModel;
 
 /**
  * What a stack composes to, which is the one thing the player looks at and the one
@@ -184,7 +184,7 @@ class CompositeTest {
 
             assertArrayEquals(new int[] {255, 0, 0, 255}, composed());
 
-            this.project.setModel(PlayerModelType.SLIM);
+            this.project.setModel(SkinModel.SLIM);
             assertArrayEquals(new int[] {0, 255, 0, 255}, composed());
         }
     }

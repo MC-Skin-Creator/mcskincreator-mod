@@ -15,7 +15,7 @@ import fr.clixmods.mcsc.mod.catalog.Catalog;
 import fr.clixmods.mcsc.mod.catalog.CatalogCategory;
 import fr.clixmods.mcsc.mod.catalog.CatalogItem;
 import fr.clixmods.mcsc.mod.catalog.CatalogModel;
-import net.minecraft.world.entity.player.PlayerModelType;
+import fr.clixmods.mcsc.mod.skin.SkinModel;
 
 /**
  * The project being edited: an ordered stack of layers and the model they are cut
@@ -38,7 +38,7 @@ public final class SkinProject {
     public static final String DEFAULT_SKIN = "skin-uni";
 
     private final List<Layer> layers = new ArrayList<>();
-    private PlayerModelType model = PlayerModelType.WIDE;
+    private SkinModel model = SkinModel.WIDE;
     private Layer selected;
     private int revision;
 
@@ -47,15 +47,15 @@ public final class SkinProject {
         return Collections.unmodifiableList(this.layers);
     }
 
-    public PlayerModelType model() {
+    public SkinModel model() {
         return this.model;
     }
 
     public boolean isSlim() {
-        return this.model == PlayerModelType.SLIM;
+        return this.model == SkinModel.SLIM;
     }
 
-    public void setModel(PlayerModelType model) {
+    public void setModel(SkinModel model) {
         this.model = model;
         touch();
     }
@@ -147,7 +147,7 @@ public final class SkinProject {
         if (model.kind() == CatalogModel.Kind.MODEL) {
             this.layers.clear();
             this.selected = null;
-            this.model = model.slim() ? PlayerModelType.SLIM : PlayerModelType.WIDE;
+            this.model = model.slim() ? SkinModel.SLIM : SkinModel.WIDE;
         }
 
         int stacked = 0;
@@ -182,7 +182,7 @@ public final class SkinProject {
     public void startFresh(Catalog catalog, String languageCode) {
         this.layers.clear();
         this.selected = null;
-        this.model = PlayerModelType.WIDE;
+        this.model = SkinModel.WIDE;
         CatalogCategory fallback = null;
         for (CatalogCategory category : catalog.categories()) {
             if (!category.single() || category.items().isEmpty()) {
@@ -306,6 +306,6 @@ public final class SkinProject {
     }
 
     /** An immutable copy of the whole project. */
-    public record Snapshot(List<Layer> layers, PlayerModelType model, int selectedIndex) {
+    public record Snapshot(List<Layer> layers, SkinModel model, int selectedIndex) {
     }
 }

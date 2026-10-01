@@ -5,12 +5,13 @@
  * Proprietary, source-available. See the LICENSE file at the root of this
  * repository.
  */
+//~ figure
 package fr.clixmods.mcsc.mod.ui;
 
 import java.util.List;
 
 import net.minecraft.client.gui.components.Renderable;
-import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import org.joml.Quaternionf;
@@ -166,6 +167,10 @@ public interface Canvas {
      * animation, its overlay layer and its slim or classic proportions. The mod supplies
      * a pose and a skin; none of the rendering is its own.
      *
+     * <p>Before 1.21.2 there are no render states: the state is the mod's own
+     * {@code FigureState}, the figure marker at the top of this file is what swaps the
+     * type, and the canvas draws the player model from it itself.
+     *
      * @param scale               pixels per block, so the zoom
      * @param translation         offset in blocks, applied <em>before</em> the rotation
      *                            and so unaffected by it: positive x is right on screen
@@ -175,7 +180,7 @@ public interface Canvas {
      * @param rotation            the model's own orientation, flip included
      * @param overrideCameraAngle where the light comes from — vanilla passes the tilt
      */
-    void entity(EntityRenderState state, float scale, Vector3f translation,
+    void entity(AvatarRenderState state, float scale, Vector3f translation,
                 Quaternionf rotation, Quaternionf overrideCameraAngle,
                 int x, int y, int width, int height);
 

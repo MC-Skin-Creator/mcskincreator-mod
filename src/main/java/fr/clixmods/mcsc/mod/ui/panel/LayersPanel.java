@@ -21,6 +21,7 @@ import fr.clixmods.mcsc.mod.project.History;
 import fr.clixmods.mcsc.mod.project.Layer;
 import fr.clixmods.mcsc.mod.project.SkinProject;
 import fr.clixmods.mcsc.mod.skin.CategorySprites;
+import fr.clixmods.mcsc.mod.skin.SkinModel;
 import fr.clixmods.mcsc.mod.style.Metrics;
 import fr.clixmods.mcsc.mod.style.Palette;
 import fr.clixmods.mcsc.mod.style.Surface;
@@ -35,7 +36,6 @@ import fr.clixmods.mcsc.mod.ui.widget.Dropdown;
 import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
 import fr.clixmods.mcsc.mod.ui.widget.Slider;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.player.PlayerModelType;
 
 /**
  * The right column: the stack, grouped by region, with the selected layer's settings
@@ -159,8 +159,8 @@ public class LayersPanel extends Panel {
         // the pair: one drawn as a black box and the other as an open frame, with no
         // body under either to make sense of them. It is one control that says what the
         // model is.
-        Dropdown<PlayerModelType> model = new Dropdown<>(
-                List.of(PlayerModelType.WIDE, PlayerModelType.SLIM),
+        Dropdown<SkinModel> model = new Dropdown<>(
+                List.of(SkinModel.WIDE, SkinModel.SLIM),
                 kind -> Component.translatable(modelLabelKey(kind)),
                 this.project::model,
                 kind -> {
@@ -199,8 +199,8 @@ public class LayersPanel extends Panel {
         }
     }
 
-    private static String modelLabelKey(PlayerModelType kind) {
-        return kind == PlayerModelType.SLIM
+    private static String modelLabelKey(SkinModel kind) {
+        return kind == SkinModel.SLIM
                 ? "model.mcskincreator.slim"
                 : "model.mcskincreator.classic";
     }

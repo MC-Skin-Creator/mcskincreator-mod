@@ -32,17 +32,62 @@ jobs:
       fail-fast: false
       matrix:
         minecraft:
+          - '1.20.1'
+          - '1.20.2'
+          - '1.20.4'
+          - '1.20.6'
+          - '1.21.1'
+          - '1.21.3'
+          - '1.21.4'
+          - '1.21.5'
+          - '1.21.8'
           - '1.21.10'
           - '1.21.11'
           - '26.1.x'
           - '26.2.x'
           - '26.3.x'
           # The same game versions on NeoForge: the same sources, another build script.
+          - '1.20.6-neoforge'
+          - '1.21.1-neoforge'
+          - '1.21.3-neoforge'
+          - '1.21.4-neoforge'
+          - '1.21.5-neoforge'
+          - '1.21.8-neoforge'
           - '1.21.10-neoforge'
           - '1.21.11-neoforge'
           - '26.1.x-neoforge'
           - '26.2.x-neoforge'
           - '26.3.x-neoforge'
+          # And on Quilt, built by Quilt Loom against Quilt Loader alone.
+          - '1.20.1-quilt'
+          - '1.20.2-quilt'
+          - '1.20.4-quilt'
+          - '1.20.6-quilt'
+          - '1.21.1-quilt'
+          - '1.21.3-quilt'
+          - '1.21.4-quilt'
+          - '1.21.5-quilt'
+          - '1.21.8-quilt'
+          - '1.21.10-quilt'
+          - '1.21.11-quilt'
+          - '26.1.x-quilt'
+          - '26.2.x-quilt'
+          - '26.3.x-quilt'
+          # And on Forge, through ForgeGradle.
+          - '1.20.1-forge'
+          - '1.20.2-forge'
+          - '1.20.4-forge'
+          - '1.20.6-forge'
+          - '1.21.1-forge'
+          - '1.21.3-forge'
+          - '1.21.4-forge'
+          - '1.21.5-forge'
+          - '1.21.8-forge'
+          - '1.21.10-forge'
+          - '1.21.11-forge'
+          - '26.1.x-forge'
+          - '26.2.x-forge'
+          - '26.3.x-forge'
 
     name: build ${{ matrix.minecraft }}
     runs-on: ubuntu-latest
@@ -55,9 +100,11 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          # Both are needed: Minecraft 1.21.x runs on Java 21, 26.x on Java 25.
+          # All three are needed: Minecraft 1.20.1 runs on Java 17, 1.21.x on Java 21,
+          # 26.x on Java 25.
           # The last entry becomes JAVA_HOME and so runs Gradle itself.
           java-version: |
+            17
             25
             21
 
@@ -67,16 +114,24 @@ jobs:
           # Read-only is the default off the default branch, which would mean the
           # cache is never written here: main only runs on a release.
           cache-read-only: false
+          # Drops what this build did not use before the cache is saved, failed builds
+          # included - the default only cleans after a success, and a red job would
+          # otherwise save everything it had downloaded.
+          cache-cleanup: always
 
       - name: Build
         # Points Gradle at the JDK installed above rather than downloading another one.
         # build compiles and runs the tests; buildAndCollect only copies the jar to
         # build/libs/<mod version>/, which is what gets uploaded below, so both are
         # asked for rather than relying on one to imply the other.
+        # --configure-on-demand configures this one target and the root alone. Without
+        # it Gradle configures every node, and configuring a node sets up its game:
+        # each job prepared all fourteen Minecraft versions on four loaders - minutes
+        # of work, and a cache past GitHub's 10 GB - to compile one of them.
         run: >-
           ./gradlew ":${{ matrix.minecraft }}:build" ":${{ matrix.minecraft }}:buildAndCollect"
-          --stacktrace
-          -Porg.gradle.java.installations.fromEnv=JAVA_HOME_21_X64,JAVA_HOME_25_X64
+          --stacktrace --configure-on-demand
+          -Porg.gradle.java.installations.fromEnv=JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
           -Pgpr.user=${{ github.actor }} -Pgpr.token=${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload test report

@@ -8,18 +8,24 @@
 package fr.clixmods.mcsc.mod;
 
 import java.nio.file.Path;
+import java.util.Optional;
 
 //? if fabric {
 import net.fabricmc.loader.api.FabricLoader;
-//?} else {
+//?} elif quilt {
+/*import org.quiltmc.loader.api.QuiltLoader;
+*///?} elif neoforge {
 /*import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.FMLPaths;
+*///?} else {
+/*import net.minecraftforge.fml.ModList;
+import net.minecraftforge.fml.loading.FMLPaths;
 *///?}
 
 /**
  * What the mod asks of the loader it runs on, outside of hooking into the game.
  *
- * <p>Fabric and NeoForge answer the same three questions under different names, so
+ * <p>Fabric, Quilt, NeoForge and Forge answer the same questions under different names, so
  * the answers are read here and nowhere else: the rest of the mod never names a
  * loader. The menu entry and the entry point are the only other loader-facing code,
  * because they are where each loader hands the mod control.
@@ -32,7 +38,9 @@ public final class Platform {
     public static Path configDir() {
         //? if fabric {
         return FabricLoader.getInstance().getConfigDir();
-        //?} else {
+        //?} elif quilt {
+        /*return QuiltLoader.getConfigDir();
+        *///?} else {
         /*return FMLPaths.CONFIGDIR.get();
         *///?}
     }
@@ -41,9 +49,25 @@ public final class Platform {
     public static Path gameDir() {
         //? if fabric {
         return FabricLoader.getInstance().getGameDir();
-        //?} else {
+        //?} elif quilt {
+        /*return QuiltLoader.getGameDir();
+        *///?} else {
         /*return FMLPaths.GAMEDIR.get();
         *///?}
+    }
+
+    /**
+     * The root of the mod's own files, on the one loader that does not hand them to the
+     * game itself. Quilt Loader registers no mod resources - QSL or the Fabric API did -
+     * so on Quilt the mod adds its translations and textures as a pack of its own, see
+     * {@code mixin/ResourceManagerMixin}. The other loaders do it already: empty there.
+     */
+    public static Optional<Path> unregisteredResources() {
+        //? if quilt {
+        /*return QuiltLoader.getModContainer(MCSkinCreatorClient.MOD_ID).map(container -> container.rootPath());
+        *///?} else {
+        return Optional.empty();
+        //?}
     }
 
     /** The mod version as the loader read it from the mod's metadata file. */
@@ -53,7 +77,16 @@ public final class Platform {
                 .getModContainer(MCSkinCreatorClient.MOD_ID)
                 .map(container -> container.getMetadata().getVersion().getFriendlyString())
                 .orElse("unknown");
-        //?} else {
+        //?} elif quilt {
+        /*// Quilt throws rather than answer outside a running game - in the tests.
+        try {
+            return QuiltLoader.getModContainer(MCSkinCreatorClient.MOD_ID)
+                    .map(container -> container.metadata().version().raw())
+                    .orElse("unknown");
+        } catch (RuntimeException notLoaded) {
+            return "unknown";
+        }
+        *///?} elif neoforge || <26.1 {
         /*// Null outside a running game - in the tests - where Fabric still answers.
         ModList mods = ModList.get();
         if (mods == null) {
@@ -62,6 +95,18 @@ public final class Platform {
         return mods.getModContainerById(MCSkinCreatorClient.MOD_ID)
                 .map(container -> container.getModInfo().getVersion().toString())
                 .orElse("unknown");
+        *///?} else {
+        /*// Forge from 26.1: the same question, asked of a ModList made static. Outside a
+        // running game - in the tests - its static initialiser fails instead of
+        // answering null, and every later call fails to load the class: both are
+        // LinkageErrors, and neither can happen once the game has loaded the mod.
+        try {
+            return ModList.getModContainerById(MCSkinCreatorClient.MOD_ID)
+                    .map(container -> container.getModInfo().getVersion().toString())
+                    .orElse("unknown");
+        } catch (LinkageError notLoaded) {
+            return "unknown";
+        }
         *///?}
     }
 }

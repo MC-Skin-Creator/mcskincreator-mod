@@ -10,14 +10,19 @@ package fr.clixmods.mcsc.mod.ui;
 import java.util.List;
 import java.util.Optional;
 
-import com.mojang.authlib.GameProfile;
 
 import fr.clixmods.mcsc.mod.MCSkinCreatorClient;
 import fr.clixmods.mcsc.mod.skin.AppliedSkin;
+import fr.clixmods.mcsc.mod.skin.GameSkins;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
+//? if >=1.20.2 {
 import net.minecraft.client.gui.components.SpriteIconButton;
+//?} else {
+/*import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
+*///?}
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
@@ -43,7 +48,7 @@ final class SkinPanel {
     private static final int MARGIN = 8;
 
     /** The mark, a 32 pixel sprite in the game's GUI atlas, drawn at 16 like the vanilla icons. */
-    private static final Identifier ICON = Identifier.fromNamespaceAndPath(MCSkinCreatorClient.MOD_ID, "icon");
+    private static final Identifier ICON = MCSkinCreatorClient.id("icon");
     private static final int ICON_SIZE = 16;
 
     private static final int PANEL_HEIGHT = NAME_HEIGHT + GAP + SKIN_HEIGHT + GAP + BUTTON_HEIGHT;
@@ -125,41 +130,81 @@ final class SkinPanel {
 
     private static Button openButton(Minecraft client, Screen screen, int x, int y, int width,
                                      boolean iconOnly) {
+        Component label = Component.translatable("menu.mcskincreator.open");
+        Button.OnPress open = ignored -> ScreenCompat.setScreen(client, new SkinCreatorScreen(screen));
+        //? if >=1.20.2 {
         Button button = SpriteIconButton
-                .builder(Component.translatable("menu.mcskincreator.open"),
-                        ignored -> ScreenCompat.setScreen(client, new SkinCreatorScreen(screen)), iconOnly)
+                .builder(label, open, iconOnly)
                 .width(width)
                 .sprite(ICON, ICON_SIZE, ICON_SIZE)
                 .build();
         button.setPosition(x, y);
         return button;
+        //?} else {
+        /*return new IconButton(x, y, width, label, open, iconOnly);
+        *///?}
     }
+
+    //? if <1.20.2 {
+    /*// 1.20.1 has neither SpriteIconButton nor the sprite atlas it reads the icon from:
+    // the icon is the same file, drawn as a plain texture over a vanilla button. The
+    // wide button says its label, as SpriteIconButton's does beside its icon; the compact
+    // one draws the icon alone and keeps the label for narration and the tooltip.
+    private static final class IconButton extends Button {
+        private static final Identifier ICON_TEXTURE = MCSkinCreatorClient.id("textures/gui/sprites/icon.png");
+
+        private final boolean iconOnly;
+
+        IconButton(int x, int y, int width, Component label, OnPress open, boolean iconOnly) {
+            super(x, y, width, BUTTON_HEIGHT, label, open, DEFAULT_NARRATION);
+            this.iconOnly = iconOnly;
+        }
+
+        @Override
+        protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
+            super.renderWidget(graphics, mouseX, mouseY, delta);
+            if (this.iconOnly) {
+                graphics.blit(ICON_TEXTURE, getX() + (getWidth() - ICON_SIZE) / 2,
+                        getY() + (getHeight() - ICON_SIZE) / 2, 0, 0,
+                        ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE);
+            }
+        }
+
+        @Override
+        public void renderString(GuiGraphics graphics, Font font, int color) {
+            if (!this.iconOnly) {
+                super.renderString(graphics, font, color);
+            }
+        }
+    }
+    *///?}
 
     private static StringWidget playerName(Minecraft client, int x, int y) {
         // A StringWidget draws at its own left edge, so it is sized to the name it
         // measures and centred by hand over the panel. The clamp is what keeps a
-        // sixteen-character name from running past the panel.
+        // sixteen-character name from running past the panel; 1.21.9 is where it
+        // appeared, and before it the widest such name still fits, 96 pixels in 120.
         StringWidget name = new StringWidget(Component.literal(client.getUser().getName()), client.font);
+        //? if >=1.21.9 {
         name.setMaxWidth(PANEL_WIDTH);
+        //?}
         name.setPosition(x + (PANEL_WIDTH - name.getWidth()) / 2, y);
         return name;
     }
 
     private static MenuFigure skinPreview(Minecraft client, int x, int y) {
-        // createLookup already falls back to the default skin and keeps polling
-        // until the real one is downloaded, so the panel fills in on its own and
-        // offline players get Steve or Alex instead of an empty box. The flag would
-        // demand a signed texture, which a locally applied skin will never carry.
+        // The lookup already falls back to the default skin and keeps polling until
+        // the real one is downloaded, so the panel fills in on its own and offline
+        // players get Steve or Alex instead of an empty box. It asks for an unsigned
+        // texture, since a locally applied skin will never carry a signature.
         //
         // What it resolves, though, is the account's skin, and a running client's idea
         // of that is the profile it was handed on joining: after an upload this panel
         // would go on showing the old skin until the game restarts. Wrapping the lookup
         // puts the applied skin here too - the mixin cannot, since a menu has no player
         // entity to draw from.
-        GameProfile profile = client.getGameProfile();
         MenuFigure preview = new MenuFigure(SKIN_WIDTH, SKIN_HEIGHT, client.font,
-                AppliedSkin.over(profile.id(),
-                        client.getSkinManager().createLookup(profile, false)));
+                AppliedSkin.over(GameSkins.localId(client), GameSkins.localLookup(client)));
         preview.setPosition(x, y);
         preview.setTooltip(Tooltip.create(Component.translatable("gui.mcskincreator.skin_preview")));
         return preview;

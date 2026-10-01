@@ -138,7 +138,7 @@ public final class EditorPreview {
     }
 
     private static final net.minecraft.resources.Identifier MARK_TEXTURE =
-            net.minecraft.resources.Identifier.fromNamespaceAndPath("mcskincreator", "preview/icon");
+            fr.clixmods.mcsc.mod.MCSkinCreatorClient.id("preview/icon");
     private static final BufferedImage MARK_IMAGE = readMark();
 
     private static BufferedImage readMark() {
