@@ -323,8 +323,107 @@ jobs:
           changelog: |
             See the full notes on GitHub: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.version }}
 
+      # Quilt: one version per Minecraft version as well, from the -quilt jars, which
+      # neither the Fabric nor the NeoForge globs match. The jars ask for Quilt Loader
+      # alone, so there is no dependency line. Alpha until a version has run in a real
+      # game on Quilt.
+
+      # Not yet run in a real game on Quilt.
+      - name: Publish to Modrinth and CurseForge (Quilt 1.21.10)
+        if: steps.version.outputs.release == 'true' && steps.version.outputs.channel == 'stable' && (env.MODRINTH_TOKEN != '' || env.CURSEFORGE_TOKEN != '')
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ env.MODRINTH_ID }}
+          modrinth-token: ${{ env.MODRINTH_TOKEN }}
+          curseforge-id: ${{ env.CURSEFORGE_ID }}
+          curseforge-token: ${{ env.CURSEFORGE_TOKEN }}
+          files: build/libs/${{ steps.version.outputs.version }}/*+mc1.21.10-quilt.jar
+          name: MC Skin Creator ${{ steps.version.outputs.version }} (Quilt 1.21.10)
+          version: ${{ steps.version.outputs.version }}+mc1.21.10-quilt
+          version-type: alpha
+          loaders: quilt
+          game-versions: 1.21.10
+          changelog: |
+            See the full notes on GitHub: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.version }}
+
+      # Not yet run in a real game on Quilt.
+      - name: Publish to Modrinth and CurseForge (Quilt 1.21.11)
+        if: steps.version.outputs.release == 'true' && steps.version.outputs.channel == 'stable' && (env.MODRINTH_TOKEN != '' || env.CURSEFORGE_TOKEN != '')
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ env.MODRINTH_ID }}
+          modrinth-token: ${{ env.MODRINTH_TOKEN }}
+          curseforge-id: ${{ env.CURSEFORGE_ID }}
+          curseforge-token: ${{ env.CURSEFORGE_TOKEN }}
+          files: build/libs/${{ steps.version.outputs.version }}/*+mc1.21.11-quilt.jar
+          name: MC Skin Creator ${{ steps.version.outputs.version }} (Quilt 1.21.11)
+          version: ${{ steps.version.outputs.version }}+mc1.21.11-quilt
+          version-type: alpha
+          loaders: quilt
+          game-versions: 1.21.11
+          changelog: |
+            See the full notes on GitHub: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.version }}
+
+      # Not yet run in a real game on Quilt.
+      # Built on 26.1.2, it runs on the whole 26.1 line.
+      - name: Publish to Modrinth and CurseForge (Quilt 26.1.2)
+        if: steps.version.outputs.release == 'true' && steps.version.outputs.channel == 'stable' && (env.MODRINTH_TOKEN != '' || env.CURSEFORGE_TOKEN != '')
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ env.MODRINTH_ID }}
+          modrinth-token: ${{ env.MODRINTH_TOKEN }}
+          curseforge-id: ${{ env.CURSEFORGE_ID }}
+          curseforge-token: ${{ env.CURSEFORGE_TOKEN }}
+          files: build/libs/${{ steps.version.outputs.version }}/*+mc26.1.2-quilt.jar
+          name: MC Skin Creator ${{ steps.version.outputs.version }} (Quilt 26.1.2)
+          version: ${{ steps.version.outputs.version }}+mc26.1.2-quilt
+          version-type: alpha
+          loaders: quilt
+          game-versions: |
+            26.1
+            26.1.1
+            26.1.2
+          changelog: |
+            See the full notes on GitHub: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.version }}
+
+      # Not yet run in a real game on Quilt.
+      - name: Publish to Modrinth and CurseForge (Quilt 26.2)
+        if: steps.version.outputs.release == 'true' && steps.version.outputs.channel == 'stable' && (env.MODRINTH_TOKEN != '' || env.CURSEFORGE_TOKEN != '')
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ env.MODRINTH_ID }}
+          modrinth-token: ${{ env.MODRINTH_TOKEN }}
+          curseforge-id: ${{ env.CURSEFORGE_ID }}
+          curseforge-token: ${{ env.CURSEFORGE_TOKEN }}
+          files: build/libs/${{ steps.version.outputs.version }}/*+mc26.2-quilt.jar
+          name: MC Skin Creator ${{ steps.version.outputs.version }} (Quilt 26.2)
+          version: ${{ steps.version.outputs.version }}+mc26.2-quilt
+          version-type: alpha
+          loaders: quilt
+          game-versions: 26.2
+          changelog: |
+            See the full notes on GitHub: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.version }}
+
+      # Not yet run in a real game on Quilt.
+      - name: Publish to Modrinth and CurseForge (Quilt 26.3)
+        if: steps.version.outputs.release == 'true' && steps.version.outputs.channel == 'stable' && (env.MODRINTH_TOKEN != '' || env.CURSEFORGE_TOKEN != '')
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ env.MODRINTH_ID }}
+          modrinth-token: ${{ env.MODRINTH_TOKEN }}
+          curseforge-id: ${{ env.CURSEFORGE_ID }}
+          curseforge-token: ${{ env.CURSEFORGE_TOKEN }}
+          files: build/libs/${{ steps.version.outputs.version }}/*+mc26.3-quilt.jar
+          name: MC Skin Creator ${{ steps.version.outputs.version }} (Quilt 26.3)
+          version: ${{ steps.version.outputs.version }}+mc26.3-quilt
+          version-type: alpha
+          loaders: quilt
+          game-versions: 26.3
+          changelog: |
+            See the full notes on GitHub: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.version }}
+
       # Forge: one version per Minecraft version again, from the -forge jars, which
-      # neither the Fabric nor the NeoForge globs match. Forge needs no other mod. All
+      # none of the Fabric, NeoForge or Quilt globs match. Forge needs no other mod. All
       # alpha until a version has run in a real game on Forge. Forge builds each 26.1
       # hotfix separately, so the 26.1 jar claims 26.1.2 alone.
 

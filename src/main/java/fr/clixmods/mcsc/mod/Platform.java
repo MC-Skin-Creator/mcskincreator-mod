@@ -11,7 +11,9 @@ import java.nio.file.Path;
 
 //? if fabric {
 import net.fabricmc.loader.api.FabricLoader;
-//?} elif neoforge {
+//?} elif quilt {
+/*import org.quiltmc.loader.api.QuiltLoader;
+*///?} elif neoforge {
 /*import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.FMLPaths;
 *///?} else {
@@ -22,7 +24,7 @@ import net.minecraftforge.fml.loading.FMLPaths;
 /**
  * What the mod asks of the loader it runs on, outside of hooking into the game.
  *
- * <p>Fabric, NeoForge and Forge answer the same three questions under different names, so
+ * <p>Fabric, Quilt, NeoForge and Forge answer the same three questions under different names, so
  * the answers are read here and nowhere else: the rest of the mod never names a
  * loader. The menu entry and the entry point are the only other loader-facing code,
  * because they are where each loader hands the mod control.
@@ -35,7 +37,9 @@ public final class Platform {
     public static Path configDir() {
         //? if fabric {
         return FabricLoader.getInstance().getConfigDir();
-        //?} else {
+        //?} elif quilt {
+        /*return QuiltLoader.getConfigDir();
+        *///?} else {
         /*return FMLPaths.CONFIGDIR.get();
         *///?}
     }
@@ -44,7 +48,9 @@ public final class Platform {
     public static Path gameDir() {
         //? if fabric {
         return FabricLoader.getInstance().getGameDir();
-        //?} else {
+        //?} elif quilt {
+        /*return QuiltLoader.getGameDir();
+        *///?} else {
         /*return FMLPaths.GAMEDIR.get();
         *///?}
     }
@@ -56,7 +62,16 @@ public final class Platform {
                 .getModContainer(MCSkinCreatorClient.MOD_ID)
                 .map(container -> container.getMetadata().getVersion().getFriendlyString())
                 .orElse("unknown");
-        //?} elif neoforge || <26.1 {
+        //?} elif quilt {
+        /*// Quilt throws rather than answer outside a running game - in the tests.
+        try {
+            return QuiltLoader.getModContainer(MCSkinCreatorClient.MOD_ID)
+                    .map(container -> container.metadata().version().raw())
+                    .orElse("unknown");
+        } catch (RuntimeException notLoaded) {
+            return "unknown";
+        }
+        *///?} elif neoforge || <26.1 {
         /*// Null outside a running game - in the tests - where Fabric still answers.
         ModList mods = ModList.get();
         if (mods == null) {

@@ -36,12 +36,12 @@ restating the diff line by line — a couple of sentences on the why is enough.
 
 ## What this is
 
-A Fabric, NeoForge and Forge **client-side** mod that brings the MC Skin Creator skin editor into
+A Fabric, Quilt, NeoForge and Forge **client-side** mod that brings the MC Skin Creator skin editor into
 Minecraft. There is no server side and no server entry point.
 
 | | |
 |---|---|
-| Loaders | Fabric, NeoForge, Forge — all three on every supported version, see **Loaders** |
+| Loaders | Fabric, Quilt, NeoForge, Forge — all four on every supported version, see **Loaders** |
 | Supported Minecraft versions | `1.21.10`, `1.21.11`, `26.1` (built on 26.1.2), `26.2`, `26.3` |
 | Active / default version | `1.21.11` |
 | Mappings | Official Mojang mappings on every target |
@@ -55,7 +55,7 @@ why the whole project is on Mojang mappings.
 
 ```
 src/main/java/fr/clixmods/mcsc/mod/
-├── MCSkinCreatorClient.java   the entry point on both loaders: logs on load, registers the menu buttons
+├── MCSkinCreatorClient.java   the entry point on every loader: logs on load, registers the menu buttons
 ├── Platform.java              the config folder, the game folder and the mod version, per loader
 ├── remote/                    the HTTP side of the site's /api/v1 contract
 ├── catalog/                   what the catalogue says: regions, categories, elements, crops,
@@ -70,9 +70,10 @@ src/main/java/fr/clixmods/mcsc/mod/
 │                               views borrow
 ├── account/                   the Mojang upload, and the only code that holds the session token;
 │                               also reads, without it, which skin the account wears
-├── mixin/                     the three mixins: the skin worn before Mojang propagates it,
+├── mixin/                     the four mixins: the skin worn before Mojang propagates it,
 │                               the character posed in the world for the in-game view,
-│                               and the HUD left undrawn while a world view is open
+│                               the HUD left undrawn while a world view is open,
+│                               and, on Quilt alone, the screen event the other loaders have
 ├── style/                     the design system: palette, metrics, the four materials, the grain
 └── ui/
     ├── Canvas.java            the drawing surface, as an interface: everything paints through it
@@ -132,6 +133,7 @@ version.
 | `stonecutter.properties.toml` | Every mod and per-version value: mod identity, Fabric Loader, Loom variant version, and one table per target |
 | `build.gradle.kts` | Applied to each Fabric target: Java level per version, Mojang mappings, dependencies, resource processing, `buildAndCollect` |
 | `build.neoforge.gradle.kts` | The same, for each NeoForge target, through ModDevGradle instead of Loom |
+| `build.quilt.gradle.kts` | The same, for each Quilt target, through Quilt Loom against Quilt Loader alone |
 | `build.forge.gradle.kts` | The same, for each Forge target, through ForgeGradle 7 and Forge's Jar-in-Jar plugin |
 | `versions/` | Generated per-target build output. Git-ignored, never committed |
 
@@ -163,6 +165,7 @@ All of these were run and verified in this repository.
 ./gradlew :1.21.11:build               # builds and tests one target
 ./gradlew :26.2.x:build
 ./gradlew :1.21.11-neoforge:build      # the same game version on NeoForge
+./gradlew :1.21.11-quilt:build         # and on Quilt
 ./gradlew :1.21.11-forge:build         # and on Forge
 ./gradlew test                         # every target's tests, nothing else
 ./gradlew :26.2.x:test                 # one target's tests
@@ -198,32 +201,48 @@ It has never been run in this environment (no GPU); treat it as unverified.
 
 ## Loaders
 
-Every game version is built three times, once per loader, from the same sources. The
+Every game version is built four times, once per loader, from the same sources. The
 Fabric nodes keep their plain names (`1.21.11`, `26.2.x`); the NeoForge nodes carry a
 `-neoforge` suffix (`1.21.11-neoforge`) and use `build.neoforge.gradle.kts`, which
-builds with ModDevGradle; the Forge nodes carry a `-forge` suffix (`1.21.11-forge`)
-and use `build.forge.gradle.kts`, which builds with ForgeGradle 7.
-`stonecutter.gradle.kts` turns that suffix into three constants, so sources branch
-with `//? if fabric {` … `//?} elif neoforge {` … `//?} else {` the same way they
-branch on a version. `//? if !fabric {` covers NeoForge and Forge together where they
-agree, which is often: Forge and NeoForge share most names, in different packages.
+builds with ModDevGradle; the Quilt nodes carry a `-quilt` suffix (`1.21.11-quilt`) and
+use `build.quilt.gradle.kts`, which builds with Quilt Loom; the Forge nodes carry a
+`-forge` suffix (`1.21.11-forge`) and use `build.forge.gradle.kts`, which builds with
+ForgeGradle 7. `stonecutter.gradle.kts` turns that suffix into four constants, so
+sources branch with `//? if fabric {` … `//?} elif quilt {` … `//?} elif neoforge {` …
+`//?} else {` the same way they branch on a version. Forge and NeoForge share most
+names, in different packages, so where they agree one `//?} else {` serves both.
 
 The loader is named in exactly three places, because they are the three places a
 loader hands the mod control or answers it:
 
-| Concern | Fabric | NeoForge | Forge | Where |
-|---|---|---|---|---|
-| Entry point | `ClientModInitializer`, listed in `fabric.mod.json` | `@Mod(dist = Dist.CLIENT)` constructor | `@Mod` constructor, `clientSideOnly` in `mods.toml` | `MCSkinCreatorClient` |
-| Folders and mod version | `FabricLoader` | `FMLPaths`, `ModList` | the same names, `net.minecraftforge`; `ModList` static from 26.1 | `Platform` |
-| Add the menu entry | `ScreenEvents.AFTER_INIT`, a live widget list | `ScreenEvent.Init.Post` on `NeoForge.EVENT_BUS`, a read-only list plus `addListener` | the same event, on its own `ScreenEvent.Init.Post.BUS` (EventBus 7) | `ui/MenuButtons` |
+| Concern | Fabric | Quilt | NeoForge | Forge | Where |
+|---|---|---|---|---|---|
+| Entry point | `ClientModInitializer`, listed in `fabric.mod.json` | the same interface, Quilt Loader's own, listed in `quilt.mod.json` | `@Mod(dist = Dist.CLIENT)` constructor | `@Mod` constructor, `clientSideOnly` in `mods.toml` | `MCSkinCreatorClient` |
+| Folders and mod version | `FabricLoader` | `QuiltLoader` | `FMLPaths`, `ModList` | the same names, `net.minecraftforge`; `ModList` static from 26.1 | `Platform` |
+| Add the menu entry | `ScreenEvents.AFTER_INIT`, a live widget list | `mixin/ScreenMixin` calling `MenuButtons.afterInit` | `ScreenEvent.Init.Post` on `NeoForge.EVENT_BUS`, a read-only list plus `addListener` | the same event, on its own `ScreenEvent.Init.Post.BUS` (EventBus 7) | `ui/MenuButtons` |
+
+**A Quilt jar depends on Quilt Loader and nothing else** — not QSL, which stopped
+following game versions at 1.21.1, and not the Fabric API. That is the whole point of
+building it separately: never pull a Fabric API module or a QSL module into
+`build.quilt.gradle.kts`. The one thing the Fabric API gave the mod, the screen event,
+is `ScreenMixin` on Quilt. The entry point is not an exception: `ClientModInitializer`
+and the `client` entrypoint ship inside Quilt Loader, which calls them itself.
+
+Quilt Loom is not applied through loom-back-compat's project plugin, which only knows
+Fabric Loom's ids. loom-back-compat still puts a Loom on every node's classpath before
+its script runs, and Quilt Loom keeps Fabric Loom's package names, so the two cannot
+share one: the `loomx.*` lines of each Quilt table in `stonecutter.properties.toml` make
+the Loom it puts there Quilt's, and `build.quilt.gradle.kts` applies the remapping or
+the unobfuscated variant by hand. Quilt Loader is `0.30.1` or newer: 0.30 is the first
+that treats every game after 25 as unobfuscated.
 
 Anything else that reaches for a loader API goes through `Platform` rather than
-growing a fourth place. The mixins are the same on all three: NeoForge and Forge run
-the game under Mojang's names, which are the names the sources are written in.
-NeoForge loads the mixin config from `META-INF/neoforge.mods.toml`; Forge reads it from
-the jar manifest's `MixinConfigs`, which `build.forge.gradle.kts` writes. The three
-targets were checked with `javap` on the NeoForge-patched 1.21.11 jar and have the
-same descriptors there; on Forge they have not been checked in a running game yet.
+growing a fourth place. The mixins are the same on every loader: NeoForge and Forge run
+the game under Mojang's names, which are the names the sources are written in. NeoForge
+loads the mixin config from `META-INF/neoforge.mods.toml`; Forge reads it from the jar
+manifest's `MixinConfigs`, which `build.forge.gradle.kts` writes. The three targets
+were checked with `javap` on the NeoForge-patched 1.21.11 jar and have the same
+descriptors there; on Forge they have not been checked in a running game yet.
 
 Forge's Mixin is Sponge's own, whose compatibility levels stop at `JAVA_21`: the Forge
 build writes `JAVA_21` into the mixin config on every target, Java 25 ones included,
@@ -233,8 +252,10 @@ Forge's Jar-in-Jar is a separate plugin (`net.minecraftforge.jarjar`) whose `jar
 task produces the jar that ships; the plain jar is renamed `-slim` and must never be
 the one collected — it is the one without the engine.
 
-Each build excludes the other loaders' metadata files from its jar. A NeoForge jar is
-named `mcskincreator-0.1.0+mc1.21.11-neoforge.jar`, a Forge jar
+Each build excludes the other loaders' metadata files from its jar, and the Fabric,
+NeoForge and Forge builds exclude `mcskincreator.quilt.mixins.json` too. A NeoForge jar
+is named `mcskincreator-0.1.0+mc1.21.11-neoforge.jar`, a Quilt one
+`mcskincreator-0.1.0+mc1.21.11-quilt.jar`, a Forge one
 `mcskincreator-0.1.0+mc1.21.11-forge.jar`: the loader goes after the game version so
 the release workflow's `*+mc1.21.11.jar` globs keep matching the Fabric jar alone, and
 `*-neoforge.jar` never matches a Forge one.
@@ -333,8 +354,9 @@ the entity route".
 
 ## Mixins
 
-There are **three**, and the bar for a fourth is the same one all three cleared: there
-is no public way in, and the alternative is worse. Everything else the mod does, it does
+There are **four**, and the bar for a fifth is the same one all four cleared: there
+is no public way in, and the alternative is worse. Three apply on every loader; the
+fourth, `ScreenMixin`, on Quilt alone. Everything else the mod does, it does
 through public API.
 
 **`mixin/AbstractClientPlayerMixin`** takes the return of `AbstractClientPlayer#getSkin`
@@ -383,6 +405,18 @@ the same override through `AppliedSkin.over(…)`, which wraps that supplier. An
 that comes to draw the local player's skin needs one door or the other — the mixin is
 not a catch-all, and forgetting this is how the title screen kept showing the old skin
 after the rest of the game had moved on.
+
+**`mixin/ScreenMixin`** tells `ui/MenuButtons` that a screen has laid out its widgets,
+on Quilt and nowhere else. Fabric and NeoForge have an event for that and the mod uses
+it; Quilt had one in QSL, which has no build past 1.21.1, and the alternative was
+asking every Quilt player to install the Fabric API for one button. It hooks where the
+Fabric API's own screen events hook — the end of `Screen.init` and `Screen.resize`, and
+the screen's `children`, `narratables` and `renderables` lists — read from the Fabric
+API's sources for every supported version. `init` took the `Minecraft` as well up to
+1.21.10, which is its one versioned line. It is listed in
+`mcskincreator.quilt.mixins.json`, which only `quilt.mod.json` names: on Fabric and
+NeoForge it would put a second entry beside the one the event adds. **Never list it in
+`mcskincreator.mixins.json`.**
 
 Two things about the setup are worth knowing before touching it:
 
@@ -467,15 +501,18 @@ nothing else is ever looked up there.
 ## Adding a Minecraft version
 
 1. Add the node in `settings.gradle.kts` (`versions(…)` or `version(alias, value)`),
-   and its `-neoforge` and `-forge` twins through the `loaderNodes` list below it.
+   and its `-neoforge`, `-quilt` and `-forge` twins, through the `loaderNodes` list
+   below it.
 2. Add its tables to `stonecutter.properties.toml`: `mod.mc_compat`,
    `mod.mc_releases`, `deps.fabric_api` for Fabric; `mod.mc_compat`,
    `mod.mc_releases`, `deps.neoforge`, `deps.neoforge_compat` for NeoForge, with
-   Maven ranges rather than Fabric's syntax; the same four with `deps.forge` and
-   `deps.forge_compat` for Forge.
-3. Extend `requiredJava` in the three build scripts if that version needs a different
+   Maven ranges rather than Fabric's syntax; `mod.mc_compat`, `mod.mc_releases` and
+   the three `loomx.*` lines for Quilt, with `quilt.mod.json`'s syntax;
+   `mod.mc_compat`, `mod.mc_releases`, `deps.forge` and `deps.forge_compat` for Forge,
+   with Maven ranges.
+3. Extend `requiredJava` in all four build scripts if that version needs a different
    Java level.
-4. Add all three nodes to the CI matrix in `.github/workflows/build.yml`.
+4. Add the four nodes to the CI matrix in `.github/workflows/build.yml`.
 5. Open the pull request and fix what CI's compiler reports for the new target,
    keeping shared code shared.
 6. Every target's CI job must be green, not just the new one.
@@ -598,7 +635,8 @@ a development build `mcskincreator-0.2.0-dev.7+mc1.21.11.jar`.
 Stable releases are also uploaded to Modrinth (project `pYSOnbJQ`) and CurseForge
 (project `1718964`) by the `mc-publish` steps at the end of `release.yml`, one per jar,
 each step sending its jar to both, using the `MODRINTH_TOKEN` and `CURSEFORGE_TOKEN`
-repository secrets: Fabric for 1.21.11 and 26.2, NeoForge and Forge for every supported
-version. A NeoForge step picks its jar by the `-neoforge` suffix, a Forge step by
-`-forge`, and each is `alpha` until that version has run in a real game on that loader. Without either secret the steps are
+repository secrets: Fabric for 1.21.11 and 26.2, NeoForge, Quilt and Forge for every
+supported version. A NeoForge, Quilt or Forge step picks its jar by the `-neoforge`,
+`-quilt` or `-forge` suffix, and is `alpha` until that version has run in a real game
+on that loader. Without either secret the steps are
 skipped. `-dev` builds are never uploaded.

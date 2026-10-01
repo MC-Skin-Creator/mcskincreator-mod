@@ -8,16 +8,17 @@ stonecutter active "1.21.11"
 
 stonecutter parameters {
     // The loader is the second axis of the tree, next to the game version: a node
-    // named "<version>-neoforge" builds for NeoForge, "<version>-forge" for Forge, every
-    // other one for Fabric. Sources branch on it with `//? if fabric {`,
-    // `//?} elif neoforge {` and `//?} else {` for Forge.
+    // named "<version>-neoforge" builds for NeoForge, "<version>-quilt" for Quilt,
+    // "<version>-forge" for Forge, every other one for Fabric. Sources branch on it with
+    // `//? if fabric {`, `//? if quilt {`, `//? if neoforge {` and `//? if forge {`.
     val nodeName = node.metadata.project
     val loader = when {
         nodeName.endsWith("-neoforge") -> "neoforge"
+        nodeName.endsWith("-quilt") -> "quilt"
         nodeName.endsWith("-forge") -> "forge"
         else -> "fabric"
     }
-    constants.match(loader, "fabric", "neoforge", "forge")
+    constants.match(loader, "fabric", "quilt", "neoforge", "forge")
 
     swaps["mod_version"] = "\"${property("mod.version")}\";"
     swaps["minecraft"] = "\"${node.metadata.version}\";"

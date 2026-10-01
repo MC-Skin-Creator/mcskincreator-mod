@@ -8,7 +8,7 @@
 package fr.clixmods.mcsc.mod;
 
 import fr.clixmods.mcsc.mod.ui.MenuButtons;
-//? if fabric {
+//? if fabric || quilt {
 import net.fabricmc.api.ClientModInitializer;
 //?} elif neoforge {
 /*import net.neoforged.api.distmarker.Dist;
@@ -27,12 +27,14 @@ import org.slf4j.LoggerFactory;
  * to remote services on behalf of the player, none of which belongs on a server.
  *
  * <p>Fabric finds it through {@code fabric.mod.json} and calls
- * {@code onInitializeClient}; NeoForge finds it by its annotation and calls the
- * constructor, on the client only; Forge does the same, and keeps it off a server
- * through {@code clientSideOnly} in {@code mods.toml}, its annotation having no side.
- * All three end in the same {@code start}.
+ * {@code onInitializeClient}; Quilt does the same through {@code quilt.mod.json} - the
+ * {@code client} entrypoint and its interface are Quilt Loader's own, shipped inside it
+ * since QSL stopped following game versions. NeoForge finds it by its annotation and
+ * calls the constructor, on the client only; Forge does the same, and keeps it off a
+ * server through {@code clientSideOnly} in {@code mods.toml}, its annotation having no
+ * side. All four end in the same {@code start}.
  */
-//? if fabric {
+//? if fabric || quilt {
 public final class MCSkinCreatorClient implements ClientModInitializer {
 //?} elif neoforge {
 /*@Mod(value = MCSkinCreatorClient.MOD_ID, dist = Dist.CLIENT)
@@ -45,7 +47,7 @@ public final class MCSkinCreatorClient {
 
     public static final Logger LOGGER = LoggerFactory.getLogger("MC Skin Creator");
 
-    //? if fabric {
+    //? if fabric || quilt {
     @Override
     public void onInitializeClient() {
         start();

@@ -6,6 +6,7 @@ pluginManagement {
         maven("https://maven.kikugie.dev/releases") { name = "KikuGie Releases" }
         maven("https://maven.kikugie.dev/snapshots") { name = "KikuGie Snapshots" }
         maven("https://maven.neoforged.net/releases") { name = "NeoForged" }
+        maven("https://maven.quiltmc.org/repository/release/") { name = "Quilt" }
         maven("https://maven.minecraftforge.net/") { name = "MinecraftForge" }
     }
 
@@ -53,6 +54,12 @@ stonecutter {
         )
         for ((name, minecraft) in loaderNodes) {
             version("$name-neoforge", minecraft).buildscript("build.neoforge.gradle.kts")
+        }
+
+        // Quilt targets: the same game versions again, built by Quilt Loom. The
+        // -quilt suffix is read the same way as -neoforge.
+        for ((name, minecraft) in loaderNodes) {
+            version("$name-quilt", minecraft).buildscript("build.quilt.gradle.kts")
         }
 
         // Forge targets: the same again, built by ForgeGradle. The -forge suffix is

@@ -129,8 +129,10 @@ tasks {
 
         inputs.property("java", mixinJava)
         filesMatching(listOf("META-INF/mods.toml", "mcskincreator.mixins.json")) { expand(props) }
-        // The other loaders' metadata has nothing to say to Forge.
-        exclude("fabric.mod.json", "META-INF/neoforge.mods.toml")
+        // The other loaders' metadata has nothing to say to Forge, and Quilt's mixin
+        // config stands in for an event Forge already has.
+        exclude("fabric.mod.json", "META-INF/neoforge.mods.toml", "quilt.mod.json",
+                "mcskincreator.quilt.mixins.json")
     }
 
     jar {
