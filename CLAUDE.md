@@ -70,10 +70,11 @@ src/main/java/fr/clixmods/mcsc/mod/
 │                               views borrow
 ├── account/                   the Mojang upload, and the only code that holds the session token;
 │                               also reads, without it, which skin the account wears
-├── mixin/                     the four mixins: the skin worn before Mojang propagates it,
+├── mixin/                     the five mixins: the skin worn before Mojang propagates it,
 │                               the character posed in the world for the in-game view,
 │                               the HUD left undrawn while a world view is open,
-│                               and, on Quilt alone, the screen event the other loaders have
+│                               and, on Quilt alone, the screen event and the mod's own
+│                               resources, which the other loaders provide
 ├── style/                     the design system: palette, metrics, the four materials, the grain
 └── ui/
     ├── Canvas.java            the drawing surface, as an interface: everything paints through it
@@ -223,8 +224,9 @@ loader hands the mod control or answers it:
 **A Quilt jar depends on Quilt Loader and nothing else** — not QSL, which stopped
 following game versions at 1.21.1, and not the Fabric API. That is the whole point of
 building it separately: never pull a Fabric API module or a QSL module into
-`build.quilt.gradle.kts`. The one thing the Fabric API gave the mod, the screen event,
-is `ScreenMixin` on Quilt. The entry point is not an exception: `ClientModInitializer`
+`build.quilt.gradle.kts`. The two things the Fabric API gave the mod, the screen event
+and the loading of the mod's own resources, are `ScreenMixin` and `ResourceManagerMixin`
+on Quilt. The entry point is not an exception: `ClientModInitializer`
 and the `client` entrypoint ship inside Quilt Loader, which calls them itself.
 
 Quilt Loom is not applied through loom-back-compat's project plugin, which only knows
@@ -417,9 +419,9 @@ the entity route".
 
 ## Mixins
 
-There are **four**, and the bar for a fifth is the same one all four cleared: there
+There are **five**, and the bar for a sixth is the same one all five cleared: there
 is no public way in, and the alternative is worse. Three apply on every loader; the
-fourth, `ScreenMixin`, on Quilt alone. Everything else the mod does, it does
+other two, `ScreenMixin` and `ResourceManagerMixin`, on Quilt alone. Everything else the mod does, it does
 through public API. Before 1.21.2 the in-game view's posing takes two classes instead
 of `AvatarRendererMixin`, and from 1.21.2 to 1.21.5 an accessor joins it — see below —
 and which of them a target lists is written into `mcskincreator.mixins.json` by the
@@ -497,6 +499,16 @@ API's sources for every supported version. `init` took the `Minecraft` as well u
 `mcskincreator.quilt.mixins.json`, which only `quilt.mod.json` names: on Fabric and
 NeoForge it would put a second entry beside the one the event adds. **Never list it in
 `mcskincreator.mixins.json`.**
+
+**`mixin/ResourceManagerMixin`** adds the mod's own files - its translations, its icon -
+to every reload of the client's resources, on Quilt and nowhere else. A loader does not
+load a mod's assets by itself: the Fabric API's resource loader does it on Fabric, the
+loader on NeoForge and Forge, and on Quilt it was QSL. Without it every translation key
+shows raw. It takes the pack list `ReloadableResourceManager#createReload` is handed -
+the same signature on every target, checked with `javap` - and puts the mod's root,
+which `Platform.unregisteredResources` reads from Quilt Loader, right after the game's
+own pack. Building that pack is its one versioned line, at 1.20.5. It is in the Quilt
+mixin config for the same reason as `ScreenMixin`: elsewhere the files would load twice.
 
 Two things about the setup are worth knowing before touching it:
 
