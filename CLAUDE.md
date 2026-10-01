@@ -601,7 +601,10 @@ nothing else is ever looked up there.
 
 `.github/workflows/build.yml` runs **one job per Stonecutter target** on every pull
 request (not on plain pushes, which would run each commit twice), with `fail-fast: false` so one
-broken version does not mask another. Each job compiles that target and runs its
+broken version does not mask another. Each job runs Gradle with
+`--configure-on-demand`, so it configures its own target and the root and no other:
+configuring a node sets up its game, and without the flag every job prepared all the
+targets' Minecraft — minutes per job, and a cache past GitHub's 10 GB. Each job compiles that target and runs its
 tests, uploads the test report when something failed, and uploads its jar as a
 **workflow artifact** (`retention-days: 7`) so a PR can be test-installed before it
 merges — this is not a release: no tag, no GitHub release,

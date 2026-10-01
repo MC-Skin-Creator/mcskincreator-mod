@@ -114,15 +114,23 @@ jobs:
           # Read-only is the default off the default branch, which would mean the
           # cache is never written here: main only runs on a release.
           cache-read-only: false
+          # Drops what this build did not use before the cache is saved, failed builds
+          # included - the default only cleans after a success, and a red job would
+          # otherwise save everything it had downloaded.
+          cache-cleanup: always
 
       - name: Build
         # Points Gradle at the JDK installed above rather than downloading another one.
         # build compiles and runs the tests; buildAndCollect only copies the jar to
         # build/libs/<mod version>/, which is what gets uploaded below, so both are
         # asked for rather than relying on one to imply the other.
+        # --configure-on-demand configures this one target and the root alone. Without
+        # it Gradle configures every node, and configuring a node sets up its game:
+        # each job prepared all fourteen Minecraft versions on four loaders - minutes
+        # of work, and a cache past GitHub's 10 GB - to compile one of them.
         run: >-
           ./gradlew ":${{ matrix.minecraft }}:build" ":${{ matrix.minecraft }}:buildAndCollect"
-          --stacktrace
+          --stacktrace --configure-on-demand
           -Porg.gradle.java.installations.fromEnv=JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
           -Pgpr.user=${{ github.actor }} -Pgpr.token=${{ secrets.GITHUB_TOKEN }}
 

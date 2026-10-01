@@ -113,6 +113,9 @@ jobs:
           # Off the default branch the cache is read-only by default, so develop
           # would never populate it.
           cache-read-only: false
+          # Drops what the build did not use before the cache is saved, failed
+          # builds included.
+          cache-cleanup: always
 
       - name: Stamp the version
         if: steps.version.outputs.release == 'true'
