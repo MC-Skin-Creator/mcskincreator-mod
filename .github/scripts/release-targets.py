@@ -25,8 +25,8 @@ for node, table in config.items():
         "node": node,
         "loader": loader,
         "releases": "\n".join(mod["mc_releases"]),
-        # Alpha until the jar has run in a real game on its loader.
-        "type": mod.get("release_type", "alpha"),
+        # Beta unless a table says otherwise: the mod is below 1.0.0.
+        "type": mod.get("release_type", "beta"),
     })
 
 print(json.dumps(targets))

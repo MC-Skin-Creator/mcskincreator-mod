@@ -7,7 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Everything in this repository is in **English**: code, comments, documentation,
 commit messages, pull request descriptions. Do not write French into the
 repository. User-facing strings are the exception and are translated through
-`assets/mcskincreator/lang/` — never hardcode a display string in the code.
+`assets/mcskincreator/lang/` — never hardcode a display string in the code. The
+translated changelog files `changelog/fr.md` and `changelog/es.md` are the same
+kind of exception: they are read by players, in their language.
 
 Commit subjects follow **conventional commits**: `type(scope): summary`, still
 short, imperative and in English. The type is not decoration — it decides the next
@@ -658,6 +660,26 @@ small the change or how green the CI.
 After a stable release, merge `main` back into `develop` so it picks up the version
 bump commit.
 
+## Changelog
+
+Any pull request that changes what a player sees or feels — a feature, an
+improvement, a fix — adds its entry to the three files in `changelog/` (`en.md`,
+`fr.md`, `es.md`), in the same pull request, under `## Unreleased`. The rules — what
+goes in and what never does (CI, docs, refactors, tooling), the format the website
+reads, the translations — live in the skill `.claude/skills/changelog/`, which is
+corrected every time the author remarks on an entry. A pull request with nothing
+visible adds no entry.
+
+**The release dates the changelog and announces it, nobody does it by hand.** On a stable
+release, `release.yml` runs `.github/scripts/changelog-release.js`, which renames
+`## Unreleased` to `## X.Y.Z — <date>` in the three files inside the `chore: release` commit,
+so the tag carries the dated changelog. Its last step, `announce-discord.js`, posts that
+version on Discord — one embed per language that has a webhook secret (`DISCORD_WEBHOOK_EN`,
+`_FR`, `_ES`, or `DISCORD_WEBHOOK` alone for English; none is an error). It never blocks the
+release (`continue-on-error`), a version with no section in the changelog announces nothing,
+and `-dev` builds are never announced. The website's changelog page reads these files from
+`main` (the "Mod" tab).
+
 ## Versioning and releases
 
 Semantic versioning, with one rule on top: **the Minecraft version never touches
@@ -742,7 +764,6 @@ Stable releases are also uploaded to Modrinth (project `pYSOnbJQ`) and CurseForg
 (project `1718964`) by the `publish` job of `release.yml`, one `mc-publish` run per
 jar - every target on every loader - each sending its jar to both, using the
 `MODRINTH_TOKEN` and `CURSEFORGE_TOKEN` repository secrets. Each is marked compatible
-with its table's `mod.mc_releases`, and published as `mod.release_type`: `alpha` by
-default, `beta` on the tables that say so, once that version has run in a real game on
-that loader. Without either secret the steps are skipped. `-dev` builds are never
+with its table's `mod.mc_releases`, and published as `mod.release_type`: `beta` by
+default, since the mod is below 1.0.0, and whatever a table says otherwise. Without either secret the steps are skipped. `-dev` builds are never
 uploaded.
