@@ -54,9 +54,10 @@ no entry, and says so.
   **An empty heading is omitted.**
 - One bullet is one change, understandable without context. Bold short title, an
   em dash, plain sentences. No class names, no file names, no pull-request numbers.
+- A bold title is **always** followed by an em dash: `**Title** — text`. Without the dash
+  the website does not recognise the title and shows the bullet without it.
 - No emoji. Use the game's own words for its screens and buttons.
 - A screenshot goes under its bullet: see "Screenshots".
-  and are referenced by relative path.
 
 ## Screenshots
 
@@ -84,7 +85,9 @@ A bullet can carry **one** screenshot, on an indented line right below it:
 
 ## The version number
 
-It is **not decided here, and not dated here either.** `.github/scripts/next-version.sh`
+**Here the date is set by the workflow, not by hand** (the website's changelog is dated by hand
+in its `develop` → `main` pull request: it has no release script). It is **not decided here, and
+not dated here either.** `.github/scripts/next-version.sh`
 derives it from the commit types. Write under `## Unreleased` and stop: on a stable release,
 `release.yml` renames that section to `## X.Y.Z — <date>` in the three files
 (`changelog-release.js`) and announces it on Discord (`announce-discord.js`). Never invent a
@@ -96,9 +99,12 @@ the wrong version.
 1. The three files have the same structure:
    `for f in en fr es; do echo $f $(grep -c '^## ' changelog/$f.md) $(grep -c '^### ' changelog/$f.md) $(grep -c '^- ' changelog/$f.md); done`
    — the three lines must print the same numbers.
-2. Every cited image exists in `changelog/images/` and the three files cite the same ones.
-3. Nothing internal slipped in: read each bullet and ask the question above.
-4. Changelog files are `.md`, so they never trigger a release by themselves
+2. Every bold title has its em dash — this must print nothing:
+   `grep -n '^- \*\*' changelog/*.md | grep -v '\*\* — '`
+3. Every cited image exists in `changelog/images/` and the three files cite the same ones.
+   (The website tests its own changelog files for this; nothing tests these here, so look.)
+4. Nothing internal slipped in: read each bullet and ask the question above.
+5. Changelog files are `.md`, so they never trigger a release by themselves
    (`paths-ignore` in `release.yml`) — that is intended.
 
 ## What this skill learns
