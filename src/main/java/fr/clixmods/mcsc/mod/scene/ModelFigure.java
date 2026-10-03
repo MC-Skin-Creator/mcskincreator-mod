@@ -74,7 +74,7 @@ public final class ModelFigure {
         PoseStack stack = graphics.pose();
         stack.pushPose();
         stack.translate(x + width / 2.0F, y + height / 2.0F, 50.0F);
-        stack.scale(scale, scale, -scale);
+        FigureScale.apply(stack, scale);
         stack.translate(translation.x, translation.y, translation.z);
         stack.mulPose(rotation);
         if (state.isCrouching) {

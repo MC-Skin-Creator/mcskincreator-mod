@@ -1,6 +1,6 @@
 # MC Skin Creator — Mod changelog
 
-## Unreleased
+## 0.5.0 — 2026-10-01
 
 ### New
 - **Quilt support** — the mod now runs natively on Quilt, on every supported Minecraft version.

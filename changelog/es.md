@@ -1,6 +1,6 @@
 # MC Skin Creator — Registro de cambios del mod
 
-## Próxima versión
+## 0.5.0 — 2026-10-01
 
 ### Novedades
 - **Compatibilidad con Quilt** — el mod funciona ahora de forma nativa en Quilt, en todas las versiones de Minecraft compatibles.
