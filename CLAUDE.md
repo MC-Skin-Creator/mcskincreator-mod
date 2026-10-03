@@ -742,7 +742,6 @@ Stable releases are also uploaded to Modrinth (project `pYSOnbJQ`) and CurseForg
 (project `1718964`) by the `publish` job of `release.yml`, one `mc-publish` run per
 jar - every target on every loader - each sending its jar to both, using the
 `MODRINTH_TOKEN` and `CURSEFORGE_TOKEN` repository secrets. Each is marked compatible
-with its table's `mod.mc_releases`, and published as `mod.release_type`: `alpha` by
-default, `beta` on the tables that say so, once that version has run in a real game on
-that loader. Without either secret the steps are skipped. `-dev` builds are never
+with its table's `mod.mc_releases`, and published as `mod.release_type`: `beta` by
+default, since the mod is below 1.0.0, and whatever a table says otherwise. Without either secret the steps are skipped. `-dev` builds are never
 uploaded.
