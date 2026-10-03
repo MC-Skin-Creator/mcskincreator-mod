@@ -189,6 +189,13 @@ jobs:
           path: jars
           merge-multiple: true
 
+      - name: Set up Node
+        # runs the changelog script that dates the release
+        if: needs.version.outputs.channel == 'stable'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
       - name: Record the version on main
         # Only stable releases write the number back, so the file on main always
         # states the version that was actually released. A push made with
@@ -202,6 +209,10 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add stonecutter.properties.toml
+          # The changelog is dated in the same commit, so the tag carries it: the
+          # "Unreleased" section becomes this version.
+          node .github/scripts/changelog-release.js "${VERSION}"
+          git add changelog
           git commit -m "chore: release v${VERSION}"
           git tag "v${VERSION}"
           git push origin HEAD:"${{ github.ref_name }}"
@@ -317,3 +328,33 @@ jobs:
           dependencies: ${{ matrix.target.loader == 'fabric' && 'fabric-api(required){modrinth:P7dR8mSH}{curseforge:306612}' || '' }}
           changelog: |
             See the full notes on GitHub: https://github.com/${{ github.repository }}/releases/tag/v${{ needs.version.outputs.version }}
+
+  # Last, and never blocking: nothing depends on this job, so a Discord hiccup cannot
+  # undo a release that is already on GitHub, Modrinth and CurseForge. It runs once the
+  # release exists (a store upload that failed does not hide the news), reads the
+  # changelog from the release tag - where the release job dated it - and posts that
+  # version in each language that has a webhook secret (DISCORD_WEBHOOK_EN / _FR /
+  # _ES, or DISCORD_WEBHOOK alone for English). Stable releases only: the -dev builds
+  # are never announced.
+  announce:
+    needs: [version, release, publish]
+    if: always() && needs.version.outputs.channel == 'stable' && needs.release.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the release
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.version.outputs.version }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Announce on Discord
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          DISCORD_WEBHOOK_EN: ${{ secrets.DISCORD_WEBHOOK_EN }}
+          DISCORD_WEBHOOK_FR: ${{ secrets.DISCORD_WEBHOOK_FR }}
+          DISCORD_WEBHOOK_ES: ${{ secrets.DISCORD_WEBHOOK_ES }}
+        run: node .github/scripts/announce-discord.js --version "$VERSION"
