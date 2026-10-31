@@ -211,7 +211,10 @@ moment the library opened.
 Either side column folds through a ghost button in its header, and a folded header
 keeps **only** that button. An earlier arrangement kept the title as well, the header
 overflowed, and the button that would have brought the panel back was the part pushed
-out of sight.
+out of sight. The name comes back under the button instead, as on the site: the folded
+column is a **rail** (`widget/PanelRail`) with the panel's name written down it — a
+quarter turn, which keeps every glyph on the pixel grid — and the whole strip unfolds
+the panel. `build/ui-preview/960x540-folded.png` shows it.
 
 ## Where the pictures come from
 

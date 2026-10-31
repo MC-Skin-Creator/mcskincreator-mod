@@ -7,6 +7,7 @@
  */
 package fr.clixmods.mcsc.mod.preview;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -21,6 +22,7 @@ import javax.imageio.ImageIO;
 import org.junit.jupiter.api.Test;
 
 import fr.clixmods.mcsc.mod.ui.EditorScale;
+import fr.clixmods.mcsc.mod.ui.widget.PanelRail;
 
 /**
  * Renders the editor and writes the pictures out.
@@ -114,6 +116,24 @@ class EditorPreviewTest {
         Files.createDirectories(OUTPUT);
         ImageIO.write(EditorPreview.of(960, 540, 4), "png",
                 OUTPUT.resolve("960x540@4.png").toFile());
+    }
+
+    /**
+     * Both columns folded: each becomes a rail, its unfold button on top and the
+     * panel's name written down the strip, which unfolds it wherever it is pressed.
+     */
+    @Test
+    void foldedPanelsBecomeRailsCarryingTheirName() throws IOException {
+        Files.createDirectories(OUTPUT);
+        EditorPreview preview = new EditorPreview()
+                .withCatalog(EditorPreview.sampleCatalog())
+                .withLayers(5);
+        preview.chrome().library().setFolded(true);
+        preview.chrome().layers().setFolded(true);
+        BufferedImage image = preview.render(960, 540, 2);
+        ImageIO.write(image, "png", OUTPUT.resolve("960x540-folded.png").toFile());
+
+        assertEquals(2, preview.elements().stream().filter(PanelRail.class::isInstance).count());
     }
 
     @Test

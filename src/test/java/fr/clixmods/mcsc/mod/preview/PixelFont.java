@@ -240,6 +240,36 @@ final class PixelFont {
                 | ((argb & 0xFF) / 4);
     }
 
+    /**
+     * The same string turned a quarter clockwise, reading downwards from the top of a
+     * strip one line wide whose top-left corner is {@code x}, {@code y}: the preview's
+     * half of {@code Canvas#textTrackedDown}. A pixel a line draws at (column, row) lands
+     * at (line height - 1 - row, column) of the strip, which is the game's rotation.
+     */
+    void drawDown(Raster raster, String text, int x, int y, int argb) {
+        int cursor = 0;
+        for (int offset = 0; offset < text.length(); ) {
+            int codepoint = text.codePointAt(offset);
+            offset += Character.charCount(codepoint);
+            Glyph glyph = this.glyphs.get(codepoint);
+            if (glyph != null) {
+                for (int row = 0; row < glyph.drawHeight(); row++) {
+                    int sampleY = glyph.sourceY() + row * glyph.sourceHeight() / glyph.drawHeight();
+                    for (int column = 0; column < glyph.drawWidth(); column++) {
+                        int sampleX = glyph.sourceX() + column * glyph.sourceWidth() / glyph.drawWidth();
+                        int alpha = (glyph.sheet().getRGB(sampleX, sampleY) >>> 24)
+                                * ((argb >>> 24) & 0xFF) / 0xFF;
+                        if (alpha != 0) {
+                            raster.blend(x + LINE_HEIGHT - 1 - (glyph.top() + row), y + cursor + column,
+                                    (alpha << 24) | (argb & 0x00FFFFFF));
+                        }
+                    }
+                }
+            }
+            cursor += advance(codepoint);
+        }
+    }
+
     private void drawGlyphs(Raster raster, String text, int x, int y, int argb) {
         int cursor = x;
         for (int offset = 0; offset < text.length(); ) {

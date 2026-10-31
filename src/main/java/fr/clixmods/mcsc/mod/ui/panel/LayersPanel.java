@@ -31,6 +31,7 @@ import fr.clixmods.mcsc.mod.ui.window.ColorWindow;
 import fr.clixmods.mcsc.mod.ui.widget.ColorSwatch;
 import fr.clixmods.mcsc.mod.ui.widget.LayerRow;
 import fr.clixmods.mcsc.mod.ui.widget.Dropdown;
+import fr.clixmods.mcsc.mod.ui.widget.PanelRail;
 import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
 import fr.clixmods.mcsc.mod.ui.widget.Slider;
 import net.minecraft.network.chat.Component;
@@ -119,6 +120,13 @@ public class LayersPanel extends Panel {
             this.foldButton.setBounds(this.x + (this.width - this.foldButton.width()) / 2,
                     headerButtonY(), this.foldButton.width(), Metrics.HEADER_BUTTON);
             this.fixed.add(addChild(this.foldButton));
+            PanelRail rail = rail(() -> {
+                toggleFolded();
+                this.relayout.run();
+            });
+            if (rail.height() > 0) {
+                this.fixed.add(addChild(rail));
+            }
             return;
         }
 

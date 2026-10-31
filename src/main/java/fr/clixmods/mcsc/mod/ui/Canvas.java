@@ -97,6 +97,16 @@ public interface Canvas {
     /** Width {@link #textTracked} will take. */
     int trackedWidth(String text, int tracking);
 
+    /**
+     * The same letter-spaced title, turned a quarter clockwise so it reads downwards:
+     * the name a folded panel carries down its column.
+     *
+     * <p>{@code x} and {@code y} are the top-left corner of the strip it takes, which
+     * is {@link #lineHeight()} wide and {@link #trackedWidth} tall. A quarter turn
+     * keeps every glyph on the pixel grid, so the letters are as sharp as upright ones.
+     */
+    void textTrackedDown(String text, int x, int y, int argb, int tracking);
+
     void textCentered(Component text, int centerX, int y, int argb);
 
     /**
