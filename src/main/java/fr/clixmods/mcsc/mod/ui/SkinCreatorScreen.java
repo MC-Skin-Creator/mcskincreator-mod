@@ -325,7 +325,7 @@ public class SkinCreatorScreen extends Screen {
             this.scene = new ScenePanel(this.preview, new PlayerFigure(this.preview),
                     new GameCamera(Minecraft.getInstance()),
                     this::relayout, () -> this.hoveredLabel);
-            this.layers = new LayersPanel(this.project, () -> catalog, this.sprites::get,
+            this.layers = new LayersPanel(this.project, this.sprites::get,
                     this.history, this::relayout, this::revealLibrary, this::openImport,
                     this::peekLayer, this::openColor);
             this.chrome = new EditorChrome(this.topBar, this.library, this.scene, this.layers,
@@ -1010,9 +1010,7 @@ public class SkinCreatorScreen extends Screen {
         }
         persistNow();
         String language = this.minecraft.options.languageCode;
-        SkinProject fresh = new SkinProject();
-        fresh.startFresh(catalog, language);
-        boolean untouched = ProjectJson.project(fresh).equals(ProjectJson.project(this.project));
+        boolean untouched = untouched(language);
 
         this.project.startFresh(catalog, language);
         this.history.clear();
@@ -1031,6 +1029,11 @@ public class SkinCreatorScreen extends Screen {
      * hash of their own pixels and are kept, so it is paid once.
      */
     private void openModels() {
+        // Choosing one files it under its own name, so the names already taken have to
+        // be known by then: read once, the first time this screen needs them.
+        if (this.skins == SkinsWindow.Library.LOADING) {
+            loadSkins();
+        }
         requestModelAtlases();
         refreshModelSprites();
         open(new ModelsWindow(catalog::models, this::name, () -> this.modelSprites,
@@ -1060,15 +1063,65 @@ public class SkinCreatorScreen extends Screen {
     }
 
     /**
-     * Starts again from a starter model: the stack is replaced, and the player model
-     * with it.
+     * Starts a new skin from a starter model: the stack is replaced, the player model
+     * with it, and the result goes into "My skins" at once under the model's name —
+     * "Lumberjack (2)" when that name is taken. It then saves itself like any project
+     * in progress.
      *
-     * <p>One history entry for the whole thing, so a model that stacked eleven elements
-     * comes back off with one undo rather than eleven.
+     * <p>The skin being edited is not touched. It is written down first and stays in
+     * the library, which is why this is not an undoable step of it, any more than "New"
+     * is: choosing a model used to replace the stack of the skin in progress, so its
+     * entry in "My skins" was overwritten and only an undo, before closing the editor,
+     * could bring it back. A project nobody has touched since "New" is reused rather
+     * than left behind as an empty copy: it takes the model's name.
      */
     private void chooseModel(CatalogModel model) {
-        applyReadyMade(model);
         closeWindow();
+        if (this.current == null) {
+            applyReadyMade(model);
+            return;
+        }
+        String language = this.minecraft.options.languageCode;
+        if (new SkinProject().apply(model, catalog, language) == 0) {
+            // Every piece named an element the catalogue has since dropped: nothing is
+            // started, and the skin in progress stays what it was.
+            this.toasts.failed("readymade", Component.translatable("toast.mcskincreator.model_empty"));
+            return;
+        }
+        persistNow();
+        boolean untouched = untouched(language);
+        int stacked = this.project.apply(model, catalog, language);
+        this.history.clear();
+        String name = SavedSkin.uniqueName(name(model.name()).getString(),
+                takenNames(untouched ? this.current.id() : null));
+        if (untouched) {
+            this.current = new SavedSkin(this.current.id(), name, this.current.at(), this.current.data());
+            this.persisted = "";
+            persistNow();
+        } else {
+            startProject(name);
+        }
+        this.toasts.succeeded("readymade");
+        this.toasts.ok(Component.translatable("toast.mcskincreator.model_opened", name, stacked));
+        relayout();
+    }
+
+    /** Whether the stack is still the plain skin "New" starts from, with nothing done to it. */
+    private boolean untouched(String language) {
+        SkinProject fresh = new SkinProject();
+        fresh.startFresh(catalog, language);
+        return ProjectJson.project(fresh).equals(ProjectJson.project(this.project));
+    }
+
+    /** The names "My skins" already shows, but for the entry {@code exceptId}. */
+    private List<String> takenNames(String exceptId) {
+        List<String> names = new ArrayList<>();
+        for (SavedSkin skin : library().skins()) {
+            if (!skin.id().equals(exceptId)) {
+                names.add(skin.name());
+            }
+        }
+        return names;
     }
 
     /** Puts an outfit on over whatever is already worn. Also one history entry. */

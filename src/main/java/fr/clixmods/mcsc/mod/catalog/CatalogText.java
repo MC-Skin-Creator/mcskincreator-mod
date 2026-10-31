@@ -7,6 +7,7 @@
  */
 package fr.clixmods.mcsc.mod.catalog;
 
+import java.text.Normalizer;
 import java.util.Locale;
 
 /**
@@ -19,6 +20,16 @@ import java.util.Locale;
  */
 public record CatalogText(String base, String en, String es) {
     public static final CatalogText EMPTY = new CatalogText("", "", "");
+
+    /**
+     * A label folded for matching: no case and no accents, so "chatains" finds
+     * "Châtains" the way it does on the site, whose search folds the same way.
+     */
+    public static String fold(String text) {
+        return Normalizer.normalize(text, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "")
+                .toLowerCase(Locale.ROOT);
+    }
 
     /**
      * The label to display for a Minecraft language code such as {@code fr_fr}.

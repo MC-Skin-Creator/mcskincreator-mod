@@ -174,13 +174,12 @@ class SkinProjectTest {
         }
 
         @Test
-        void aLayerSkipsPastAnotherRegionToReachItsNeighbour() {
+        void aLayerSwapsWithItsImmediateNeighbourWhateverItsRegion() {
             buildInterleavedStack();
 
             assertTrue(project.move(lower, 1));
 
-            assertEquals(List.of("crown", "tee", "cap"), stack());
-            assertSame(between, project.layers().get(1));
+            assertEquals(List.of("tee", "cap", "crown"), stack());
         }
 
         @Test
@@ -189,23 +188,26 @@ class SkinProjectTest {
 
             assertTrue(project.move(upper, -1));
 
-            assertEquals(List.of("crown", "tee", "cap"), stack());
+            assertEquals(List.of("cap", "crown", "tee"), stack());
         }
 
         @Test
-        void theTopmostOfItsRegionHasNowhereToGo() {
+        void aLayerAloneInItsRegionMovesToo() {
+            buildInterleavedStack();
+
+            assertTrue(project.move(between, 1));
+            assertEquals(List.of("cap", "crown", "tee"), stack());
+            assertTrue(project.move(between, -1));
+            assertTrue(project.move(between, -1));
+            assertEquals(List.of("tee", "cap", "crown"), stack());
+        }
+
+        @Test
+        void theTopAndTheBottomHaveNowhereToGo() {
             buildInterleavedStack();
 
             assertFalse(project.move(upper, 1));
-            assertEquals(List.of("cap", "tee", "crown"), stack());
-        }
-
-        @Test
-        void theOnlyLayerOfItsRegionNeverMoves() {
-            buildInterleavedStack();
-
-            assertFalse(project.move(between, 1));
-            assertFalse(project.move(between, -1));
+            assertFalse(project.move(lower, -1));
             assertEquals(List.of("cap", "tee", "crown"), stack());
         }
 
@@ -220,41 +222,30 @@ class SkinProjectTest {
     @Nested
     class Ordering {
         @Test
-        void aRegionIsListedTopmostFirst() {
+        void theStackIsListedTopmostFirst() {
             CatalogCategory hats = category("hats", "head", "cap", "crown");
             add(hats, "cap");
             add(hats, "crown");
 
-            List<Layer> shown = project.displayOrder("head");
+            List<Layer> shown = project.displayOrder();
 
             assertEquals("crown", shown.get(0).itemId());
             assertEquals("cap", shown.get(1).itemId());
         }
 
         @Test
-        void aRegionListsOnlyItsOwnLayers() {
-            add(category("hats", "head", "cap"), "cap");
+        void theListIsTheCompositionOrderNotAGroupPerRegion() {
+            CatalogCategory hats = category("hats", "head", "cap", "crown");
+            add(hats, "cap");
             add(category("shirts", "torso", "tee"), "tee");
+            add(hats, "crown");
 
-            assertEquals(1, project.displayOrder("head").size());
-            assertTrue(project.displayOrder("legs").isEmpty());
-        }
+            List<String> shown = new ArrayList<>();
+            for (Layer layer : project.displayOrder()) {
+                shown.add(layer.itemId());
+            }
 
-        @Test
-        void regionsInUseFollowTheCatalogueOrder() {
-            add(category("shirts", "torso", "tee"), "tee");
-            add(category("hats", "head", "cap"), "cap");
-
-            assertEquals(List.of("head", "torso"),
-                    project.regionsInUse(List.of("head", "torso", "legs")));
-        }
-
-        @Test
-        void aRegionTheCatalogueDroppedIsListedAfterTheKnownOnes() {
-            add(category("hats", "head", "cap"), "cap");
-            add(category("wings", "back", "angel"), "angel");
-
-            assertEquals(List.of("head", "back"), project.regionsInUse(List.of("head", "torso")));
+            assertEquals(List.of("crown", "tee", "cap"), shown);
         }
 
         @Test
@@ -282,7 +273,7 @@ class SkinProjectTest {
             assertBumps(() -> add(hats, "cap"), "add");
             Layer cap = project.layers().get(0);
             assertBumps(() -> project.duplicate(cap), "duplicate");
-            assertBumps(() -> add(hats, "crown"), "add another region-mate");
+            assertBumps(() -> add(hats, "crown"), "add another");
             assertBumps(() -> project.move(cap, 1), "move");
             assertBumps(() -> project.remove(cap), "remove");
             assertBumps(() -> project.setModel(SkinModel.SLIM), "setModel");

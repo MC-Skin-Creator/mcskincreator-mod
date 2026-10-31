@@ -17,6 +17,7 @@ import fr.clixmods.mcsc.mod.style.Surface;
 import fr.clixmods.mcsc.mod.ui.Canvas;
 import fr.clixmods.mcsc.mod.ui.Element;
 import fr.clixmods.mcsc.mod.ui.Paint;
+import fr.clixmods.mcsc.mod.ui.widget.PanelRail;
 import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
 import net.minecraft.network.chat.Component;
 
@@ -27,7 +28,8 @@ import net.minecraft.network.chat.Component;
  * <p>Folding leaves the header with nothing but the unfold button. That is not a
  * detail: an earlier arrangement kept the title as well, the header overflowed its
  * 27 pixels, and the button that would have brought the panel back was the part that
- * got pushed out of sight.
+ * got pushed out of sight. The name comes back below it instead, written down the
+ * column, where it has the height of the screen to fit in ({@link #rail}).
  */
 public abstract class Panel extends Element {
     private final String titleKey;
@@ -82,6 +84,19 @@ public abstract class Panel extends Element {
     protected int headerHeight(Canvas canvas) {
         return Math.max(canvas.lineHeight(), Metrics.HEADER_BUTTON)
                 + Metrics.PANEL_INSET + Metrics.PAD_TIGHT;
+    }
+
+    /**
+     * The rail a folded panel shows under its unfold button: the panel's name written
+     * down the column, and the whole strip a way to unfold it.
+     */
+    protected PanelRail rail(Runnable unfold) {
+        int top = headerButtonY() + Metrics.HEADER_BUTTON + Metrics.PAD_TIGHT;
+        PanelRail rail = new PanelRail(Component.translatable(this.titleKey), unfold);
+        rail.withTooltip(Component.translatable("gui.mcskincreator.unfold.tooltip"));
+        rail.setBounds(contentLeft(), top, contentWidth(),
+                Math.max(0, this.y + this.height - Metrics.PANEL_INSET - top));
+        return rail;
     }
 
     /** Where a control in the header sits, so the panels do not each work it out. */

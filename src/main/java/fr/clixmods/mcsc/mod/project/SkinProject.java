@@ -72,31 +72,16 @@ public final class SkinProject {
         return this.layers.isEmpty();
     }
 
-    /** The regions holding something, in the order the catalogue lists them. */
-    public List<String> regionsInUse(List<String> catalogOrder) {
-        List<String> used = new ArrayList<>();
-        for (String region : catalogOrder) {
-            if (!displayOrder(region).isEmpty()) {
-                used.add(region);
-            }
-        }
-        // A region the catalogue no longer lists can still be in an open project; it
-        // is shown after the known ones rather than silently dropped from the stack.
-        for (Layer layer : this.layers) {
-            if (!used.contains(layer.region())) {
-                used.add(layer.region());
-            }
-        }
-        return used;
-    }
-
-    /** The layers of one region, topmost first — the order the panel lists them in. */
-    public List<Layer> displayOrder(String region) {
-        List<Layer> ofRegion = new ArrayList<>(this.layers.stream()
-                .filter(layer -> layer.region().equals(region))
-                .toList());
-        Collections.reverse(ofRegion);
-        return ofRegion;
+    /**
+     * The whole stack topmost first, which is the order the panel lists it in.
+     *
+     * <p>No grouping by region: the order shown is the order the sheet is composed in,
+     * so a hat listed under the hair is a hat drawn under the hair.
+     */
+    public List<Layer> displayOrder() {
+        List<Layer> shown = new ArrayList<>(this.layers);
+        Collections.reverse(shown);
+        return shown;
     }
 
     /**
@@ -229,25 +214,22 @@ public final class SkinProject {
     }
 
     /**
-     * Swaps a layer with its neighbour inside the same region.
+     * Swaps a layer with its immediate neighbour, whatever that neighbour is.
      *
-     * <p>Regions keep their order in the stack, so a hat can never end up below a
-     * pair of trousers by dragging; {@code direction} is +1 towards the top of the
-     * sheet, which is upwards on screen.
+     * <p>The stack is free: a hat can go under the hair, a pair of trousers over a
+     * coat. A layer still carries its region, because the project written for the
+     * site does, but it orders nothing. {@code direction} is +1 towards the top of
+     * the sheet, which is upwards on screen.
      */
     public boolean move(Layer layer, int direction) {
         int index = this.layers.indexOf(layer);
-        if (index < 0) {
+        int target = index + direction;
+        if (index < 0 || target < 0 || target >= this.layers.size()) {
             return false;
         }
-        for (int probe = index + direction; probe >= 0 && probe < this.layers.size(); probe += direction) {
-            if (this.layers.get(probe).region().equals(layer.region())) {
-                Collections.swap(this.layers, index, probe);
-                touch();
-                return true;
-            }
-        }
-        return false;
+        Collections.swap(this.layers, index, target);
+        touch();
+        return true;
     }
 
     public void clear() {

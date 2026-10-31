@@ -131,6 +131,16 @@ public final class ImageCanvas implements Canvas {
     }
 
     @Override
+    public void textTrackedDown(String text, int x, int y, int argb, int tracking) {
+        int cursor = 0;
+        for (int index = 0; index < text.length(); index++) {
+            String glyph = text.substring(index, index + 1);
+            this.font.drawDown(this.raster, glyph, x, y + cursor, argb);
+            cursor += this.font.width(glyph) + tracking;
+        }
+    }
+
+    @Override
     public int trackedWidth(String text, int tracking) {
         int total = 0;
         for (int index = 0; index < text.length(); index++) {

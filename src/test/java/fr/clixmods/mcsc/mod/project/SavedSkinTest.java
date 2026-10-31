@@ -112,4 +112,16 @@ class SavedSkinTest {
     void aDrawnIdentifierIsAFileName() {
         assertTrue(SavedSkin.newId().matches("[A-Za-z0-9_-]{1,64}"));
     }
+
+    @Test
+    void aFreeNameIsKeptAsItIs() {
+        assertEquals("Lumberjack", SavedSkin.uniqueName("Lumberjack", List.of("Knight")));
+    }
+
+    @Test
+    void aTakenNameGetsTheFirstFreeNumber() {
+        assertEquals("Lumberjack (2)", SavedSkin.uniqueName("Lumberjack", List.of("Lumberjack")));
+        assertEquals("Lumberjack (3)", SavedSkin.uniqueName("Lumberjack",
+                List.of("Lumberjack", "Lumberjack (2)", "Lumberjack (4)")));
+    }
 }

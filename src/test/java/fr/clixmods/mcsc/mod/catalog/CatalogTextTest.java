@@ -82,4 +82,11 @@ class CatalogTextTest {
         assertEquals("", CatalogText.EMPTY.forLanguage("es_es"));
         assertEquals("", CatalogText.EMPTY.forLanguage("en_us"));
     }
+
+    @Test
+    void foldingDropsCaseAndAccents() {
+        assertEquals("chatains", CatalogText.fold("Châtains"));
+        assertEquals("tete de mort", CatalogText.fold("TÊTE de mort"));
+        assertEquals("pina", CatalogText.fold("Piña"));
+    }
 }

@@ -2,8 +2,8 @@
 
 The mod brings the [MC Skin Creator](https://mcskincreator.app/) editor into the game.
 What it takes from the site is both the **arrangement** — three zones, a fixed row of
-category tabs, the stack grouped by region, the gestures — and the **paint**: four
-materials, one accent colour, a black outline on everything.
+category tabs, the stack listed in the order it is composed in, the gestures — and the
+**paint**: four materials, one accent colour, a black outline on everything.
 
 What it takes from Minecraft is what Minecraft is right about: its font, its GUI scale,
 its widget mechanics, and the player model in the scene.
@@ -211,7 +211,10 @@ moment the library opened.
 Either side column folds through a ghost button in its header, and a folded header
 keeps **only** that button. An earlier arrangement kept the title as well, the header
 overflowed, and the button that would have brought the panel back was the part pushed
-out of sight.
+out of sight. The name comes back under the button instead, as on the site: the folded
+column is a **rail** (`widget/PanelRail`) with the panel's name written down it — a
+quarter turn, which keeps every glyph on the pixel grid — and the whole strip unfolds
+the panel. `build/ui-preview/960x540-folded.png` shows it.
 
 ## Where the pictures come from
 
@@ -374,11 +377,12 @@ project only ever sees a real `CatalogModel`.
 | Importing a texture | issue #8 |
 | The fitting room: the skin on your own client only | issue #11 |
 
-The saved-skin list is built: **My skins** in the top bar lists what the server
-keeps for this installation, each row drawn from the picture the server composed
-when it stored that skin. Opening one replaces the stack, and there is no skin that
-follows the editing the way the site's open skin does — saving always makes a new
-entry, because silently replacing one is the single thing nobody could undo.
+The saved-skin list is built: **My skins** in the top bar lists the skins kept on
+this machine. Every entry is one project, and the one in progress saves itself as it
+is edited, like the site's open skin. A new start never writes over it: **New** and a
+starter model from **Models** each open a new entry — the model under its own name,
+"Lumberjack (2)" when that one is taken — and the skin that was being edited stays
+in the list as it was left.
 
 Export writes into `<game>/mcskincreator/`: the composed sheet as a 64x64 PNG, or
 the character seen from the front, which the server draws. There is no language

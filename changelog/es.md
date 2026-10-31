@@ -1,5 +1,15 @@
 # MC Skin Creator — Registro de cambios del mod
 
+## Próxima versión
+
+### Mejoras
+- **Las capas en el orden que quieras** — las capas ya no se agrupan por parte del cuerpo: arrastra cualquier capa por encima o por debajo de cualquier otra, un sombrero bajo el pelo por ejemplo. Tus skins guardadas siguen exactamente iguales.
+- **Un modelo crea una skin nueva** — elegir uno en *Modelos* crea ahora una skin nueva en *Mis skins*, con el nombre del modelo, y la skin que estabas editando se queda como estaba.
+- **Paneles plegados más claros** — un panel plegado muestra su nombre a lo largo de una barra fina; haz clic en cualquier parte de la barra para volver a abrirlo.
+
+### Correcciones
+- La búsqueda de la biblioteca ignora los acentos incluso antes de que responda el servidor: al escribir `chatains` aparece «Châtains».
+
 ## 0.5.0 — 2026-10-01
 
 ### Novedades

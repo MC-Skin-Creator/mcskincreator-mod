@@ -1,5 +1,15 @@
 # MC Skin Creator — Mod changelog
 
+## Unreleased
+
+### Improved
+- **Layers in any order** — layers are no longer grouped by body part: drag any layer above or below any other, a hat under the hair for instance. Your saved skins look exactly the same.
+- **A model starts a new skin** — choosing one in *Models* now creates a new skin in *My skins*, under the model's name, and the skin you were editing stays as it was.
+- **Cleaner folded panels** — a folded panel shows its name down a thin bar; click anywhere on the bar to open it again.
+
+### Fixed
+- The library search ignores accents even before the server answers: typing `chatains` finds "Châtains".
+
 ## 0.5.0 — 2026-10-01
 
 ### New

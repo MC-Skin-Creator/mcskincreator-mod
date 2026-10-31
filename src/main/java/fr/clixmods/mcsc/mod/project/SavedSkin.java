@@ -7,6 +7,7 @@
  */
 package fr.clixmods.mcsc.mod.project;
 
+import java.util.Collection;
 import java.util.UUID;
 
 import com.google.gson.JsonElement;
@@ -27,6 +28,22 @@ public record SavedSkin(String id, String name, long at, JsonObject data) {
     /** A fresh identifier, also the name of the entry's file: letters, digits and dashes. */
     public static String newId() {
         return UUID.randomUUID().toString();
+    }
+
+    /**
+     * {@code base}, or {@code base (2)}, {@code base (3)} and so on when the library
+     * already holds an entry of that name. Two entries may share a name, but two
+     * identical cards side by side say nothing about which one is which.
+     */
+    public static String uniqueName(String base, Collection<String> taken) {
+        if (!taken.contains(base)) {
+            return base;
+        }
+        int number = 2;
+        while (taken.contains(base + " (" + number + ")")) {
+            number++;
+        }
+        return base + " (" + number + ")";
     }
 
     /** What is written to the entry's file, besides its identifier. */

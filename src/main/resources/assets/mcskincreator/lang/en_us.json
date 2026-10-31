@@ -202,6 +202,7 @@
   "gui.mcskincreator.models.tooltip": "Start again from a whole character",
   "window.mcskincreator.models": "Starter models",
   "toast.mcskincreator.model_applied": "%s: %s layers",
+  "toast.mcskincreator.model_opened": "%s is in My skins: %s layers",
   "toast.mcskincreator.outfit_applied": "%s put on: %s layers",
   "toast.mcskincreator.model_empty": "Nothing left of it in the catalogue",
   "window.mcskincreator.models.notice": "A whole character. Choosing one replaces everything you have stacked — one undo brings it back.",

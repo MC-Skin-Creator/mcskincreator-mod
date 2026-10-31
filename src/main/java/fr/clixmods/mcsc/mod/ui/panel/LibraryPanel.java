@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -37,6 +36,7 @@ import fr.clixmods.mcsc.mod.ui.Paint;
 import fr.clixmods.mcsc.mod.ui.ScrollPane;
 import fr.clixmods.mcsc.mod.ui.widget.Dropdown;
 import fr.clixmods.mcsc.mod.ui.widget.ItemTile;
+import fr.clixmods.mcsc.mod.ui.widget.PanelRail;
 import fr.clixmods.mcsc.mod.ui.widget.PixelButton;
 import fr.clixmods.mcsc.mod.ui.widget.TextInput;
 import fr.clixmods.mcsc.mod.ui.widget.Thumbnail;
@@ -91,6 +91,8 @@ public class LibraryPanel extends Panel {
     private Catalog catalog = Catalog.EMPTY;
     private TextInput search;
     private PixelButton foldButton;
+    /** The folded column's name and unfold target, or null while the panel is open. */
+    private PanelRail rail;
     /** The query the results below answer, which is not always the one being typed. */
     private String answeredQuery = "";
     private List<SearchResults.Hit> hits = List.of();
@@ -317,11 +319,20 @@ public class LibraryPanel extends Panel {
         this.foldButton.setBounds(0, 0, Metrics.HEADER_BUTTON, Metrics.HEADER_BUTTON);
         this.foldButton.fit(canvas);
 
+        this.rail = null;
         if (folded()) {
-            // Folded, the header carries the unfold button and nothing else.
+            // Folded, the header carries the unfold button and nothing else, and the
+            // column under it carries the panel's name.
             this.foldButton.setBounds(this.x + (this.width - this.foldButton.width()) / 2,
                     headerButtonY(), this.foldButton.width(), Metrics.HEADER_BUTTON);
             addChild(this.foldButton);
+            PanelRail built = rail(() -> {
+                toggleFolded();
+                this.relayout.run();
+            });
+            if (built.height() > 0) {
+                this.rail = addChild(built);
+            }
             return;
         }
 
@@ -532,7 +543,7 @@ public class LibraryPanel extends Panel {
         String needle = this.search.value().trim();
         return needle.equals(this.answeredQuery) && !this.hits.isEmpty()
                 ? matched(batches)
-                : filtered(batches, needle.toLowerCase(Locale.ROOT));
+                : filtered(batches, CatalogText.fold(needle));
     }
 
     /**
@@ -554,13 +565,17 @@ public class LibraryPanel extends Panel {
         return batches;
     }
 
-    /** What the panel can match on its own: the labels of the player's language. */
+    /**
+     * What the panel can match on its own: the labels of the player's language, case
+     * and accents folded on both sides as the server folds them, so the answer does
+     * not change its mind about "chatains" once the server's arrives.
+     */
     private Map<CatalogCategory, List<CatalogItem>> filtered(
             Map<CatalogCategory, List<CatalogItem>> batches, String needle) {
         for (CatalogCategory candidate : this.catalog.categories()) {
             List<CatalogItem> matches = candidate.items().stream()
-                    .filter(item -> this.naming.apply(item.name()).getString()
-                            .toLowerCase(Locale.ROOT).contains(needle))
+                    .filter(item -> CatalogText.fold(this.naming.apply(item.name()).getString())
+                            .contains(needle))
                     .toList();
             if (!matches.isEmpty()) {
                 batches.put(candidate, new ArrayList<>(matches));
@@ -646,6 +661,9 @@ public class LibraryPanel extends Panel {
         drawFrame(paint);
         this.foldButton.draw(paint);
         if (folded()) {
+            if (this.rail != null) {
+                this.rail.draw(paint);
+            }
             return;
         }
 
@@ -743,6 +761,9 @@ public class LibraryPanel extends Panel {
         List<Element> targets = new ArrayList<>();
         targets.add(this.foldButton);
         if (folded()) {
+            if (this.rail != null) {
+                targets.add(this.rail);
+            }
             return targets;
         }
         targets.addAll(this.regionTabs);

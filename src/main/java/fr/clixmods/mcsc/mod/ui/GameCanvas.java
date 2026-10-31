@@ -193,6 +193,29 @@ public final class GameCanvas implements Canvas {
         }
     }
 
+    @Override
+    public void textTrackedDown(String text, int x, int y, int argb, int tracking) {
+        // Turned about the strip's top-right corner: the line's advance runs down the
+        // screen and the tops of the letters face right, as the site's vertical text.
+        //? if >=1.21.6 {
+        Matrix3x2fStack pose = this.graphics.pose();
+        pose.pushMatrix();
+        pose.translate((float) (x + lineHeight()), (float) y);
+        pose.rotate((float) (Math.PI / 2));
+        //?} else {
+        /*PoseStack pose = this.graphics.pose();
+        pose.pushPose();
+        pose.translate((float) (x + lineHeight()), (float) y, 0.0F);
+        pose.mulPose(new Quaternionf().rotateZ((float) (Math.PI / 2)));
+        *///?}
+        textTracked(text, 0, 0, argb, tracking);
+        //? if >=1.21.6 {
+        pose.popMatrix();
+        //?} else {
+        /*pose.popPose();
+        *///?}
+    }
+
     /** Width {@link #textTracked} will take. */
     @Override
     public int trackedWidth(String text, int tracking) {
