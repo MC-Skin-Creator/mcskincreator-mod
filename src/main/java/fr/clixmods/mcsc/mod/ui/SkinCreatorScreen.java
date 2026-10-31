@@ -325,7 +325,7 @@ public class SkinCreatorScreen extends Screen {
             this.scene = new ScenePanel(this.preview, new PlayerFigure(this.preview),
                     new GameCamera(Minecraft.getInstance()),
                     this::relayout, () -> this.hoveredLabel);
-            this.layers = new LayersPanel(this.project, () -> catalog, this.sprites::get,
+            this.layers = new LayersPanel(this.project, this.sprites::get,
                     this.history, this::relayout, this::revealLibrary, this::openImport,
                     this::peekLayer, this::openColor);
             this.chrome = new EditorChrome(this.topBar, this.library, this.scene, this.layers,

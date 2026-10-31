@@ -12,11 +12,9 @@ import java.util.List;
 import java.util.Locale;
 
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import com.mojang.blaze3d.platform.InputConstants;
 
-import fr.clixmods.mcsc.mod.catalog.Catalog;
 import fr.clixmods.mcsc.mod.project.History;
 import fr.clixmods.mcsc.mod.project.Layer;
 import fr.clixmods.mcsc.mod.project.SkinProject;
@@ -38,14 +36,13 @@ import fr.clixmods.mcsc.mod.ui.widget.Slider;
 import net.minecraft.network.chat.Component;
 
 /**
- * The right column: the stack, grouped by region, with the selected layer's settings
- * under it — all of it in one scroll.
+ * The right column: the stack, with the selected layer's settings under it.
  *
  * <p>The stack is stored bottom to top, the order the sheet composes in, and shown the
- * other way up — the layer on top of the skin is the one at the top of the list. Each
- * region is its own group with a rule and a count, and dragging moves a row within its
- * own region only: a hat cannot be dragged below a pair of trousers, because on the
- * model it never is.
+ * other way up — the layer on top of the skin is the one at the top of the list. It is
+ * one list, not a group per region: the rows are in exactly the order they are
+ * composed in, and a row drags past any neighbour, so a hat can go under the hair.
+ * Grouping by region showed an order the sheet did not have, and forbade that hat.
  *
  * <p>The list scrolls and the settings do not. They are a fixed panel at the foot of
  * the column: what is being adjusted stays under the hand while the list moves, and a
@@ -60,7 +57,6 @@ import net.minecraft.network.chat.Component;
  */
 public class LayersPanel extends Panel {
     private final SkinProject project;
-    private final Supplier<Catalog> catalog;
     private final Function<String, CategorySprites> sprites;
     private final History history;
     private final Runnable relayout;
@@ -71,7 +67,6 @@ public class LayersPanel extends Panel {
 
     private final ScrollPane scroll = new ScrollPane();
     private final List<PlacedRow> rows = new ArrayList<>();
-    private final List<GroupTitle> titles = new ArrayList<>();
     /** The header's controls and the settings, none of which scroll. */
     private final List<Element> fixed = new ArrayList<>();
     /** The settings only, so the band they live in can be drawn and clipped on its own. */
@@ -87,19 +82,13 @@ public class LayersPanel extends Panel {
     private record PlacedRow(LayerRow row, int contentY) {
     }
 
-
-
-    private record GroupTitle(String region, int count, int contentY) {
-    }
-
-    public LayersPanel(SkinProject project, Supplier<Catalog> catalog,
+    public LayersPanel(SkinProject project,
                        Function<String, CategorySprites> sprites, History history,
                        Runnable relayout, Runnable onAddRequested, Runnable onImportRequested,
                        java.util.function.Consumer<Layer> onPeek,
                        java.util.function.BiConsumer<Layer, String> onColorRequested) {
         super("panel.mcskincreator.layers", false);
         this.project = project;
-        this.catalog = catalog;
         this.sprites = sprites;
         this.history = history;
         this.relayout = relayout;
@@ -114,7 +103,6 @@ public class LayersPanel extends Panel {
         clearChildren();
         this.rows.clear();
         this.settings.clear();
-        this.titles.clear();
         this.fixed.clear();
 
         int header = headerHeight(canvas);
@@ -206,52 +194,33 @@ public class LayersPanel extends Panel {
     }
 
     private void layoutStack(Canvas canvas, int left, int right) {
-        int titleHeight = canvas.smallLineHeight() + Metrics.PAD_TIGHT;
         // The rail's gutter is only taken when there is a rail. This list is a handful
         // of rows and they are the width of the column, so reserving a gutter that is
         // never used left a strip of nothing down the right of every one of them — and
         // unlike the element grid, a stack of rows changing width by nine pixels when
         // it overflows is not something anybody notices.
-        int gutter = stackHeight(canvas, titleHeight) > this.bodyHeight
+        int gutter = stackHeight() > this.bodyHeight
                 ? ScrollPane.BAR_WIDTH + Metrics.PAD_TIGHT : 0;
         int rowWidth = right - left - gutter;
         int cursorY = 0;
 
-        // Regions run top to bottom in the catalogue's own order, and each region shows
-        // its own layers topmost first.
-        for (String region : this.project.regionsInUse(this.catalog.get().regions())) {
-            List<Layer> inRegion = this.project.displayOrder(region);
-            if (inRegion.isEmpty()) {
-                continue;
-            }
-            this.titles.add(new GroupTitle(region, inRegion.size(), cursorY));
-            cursorY += titleHeight;
-            for (Layer layer : inRegion) {
-                LayerRow row = new LayerRow(layer,
-                        () -> this.sprites.apply(layer.categoryId()), this.project::isSlim,
-                        this.project::selected,
-                        this::select, this::toggleVisible, this::duplicate, this::remove,
-                        this::grab, this.onPeek);
-                row.setBounds(left, cursorY, rowWidth, Metrics.LAYER_ROW);
-                this.rows.add(new PlacedRow(addChild(row), cursorY));
-                cursorY += Metrics.LAYER_ROW + Metrics.SEGMENT_GAP;
-            }
+        // Topmost first, the whole stack in the order it is composed in.
+        for (Layer layer : this.project.displayOrder()) {
+            LayerRow row = new LayerRow(layer,
+                    () -> this.sprites.apply(layer.categoryId()), this.project::isSlim,
+                    this.project::selected,
+                    this::select, this::toggleVisible, this::duplicate, this::remove,
+                    this::grab, this.onPeek);
+            row.setBounds(left, cursorY, rowWidth, Metrics.LAYER_ROW);
+            this.rows.add(new PlacedRow(addChild(row), cursorY));
+            cursorY += Metrics.LAYER_ROW + Metrics.SEGMENT_GAP;
         }
         this.scroll.setContent(cursorY, this.bodyHeight);
     }
 
     /** How tall the stack will come out, worked out before anything is placed. */
-    private int stackHeight(Canvas canvas, int titleHeight) {
-        int total = 0;
-        for (String region : this.project.regionsInUse(this.catalog.get().regions())) {
-            List<Layer> inRegion = this.project.displayOrder(region);
-            if (inRegion.isEmpty()) {
-                continue;
-            }
-            total += titleHeight
-                    + inRegion.size() * (Metrics.LAYER_ROW + Metrics.SEGMENT_GAP);
-        }
-        return total;
+    private int stackHeight() {
+        return this.project.layers().size() * (Metrics.LAYER_ROW + Metrics.SEGMENT_GAP);
     }
 
     /**
@@ -409,7 +378,6 @@ public class LayersPanel extends Panel {
 
         place();
         canvas.pushScissor(left, this.bodyTop, right - left, this.bodyHeight);
-        int offset = this.bodyTop - this.scroll.offset();
 
         if (this.rows.isEmpty()) {
             // One sentence, not two. With no layers there is nothing to select either,
@@ -418,9 +386,6 @@ public class LayersPanel extends Panel {
             drawEmptyState(canvas, Component.translatable("empty.mcskincreator.layers"),
                     left, railRight, this.bodyTop, this.bodyHeight);
         } else {
-            for (GroupTitle title : this.titles) {
-                drawGroupTitle(canvas, title, left, railRight, offset + title.contentY());
-            }
             for (PlacedRow placed : this.rows) {
                 if (onScreen(placed.row())) {
                     placed.row().draw(paint);
@@ -442,24 +407,6 @@ public class LayersPanel extends Panel {
         canvas.popScissor();
     }
 
-    private void drawGroupTitle(Canvas canvas, GroupTitle title, int left, int right, int y) {
-        // Small, and without the tracking the panel titles carry: letters spaced apart
-        // at half size stop being a word. It is a divider between groups of rows, and
-        // the rows it divides are the point.
-        String name = LibraryPanel.regionLabel(title.region()).getString().toUpperCase(Locale.ROOT);
-        canvas.textSmall(Component.literal(name), left, y, Palette.INK_MUTED);
-        int nameWidth = canvas.smallTextWidth(name);
-
-        String count = Integer.toString(title.count());
-        int countWidth = canvas.smallTextWidth(count);
-        int ruleX = left + nameWidth + Metrics.PAD_TIGHT;
-        int ruleWidth = right - countWidth - Metrics.PAD_TIGHT - ruleX;
-        if (ruleWidth > 0) {
-            Surface.rule(canvas, ruleX, y + canvas.smallLineHeight() / 2, ruleWidth);
-        }
-        canvas.textSmall(Component.literal(count), right - countWidth, y, Palette.INK_FAINT);
-    }
-
     /** The settings, drawn where the scroll has put them: a heading, then the controls. */
     private void drawSettings(Paint paint, int left, int right, int top) {
         Canvas canvas = paint.canvas();
@@ -477,7 +424,7 @@ public class LayersPanel extends Panel {
         }
 
         // Ruled off from the list above it: these settings belong to one row of that
-        // list, and without a line the heading reads as one more group of it.
+        // list, and without a line the heading reads as one more row of it.
         // The list runs under this band rather than stopping at it, so the band needs a
         // hard edge. A row cut off by a grey hairline alone reads as a broken row; cut
         // off by black, it reads as a row that carries on underneath.
@@ -485,8 +432,7 @@ public class LayersPanel extends Panel {
                 Palette.OUTLINE);
         Surface.rule(canvas, left, top + 1, Math.max(0, right - left));
 
-        // Small, like the group titles above it: this labels a band of controls, it does
-        // not title the column — and the layer's name is already on the row it came from,
+        // Small: this labels a band of controls, it does not title the column — and the layer's name is already on the row it came from,
         // so shouting it again here made the two look like different things.
         int titleY = top + 1 + Metrics.PAD_TIGHT;
         String title = Component.translatable("gui.mcskincreator.settings").getString()

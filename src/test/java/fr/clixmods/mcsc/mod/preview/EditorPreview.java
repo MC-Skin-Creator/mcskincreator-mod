@@ -81,7 +81,7 @@ public final class EditorPreview {
                 () -> Component.translatable("library.mcskincreator.empty"));
         this.scene = new ScenePanel(this.preview, new PreviewFigure(), new GameCamera(null),
                 this::invalidate, () -> null);
-        this.layers = new LayersPanel(this.project, () -> this.catalog, id -> null, this.history,
+        this.layers = new LayersPanel(this.project, id -> null, this.history,
                 this::invalidate, () -> { }, () -> { }, layer -> { }, (layer, key) -> { });
         this.chrome = new EditorChrome(this.topBar, this.library, this.scene, this.layers,
                 this::invalidate);

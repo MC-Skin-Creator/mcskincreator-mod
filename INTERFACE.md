@@ -2,8 +2,8 @@
 
 The mod brings the [MC Skin Creator](https://mcskincreator.app/) editor into the game.
 What it takes from the site is both the **arrangement** — three zones, a fixed row of
-category tabs, the stack grouped by region, the gestures — and the **paint**: four
-materials, one accent colour, a black outline on everything.
+category tabs, the stack listed in the order it is composed in, the gestures — and the
+**paint**: four materials, one accent colour, a black outline on everything.
 
 What it takes from Minecraft is what Minecraft is right about: its font, its GUI scale,
 its widget mechanics, and the player model in the scene.
