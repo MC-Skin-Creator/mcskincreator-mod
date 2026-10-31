@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -544,7 +543,7 @@ public class LibraryPanel extends Panel {
         String needle = this.search.value().trim();
         return needle.equals(this.answeredQuery) && !this.hits.isEmpty()
                 ? matched(batches)
-                : filtered(batches, needle.toLowerCase(Locale.ROOT));
+                : filtered(batches, CatalogText.fold(needle));
     }
 
     /**
@@ -566,13 +565,17 @@ public class LibraryPanel extends Panel {
         return batches;
     }
 
-    /** What the panel can match on its own: the labels of the player's language. */
+    /**
+     * What the panel can match on its own: the labels of the player's language, case
+     * and accents folded on both sides as the server folds them, so the answer does
+     * not change its mind about "chatains" once the server's arrives.
+     */
     private Map<CatalogCategory, List<CatalogItem>> filtered(
             Map<CatalogCategory, List<CatalogItem>> batches, String needle) {
         for (CatalogCategory candidate : this.catalog.categories()) {
             List<CatalogItem> matches = candidate.items().stream()
-                    .filter(item -> this.naming.apply(item.name()).getString()
-                            .toLowerCase(Locale.ROOT).contains(needle))
+                    .filter(item -> CatalogText.fold(this.naming.apply(item.name()).getString())
+                            .contains(needle))
                     .toList();
             if (!matches.isEmpty()) {
                 batches.put(candidate, new ArrayList<>(matches));
