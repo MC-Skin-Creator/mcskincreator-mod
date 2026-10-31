@@ -1,5 +1,15 @@
 # MC Skin Creator — Journal des modifications du mod
 
+## Prochaine version
+
+### Améliorations
+- **Les calques dans l'ordre que vous voulez** — les calques ne sont plus rangés par partie du corps : glissez n'importe quel calque au-dessus ou en dessous de n'importe quel autre, un chapeau sous les cheveux par exemple. Vos skins enregistrés restent exactement les mêmes.
+- **Un modèle crée un nouveau skin** — en choisir un dans *Modèles* crée maintenant un nouveau skin dans *Mes skins*, au nom du modèle, et le skin que vous modifiiez reste tel quel.
+- **Des panneaux repliés plus clairs** — un panneau replié affiche son nom le long d'une fine barre ; cliquez n'importe où sur la barre pour le rouvrir.
+
+### Corrections
+- La recherche de la bibliothèque ignore les accents même avant la réponse du serveur : taper `chatains` trouve « Châtains ».
+
 ## 0.5.0 — 2026-10-01
 
 ### Nouveautés
