@@ -202,6 +202,7 @@
   "gui.mcskincreator.models.tooltip": "Repartir d'un personnage entier",
   "window.mcskincreator.models": "Modèles de départ",
   "toast.mcskincreator.model_applied": "%s : %s calques",
+  "toast.mcskincreator.model_opened": "%s est dans Mes skins : %s calques",
   "toast.mcskincreator.outfit_applied": "%s enfilée : %s calques",
   "toast.mcskincreator.model_empty": "Il n'en reste rien au catalogue",
   "window.mcskincreator.models.notice": "Un personnage entier. En choisir un remplace tout ce que vous avez empilé — une annulation le rend.",

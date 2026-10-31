@@ -202,6 +202,7 @@
   "gui.mcskincreator.models.tooltip": "Empezar de nuevo desde un personaje entero",
   "window.mcskincreator.models": "Modelos de inicio",
   "toast.mcskincreator.model_applied": "%s: %s capas",
+  "toast.mcskincreator.model_opened": "%s está en Mis skins: %s capas",
   "toast.mcskincreator.outfit_applied": "%s puesto: %s capas",
   "toast.mcskincreator.model_empty": "No queda nada de él en el catálogo",
   "window.mcskincreator.models.notice": "Un personaje entero. Elegir uno reemplaza todo lo que has apilado — deshacer lo devuelve.",
